@@ -28,7 +28,7 @@ const sections: TermsSection[] = [
     id: "section-2",
     title: "Description of Service",
     paragraphs: [
-      "MiDukandar provides software tools that help businesses manage day-to-day commercial operations. Depending on the plan and current availability, the Service may include point-of-sale billing (POS), invoices, customer and udhaari ledgers, inventory and product management, business reports, GST-related reports or exports, staff access, multi-store management, and sharing of invoices through third-party channels.",
+      "MiDukandar provides software tools that help businesses manage day-to-day commercial operations. Depending on the plan and current availability, the Service may include billing and invoices, customer and udhaari ledgers, inventory and product management, business reports, GST-related reports or exports, staff access, multi-store management, and sharing of invoices through third-party channels.",
       "Features may change as the Service evolves. A feature shown on the pricing page or in the application is not a promise that it will be available in every plan, jurisdiction, device, or at all times. We may add, modify, suspend, or discontinue features as our business and technology needs change.",
     ],
   },

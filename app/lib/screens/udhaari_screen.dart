@@ -693,7 +693,6 @@ class _UdhaariScreenState extends State<UdhaariScreen> {
                     MdPickerOption(value: 'CASH', label: _modeLabel(l, 'CASH'), icon: Icons.currency_rupee_outlined),
                     MdPickerOption(value: 'UPI', label: _modeLabel(l, 'UPI'), icon: Icons.phone_iphone_outlined),
                     MdPickerOption(value: 'CARD', label: _modeLabel(l, 'CARD'), icon: Icons.credit_card_outlined),
-                    MdPickerOption(value: 'BANK', label: _modeLabel(l, 'BANK'), icon: Icons.account_balance_outlined),
                   ],
                   onChanged: (v) => setSheetState(() => mode = v),
                 ),

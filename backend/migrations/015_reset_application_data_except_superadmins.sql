@@ -14,7 +14,7 @@ BEGIN
   FROM information_schema.tables
   WHERE table_schema = 'public'
     AND table_type = 'BASE TABLE'
-    AND table_name NOT IN ('super_admins', 'schema_migrations');
+    AND table_name NOT IN ('super_admins', 'schema_migrations', 'plans', 'plan_modules', 'platform_settings');
 
   IF table_list IS NOT NULL THEN
     EXECUTE format('TRUNCATE TABLE %s RESTART IDENTITY CASCADE', table_list);

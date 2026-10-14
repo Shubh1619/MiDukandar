@@ -68,7 +68,7 @@ export const PLAN_MODULE_GROUPS: PlanModuleGroup[] = [
 
 export const PLAN_MODULE_LABELS: Record<PlanModuleKey, string> = {
   DASHBOARD: "Dashboard",
-  BILLING: "Billing / POS",
+  BILLING: "Billing",
   PRODUCTS: "Products",
   INVENTORY: "Inventory",
   SALES_INVOICES: "Sales & Invoices",
@@ -93,7 +93,7 @@ export const PLAN_LIMIT_LABELS: Partial<Record<PlanModuleKey, string>> = {
 
 export const PLAN_COMPARISON_ROWS: Array<{ label: string; moduleKey?: PlanModuleKey; ads?: boolean }> = [
   { label: "Dashboard", moduleKey: "DASHBOARD" },
-  { label: "Billing / POS", moduleKey: "BILLING" },
+  { label: "Billing", moduleKey: "BILLING" },
   { label: "Products", moduleKey: "PRODUCTS" },
   { label: "Inventory", moduleKey: "INVENTORY" },
   { label: "Sales & Invoices", moduleKey: "SALES_INVOICES" },

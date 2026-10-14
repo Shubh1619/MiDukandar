@@ -57,7 +57,7 @@ export async function requestOtp(email: string, purpose: OtpPurpose = "LOGIN") {
 export async function verifyOtp(email: string, otp: string, purpose: OtpPurpose = "LOGIN") {
   const normalized = email.trim().toLowerCase();
 
-  const latest = await qOne<{ id: string; otpHash: string; expiresAt: Date; attemptS: number }>(
+  const latest = await qOne<{ id: string; otpHash: string; expiresAt: Date; attempts: number }>(
     `SELECT id, otp_hash, expires_at, attempts FROM otps
      WHERE email=$1 AND purpose=$2 AND verified=FALSE ORDER BY created_at DESC LIMIT 1`,
     [normalized, purpose],
@@ -79,7 +79,7 @@ export async function verifyOtp(email: string, otp: string, purpose: OtpPurpose 
   if (latest.expiresAt < new Date()) {
     throw ApiError.badRequestCode("OTP has expired. Request a new code.", "OTP_EXPIRED");
   }
-  if (latest.attemptS >= 5) {
+  if (latest.attempts >= 5) {
     throw ApiError.badRequestCode("Too many attempts. Request a new code.", "OTP_ATTEMPTS_EXCEEDED");
   }
   if (latest.otpHash !== hash) {

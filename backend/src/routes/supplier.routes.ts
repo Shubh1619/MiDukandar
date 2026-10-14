@@ -124,7 +124,6 @@ export async function supplierRoutes(app: FastifyInstance) {
     { preHandler: [authenticate, requireRole(ROLES.OWNER, ROLES.MANAGER)] },
     async (request: AuthenticatedRequest, reply) => {
       const storeId = requireStore(request);
-      console.log('POST /api/suppliers payload:', request.body);
       const body = parse(supplierSchema, request.body);
       const supplier = await qOne<Row>(
         `INSERT INTO suppliers (store_id, name, phone, email, gstin, address, category)
