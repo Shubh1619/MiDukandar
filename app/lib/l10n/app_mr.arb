@@ -1,0 +1,969 @@
+{
+  "@@locale": "mr",
+  "@authCodeSentTo": {
+    "placeholders": {
+      "email": {
+        "type": "String"
+      }
+    }
+  },
+  "@authDevMode": {
+    "placeholders": {
+      "masterCode": {
+        "type": "String"
+      }
+    }
+  },
+  "@authOtpInstructions": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "@authResendIn": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "@billCustomerLine": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "@billDateLine": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "@billDueAmount": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "@billLineItem": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "qty": {
+        "type": "String"
+      }
+    }
+  },
+  "@billMobileLine": {
+    "placeholders": {
+      "number": {
+        "type": "String"
+      }
+    }
+  },
+  "@billModeLine": {
+    "placeholders": {
+      "mode": {
+        "type": "String"
+      }
+    }
+  },
+  "@billNoteLine": {
+    "placeholders": {
+      "note": {
+        "type": "String"
+      }
+    }
+  },
+  "@billPayAmount": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "@custDeleteConfirm": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "@dashHeaderSubtitle": {
+    "placeholders": {
+      "storeName": {
+        "type": "String"
+      }
+    }
+  },
+  "@errAdjustStock": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "@errArchiveProduct": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "@errCreateCustomer": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "@errCreateExpense": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "@errCreateInvoice": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "@errCreateProduct": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "@errCreatePurchase": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "@errCreateSupplier": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "@errDeleteCustomer": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "@errInviteUser": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "@errMarkPaid": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "@errRecordPayment": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "@errRefreshFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "@errUpdateCustomer": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "@errUpdateProduct": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "@invnAdjustFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "@invnAdjustStockTitle": {
+    "placeholders": {
+      "product": {
+        "type": "String"
+      }
+    }
+  },
+  "@invnCurrentBalance": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "@invnMrp": {
+    "placeholders": {
+      "price": {
+        "type": "String"
+      }
+    }
+  },
+  "@paymReference": {
+    "placeholders": {
+      "type": {
+        "type": "String"
+      },
+      "id": {
+        "type": "String"
+      }
+    }
+  },
+  "@prodAdjustStockTitle": {
+    "placeholders": {
+      "productName": {
+        "type": "String"
+      }
+    }
+  },
+  "@prodArchiveMessage": {
+    "placeholders": {
+      "productName": {
+        "type": "String"
+      }
+    }
+  },
+  "@prodCurrently": {
+    "placeholders": {
+      "stock": {
+        "type": "String"
+      },
+      "unit": {
+        "type": "String"
+      }
+    }
+  },
+  "@prodLowQty": {
+    "placeholders": {
+      "qty": {
+        "type": "String"
+      }
+    }
+  },
+  "@prodProductMeta": {
+    "placeholders": {
+      "category": {
+        "type": "String"
+      },
+      "unit": {
+        "type": "String"
+      }
+    }
+  },
+  "@prodProductMetaSku": {
+    "placeholders": {
+      "category": {
+        "type": "String"
+      },
+      "unit": {
+        "type": "String"
+      },
+      "sku": {
+        "type": "String"
+      }
+    }
+  },
+  "@prodStockQty": {
+    "placeholders": {
+      "qty": {
+        "type": "String"
+      }
+    }
+  },
+  "@purchDueAmount": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "@settingsSaveFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "@signedInAs": {
+    "placeholders": {
+      "email": {
+        "type": "String"
+      }
+    }
+  },
+  "@suppAcrossOpenAccounts": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "@suppLastDate": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "@suppPayableAmount": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "@suppPurchasesAmount": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "@suppXOutstanding": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "@suppXOverdue": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "@suppXSettled": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "@udhrEntryAmount": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "@udhrEntryBalance": {
+    "placeholders": {
+      "balance": {
+        "type": "String"
+      }
+    }
+  },
+  "@udhrLastEntry": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "@udhrLoadEntriesFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "@udhrOutstandingBalance": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "@udhrPaidVia": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      },
+      "mode": {
+        "type": "String"
+      }
+    }
+  },
+  "@udhrPaidViaNote": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      },
+      "mode": {
+        "type": "String"
+      },
+      "note": {
+        "type": "String"
+      }
+    }
+  },
+  "@udhrReceivePaymentFrom": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "@udhrTotalAmount": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "@userAllUsers": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "@userJoinedAt": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "@userYouLabel": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "add": "जोडा",
+  "address": "पत्ता",
+  "amount": "रक्कम",
+  "appTitle": "स्मार्ट बिझनेस",
+  "authChangeEmail": "ईमेल बदला",
+  "authCodeSentNotice": "लॉगिन कोड पाठवला आहे. पडताळणी कोडसाठी तुमचा ईमेल तपासा.",
+  "authCodeSentTo": "{email} वर लॉगिन कोड पाठवला आहे.",
+  "authDevMode": "डेव्ह मोड: मास्टर कोड {masterCode} आहे. कोणताही ईमेल पाठवला नाही.",
+  "authEmail": "ईमेल पत्ता",
+  "authEnterEmail": "तुमचा ईमेल पत्ता प्रविष्ट करा.",
+  "authEnterOtp": "पडताळणी कोड प्रविष्ट करा",
+  "authErrSendOtp": "OTP पाठवता आला नाही. कृपया पुन्हा प्रयत्न करा.",
+  "authErrVerify": "पडताळणी अयशस्वी झाली. कृपया पुन्हा प्रयत्न करा.",
+  "authUnableToConnect": "MiDukandar ला कनेक्ट करता आले नाही. कृपया तुमचा इंटरनेट कनेक्शन तपासा आणि पुन्हा प्रयत्न करा.",
+  "authServiceUnavailable": "MiDukandar सेवा तात्पुरती उपलब्ध नाही. कृपया थोड्या वेळाने पुन्हा प्रयत्न करा.",
+  "authConnectionTimeout": "कनेक्शन वेळ संपले. कृपया पुन्हा प्रयत्न करा.",
+  "authAccountNotFound": "खाते सापडले नाही. कृपया तुमचा ईमेल तपासा किंवा व्यवसाय नोंदवा.",
+  "authTryAgain": "पुन्हा प्रयत्न करा",
+  "authOtpSent": "OTP पाठवले",
+  "authGetOtp": "OTP मिळवा",
+  "authInvalidEmail": "वैध ईमेल पत्ता प्रविष्ट करा.",
+  "authNoAccount": "तुमचे खाते नाही का?",
+  "authOtpInstructions": "तुमच्या ईमेलमधील 6-अंकी कोड टाइप करा. कोड {time} मध्ये संपेल.",
+  "authOtpPlaceholder": "• • • • • •",
+  "authOtpTooShort": "कृपया आम्ही पाठवलेला 4-6 अंकी कोड प्रविष्ट करा.",
+  "authRegisterBusiness": "तुमचा व्यवसाय नोंदणी करा",
+  "authResendCode": "कोड पुन्हा पाठवा",
+  "authResendIn": "{time} मध्ये कोड पुन्हा पाठवा",
+  "authSendingOtp": "OTP पाठवले जात आहे...",
+  "authSignInBadge": "साइन इन",
+  "authSignInSubtitle": "तुमचे दुकान व्यवस्थापित करण्यासाठी आणि व्यवसाय पुढे नेण्यासाठी साइन इन करा.",
+  "authSigningIn": "साइन इन होत आहे...",
+  "authVerifyAndSignIn": "पडताळा करा आणि साइन इन करा",
+  "authWelcomeBack": "पुन्हा स्वागत आहे",
+  "back": "मागे",
+  "billAddInvoice": "इनव्हॉइस जोडा",
+  "billAll": "सर्व",
+  "billCreatedFromMobileApp": "मोबाइल अ‍ॅपवरून तयार केले",
+  "billCustomerLine": "ग्राहक: {name}",
+  "billCustomerName": "ग्राहकाचे नाव",
+  "billDateLine": "दिनांक: {date}",
+  "billDue": "थकीत",
+  "billDueAmount": "थकीत {amount}",
+  "billEditInvoice": "इनव्हॉइस संपादित करा",
+  "billGenericItem": "सामान्य वस्तू",
+  "billInvoices": "इनव्हॉइस",
+  "billLineItem": "{name} x {qty}",
+  "billMobileLine": "मोबाइल: {number}",
+  "billMode": "पद्धत",
+  "billModeBank": "बँक",
+  "billModeCard": "कार्ड",
+  "billModeCash": "रोख",
+  "billModeLine": "पद्धत: {mode}",
+  "billModeUpi": "UPI",
+  "billNewInvoice": "नवीन इनव्हॉइस",
+  "billNoLineItems": "कोणत्याही वस्तू नाहीत",
+  "billNoMatchingInvoices": "कोणतेही जुळणारे इनव्हॉइस नाहीत",
+  "billNoteLine": "टीप: {note}",
+  "billPaidAmount": "भरलेली रक्कम",
+  "billPayAmount": "{amount} भरा",
+  "billQty": "प्रमाण",
+  "billRevenue": "महसूल",
+  "billSearchPlaceholder": "ग्राहक किंवा इनव्हॉइस शोधा",
+  "billUdhaar": "उधार",
+  "billUnitPrice": "एकक किंमत",
+  "billWalkInCustomer": "वॉक-इन ग्राहक",
+  "cancel": "रद्द करा",
+  "city": "शहर",
+  "close": "बंद करा",
+  "confirm": "पुष्टी करा",
+  "custAddTitle": "ग्राहक जोडा",
+  "custDeleteConfirm": "ग्राहक \"{name}\" हटवायचा? हे पूर्ववत करता येणार नाही.",
+  "custDeleteTitle": "ग्राहक हटवा",
+  "custEditTitle": "ग्राहक संपादित करा",
+  "custNameLabel": "ग्राहकाचे नाव",
+  "custNoMobile": "मोबाइल नंबर नाही",
+  "dashCustomerUdhaari": "ग्राहक उधारी",
+  "dashCustomerUdhaariSub": "एकूण थकीत लेजर",
+  "dashHeaderSubtitle": "{storeName} ची आजची कामगिरी",
+  "dashLowStock": "कमी स्टॉक",
+  "dashLowStockSub": "किमान स्टॉक पातळीच्या खाली उत्पादने",
+  "dashNoTransactions": "अजून कोणतेही व्यवहार नाहीत",
+  "dashNoTransactionsSub": "सेल्स टॅबवरून तुमची पहिली विक्री तयार करा.",
+  "dashProfitToday": "आजचा अंदाजित नफा",
+  "dashProfitTodaySub": "करापूर्वी आजचा मार्जिन",
+  "dashPurchasesToday": "आजची खरेदी",
+  "dashPurchasesTodaySub": "आजची स्टॉक खरेदी",
+  "dashQuickControls": "क्विक कंट्रोल्स",
+  "dashQuickInvoices": "इनव्हॉइस",
+  "dashQuickReports": "अहवाल",
+  "dashRecentTransactions": "अलीकडील व्यवहार",
+  "dashSalesToday": "आजची विक्री",
+  "dashSalesTodaySub": "आजचे पक्के बिल",
+  "dashSupplierPayables": "पुरवठादार देय रक्कम",
+  "dashSupplierPayablesSub": "खुल्या खरेदी बिलांवर देय",
+  "dashTimeAm": "पूर्वाह्न",
+  "dashTimePm": "अपराह्न",
+  "dashTitle": "डॅशबोर्ड",
+  "dashTypePayment": "पेमेंट",
+  "dashTypePurchase": "खरेदी",
+  "dashTypeSale": "विक्री",
+  "dashViewAll": "सर्व पहा",
+  "date": "दिनांक",
+  "delete": "हटवा",
+  "done": "झाले",
+  "edit": "संपादित करा",
+  "errAdjustStock": "स्टॉक दुरुस्त करता आले नाही: {error}",
+  "errArchiveProduct": "उत्पादन संग्रहित करता आले नाही: {error}",
+  "errCreateCustomer": "ग्राहक तयार करता आला नाही: {error}",
+  "errCreateExpense": "खर्च नोंदवता आला नाही: {error}",
+  "errCreateInvoice": "पावती तयार करता आली नाही: {error}",
+  "errCreateProduct": "उत्पादन तयार करता आले नाही: {error}",
+  "errCreatePurchase": "खरेदी तयार करता आली नाही: {error}",
+  "errCreateSupplier": "पुरवठादार तयार करता आला नाही: {error}",
+  "errDeleteCustomer": "ग्राहक हटवता आला नाही: {error}",
+  "errInviteUser": "वापरकर्ता आमंत्रित करता आला नाही: {error}",
+  "errMarkPaid": "पावती भरले म्हणून चिन्हांकित करता आली नाही: {error}",
+  "errRecordPayment": "पेमेंट नोंदवता आले नाही: {error}",
+  "errRefreshFailed": "रिफ्रेश अपयशी: {error}",
+  "errSessionExpired": "तुमचे सत्र संपले आहे. कृपया पुन्हा साइन इन करा.",
+  "errUpdateCustomer": "ग्राहक अपडेट करता आला नाही: {error}",
+  "errUpdateProduct": "उत्पादन अपडेट करता आले नाही: {error}",
+  "expnAddExpense": "खर्च जोडा",
+  "expnByCategory": "श्रेणीनुसार",
+  "expnCategoryOptional": "श्रेणी (ऐच्छिक)",
+  "expnDefaultTitle": "खर्च",
+  "expnExpenseTitle": "खर्चाचे शीर्षक",
+  "expnGeneral": "सामान्य",
+  "expnLastMonth": "मागील महिन्यात",
+  "expnNoExpenses": "अजून खर्च नाही",
+  "expnNoteFromApp": "मोबाइल अॅपवरून तयार केले",
+  "expnOther": "इतर",
+  "expnPaymentBank": "बँक",
+  "expnPaymentCard": "कार्ड",
+  "expnPaymentCash": "रोख",
+  "expnPaymentMode": "पेमेंटची पद्धत",
+  "expnPaymentUpi": "UPI",
+  "expnThisMonth": "या महिन्यात",
+  "invnAddPlus": "जोडा (+)",
+  "invnAdjustFailed": "समायोजन अयशस्वी: {error}",
+  "invnAdjustStockTitle": "{product} — स्टॉक समायोजित करा",
+  "invnAll": "सर्व",
+  "invnBal": "शिल्लक",
+  "invnCurrentBalance": "सध्याची शिल्लक: {value}",
+  "invnGeneral": "सामान्य",
+  "invnHeaderSubtitle": "हालचाल लेजरमधून लाइव्ह स्टॉक",
+  "invnLoadError": "इन्व्हेंटरी लोड करता आली नाही",
+  "invnLowOnly": "फक्त कमी",
+  "invnLowStock": "कमी स्टॉक",
+  "invnManualAdjustment": "मॅन्युअल समायोजन",
+  "invnMovements": "हालचाली",
+  "invnMovementsSubtitle": "फक्त-जोडा हालचाल लेजर",
+  "invnMovementsTitle": "स्टॉक हालचाली",
+  "invnMrp": "MRP {price}",
+  "invnNoMovements": "अजून कोणत्याही हालचाली नाहीत",
+  "invnNoMovementsSub": "विक्री, खरेदी आणि समायोजने येथे दिसतील.",
+  "invnNoSku": "SKU नाही",
+  "invnNoStock": "स्टॉक सापडला नाही",
+  "invnNoStockSub": "सुरुवात करण्यासाठी उत्पादने जोडा किंवा स्टॉक समायोजित करा.",
+  "invnQuantity": "प्रमाण",
+  "invnReason": "कारण",
+  "invnRemoveMinus": "काढा (−)",
+  "invnSearchHint": "उत्पादने शोधा...",
+  "invnStockUpdated": "स्टॉक अपडेट झाले",
+  "invnValueLabel": "इन्व्हेंटरी मूल्य",
+  "loading": "लोड होत आहे...",
+  "mobile": "मोबाइल",
+  "moreExpenses": "खर्च",
+  "moreExpensesSub": "रजिस्टर आणि श्रेणी विभागणी",
+  "moreInventory": "इन्व्हेंटरी",
+  "moreInventorySub": "स्टॉक पातळ्या, कमी स्टॉक आणि हालचाली",
+  "morePayments": "पेमेंट",
+  "morePaymentsSub": "ग्राहक पावती इतिहास",
+  "morePurchases": "खरेदी",
+  "morePurchasesSub": "खरेदी रजिस्टर आणि पेमेंट",
+  "moreReports": "जीएसटी आणि अहवाल",
+  "moreReportsSub": "विक्री, खरेदी, नफा-तोटा आणि जीएसटी",
+  "moreSettings": "सेटिंग्ज",
+  "moreSettingsSub": "दुकान प्रोफाइल आणि भाषा",
+  "moreSignOut": "साइन आउट",
+  "moreSignOutSub": "ही सत्र संपन्न करा",
+  "moreSubtitle": "सर्व सेवा",
+  "moreSuppliers": "पुरवठादार",
+  "moreSuppliersSub": "विक्रेते, देय पेमेंट आणि तपशील",
+  "moreTitle": "अधिक",
+  "moreUsers": "वापरकर्ते आणि भूमिका",
+  "moreUsersSub": "संघ सदस्य आणि आमंत्रणे",
+  "myStore": "माझे दुकान",
+  "name": "नाव",
+  "no": "नाही",
+  "ok": "ठीक",
+  "paymEmpty": "अजून पेमेंट नाही",
+  "paymPayment": "पेमेंट",
+  "paymReference": "{type} #{id}",
+  "phone": "फोन",
+  "pincode": "पिन कोड",
+  "pleaseWait": "कृपया प्रतीक्षा करा...",
+  "prodAbbrevCrore": "कोटी",
+  "prodAbbrevLakh": "लाख",
+  "prodAbbrevThousand": "हजार",
+  "prodActionsTitle": "उत्पाद क्रिया",
+  "prodAddLabel": "जोडा (+)",
+  "prodAddTitle": "उत्पाद जोडा",
+  "prodAdjustStock": "स्टॉक समायोजित करा",
+  "prodAdjustStockTitle": "स्टॉक समायोजित करा · {productName}",
+  "prodAll": "सर्व",
+  "prodApply": "लागू करा",
+  "prodArchive": "संग्रहित करा",
+  "prodArchiveConfirmTitle": "उत्पाद संग्रहित करायचे?",
+  "prodArchiveMessage": "\"{productName}\" विक्री आणि याद्यांमधून लपवले जाईल. नोंदीसाठी मूव्हमेंट टिकवून ठेवल्या जातील.",
+  "prodArchiveProduct": "उत्पाद संग्रहित करा",
+  "prodCategory": "श्रेणी",
+  "prodCurrently": "सध्या: {stock} {unit}",
+  "prodEditProduct": "उत्पाद संपादित करा",
+  "prodEmptySubtitle": "वेगळा शोध घ्या किंवा नवीन उत्पाद जोडा.",
+  "prodEmptyTitle": "कोणतेही उत्पाद सापडले नाही",
+  "prodGeneral": "सामान्य",
+  "prodGstPercent": "GST %",
+  "prodLowQty": "कमी · {qty}",
+  "prodManualAdjustment": "मॅन्युअल समायोजन",
+  "prodMinStock": "किमान स्टॉक",
+  "prodNoMovements": "अद्याप कोणतीही मूव्हमेंट नोंदवलेली नाही",
+  "prodOpeningStock": "सुरुवातीचा स्टॉक",
+  "prodProductMeta": "{category} · {unit}",
+  "prodProductMetaSku": "{category} · {unit} · SKU {sku}",
+  "prodProductName": "उत्पादाचे नाव",
+  "prodPurchase": "खरेदी",
+  "prodPurchasePrice": "खरेदी किंमत",
+  "prodQuantity": "प्रमाण",
+  "prodReason": "कारण",
+  "prodRemoveLabel": "काढा (−)",
+  "prodSearchHint": "नाव, SKU किंवा बारकोडने शोधा...",
+  "prodSelling": "विक्री",
+  "prodSellingPrice": "विक्री किंमत",
+  "prodStockMovements": "स्टॉक मूव्हमेंट्स",
+  "prodStockQty": "{qty} स्टॉकमध्ये",
+  "prodSubtitle": "कॅटलॉग, किंमत आणि स्टॉक",
+  "prodTitle": "उत्पादने",
+  "prodUnit": "एकक",
+  "prodValue": "मूल्य",
+  "purchAddPurchase": "खरेदी जोडा",
+  "purchDueAmount": "बाकी: {amount}",
+  "purchFromMobileApp": "मोबाइल अ‍ॅपवरून तयार केले",
+  "purchNoPurchasesYet": "अजून कोणतीही खरेदी नाही",
+  "purchPurchaseItem": "खरेदी वस्तू",
+  "purchSupplierName": "पुरवठादाराचे नाव",
+  "purchTotalAmount": "एकूण रक्कम",
+  "purchTotalBilled": "एकूण बिल",
+  "purchUnknownSupplier": "अज्ञात पुरवठादार",
+  "refresh": "रिफ्रेश करा",
+  "reptBills": "बिल",
+  "reptEstProfit": "अंदाजित नफा",
+  "reptEstimatedProfit": "अंदाजित नफा",
+  "reptGstSummary": "जीएसटी सारांश",
+  "reptInputGst": "इनपुट जीएसटी (खरेदी)",
+  "reptInventoryValue": "इन्व्हेंटरी मूल्य (किंमत)",
+  "reptInvoices": "इनव्हॉइस",
+  "reptLessTotalPurchases": "वजा करा: एकूण खरेदी",
+  "reptNetGstPayable": "निव्वळ जीएसटी देय",
+  "reptNoChartData": "चार्टसाठी अद्याप डेटा नाही",
+  "reptNoSalesRows": "अद्याप विक्री पंक्ती नाही",
+  "reptOutputGst": "आउटपुट जीएसटी (विक्री)",
+  "reptProfitLossPeriod": "नफा-तोटा (कालावधी)",
+  "reptRecentSalesRows": "अलीकडील विक्री पंक्ती",
+  "reptSales": "विक्री",
+  "reptSalesVsPurchasesPeriod": "विक्री विरुद्ध खरेदी (कालावधी)",
+  "reptTitle": "अहवाल",
+  "reptTotalSales": "एकूण विक्री",
+  "required": "आवश्यक",
+  "retry": "पुन्हा प्रयत्न करा",
+  "save": "जतन करा",
+  "searchHint": "शोधा...",
+  "sectionExpenses": "खर्च",
+  "sectionInventory": "इन्व्हेंटरी",
+  "sectionPayments": "पेमेंट",
+  "sectionProducts": "उत्पादने",
+  "sectionPurchases": "खरेदी",
+  "sectionReports": "जीएसटी आणि अहवाल",
+  "sectionSettings": "सेटिंग्ज",
+  "sectionSuppliers": "पुरवठादार",
+  "sectionUdhaari": "उधारी",
+  "sectionUsers": "वापरकर्ते आणि भूमिका",
+  "settingsAddressSection": "पत्ता",
+  "settingsAppLanguage": "अ‍ॅपची भाषा",
+  "settingsBusinessName": "व्यवसायाचे नाव",
+  "settingsBusinessType": "व्यवसाय प्रकार (उदा. किराणा, फार्मसी)",
+  "settingsGstin": "जीएसटीआयएन",
+  "settingsInvoicePrefix": "पावती उपसर्ग",
+  "settingsLanguageSection": "भाषा",
+  "settingsSave": "सेटिंग्ज जतन करा",
+  "settingsSaveFailed": "सेटिंग्ज जतन करता आल्या नाहीत: {error}",
+  "settingsSaved": "सेटिंग्ज जतन केल्या",
+  "settingsSaving": "जतन करत आहे...",
+  "settingsStoreProfile": "दुकान प्रोफाइल",
+  "settingsSubtitle": "दुकान प्रोफाइल आणि प्राधान्ये",
+  "settingsTitle": "सेटिंग्ज",
+  "signOut": "साइन आउट",
+  "signedInAs": "{email} म्हणून साइन इन केले",
+  "state": "राज्य",
+  "status": "स्थिती",
+  "statusActive": "सक्रिय",
+  "statusCancelled": "रद्द",
+  "statusClosed": "बंद",
+  "statusCompleted": "पूर्ण",
+  "statusDelivered": "वितरित",
+  "statusDraft": "मसुदा",
+  "statusInStock": "स्टॉकमध्ये",
+  "statusInactive": "निष्क्रिय",
+  "statusLow": "कमी",
+  "statusOpen": "उघडे",
+  "statusOutOfStock": "स्टॉक संपला",
+  "statusOutstanding": "बाकी",
+  "statusOverdue": "उशिरा झालेले",
+  "statusPaid": "भरले",
+  "statusPartial": "अंशतः",
+  "statusPending": "प्रलंबित",
+  "statusReceived": "प्राप्त",
+  "statusSent": "पाठवले",
+  "statusSettled": "निपटवले",
+  "statusUnpaid": "नभरले",
+  "statusVoid": "शून्य",
+  "suppAcrossOpenAccounts": "{count} खुल्या खात्यांवर",
+  "suppAddSupplier": "पुरवठादार जोडा",
+  "suppAddressOptional": "पत्ता (ऐच्छिक)",
+  "suppEmailOptional": "ईमेल (ऐच्छिक)",
+  "suppGstinOptional": "GSTIN (ऐच्छिक)",
+  "suppLastDate": "शेवटचे: {date}",
+  "suppNoSuppliers": "अजून पुरवठादार नाही",
+  "suppNoSuppliersSub": "खरेदी आणि थकीत ट्रॅक करण्यासाठी तुमचा पहिला पुरवठादार जोडा.",
+  "suppPayableAmount": "देय: {amount}",
+  "suppPurchasesAmount": "खरेदी: {amount}",
+  "suppSubtitle": "पुरवठादार आणि थकीत व्यवस्थापित करा",
+  "suppSupplierName": "पुरवठादाराचे नाव",
+  "suppTotalPayable": "एकूण देय रक्कम",
+  "suppTotalRegisteredVendors": "एकूण नोंदणीकृत पुरवठादार",
+  "suppXOutstanding": "{count} थकीत",
+  "suppXOverdue": "{count} अतिदेय",
+  "suppXSettled": "{count} निपटले",
+  "tabCustomers": "ग्राहक",
+  "tabHome": "होम",
+  "tabInvoice": "पावती",
+  "tabMore": "अधिक",
+  "tabStock": "स्टॉक",
+  "tabUdhari": "उधारी",
+  "total": "एकूण",
+  "udhrAmountReceived": "प्राप्त रक्कम",
+  "udhrBalance": "शिल्लक",
+  "udhrDueToday": "आज देय",
+  "udhrEntryAmount": "रक्कम: {amount}",
+  "udhrEntryBalance": "शिल्लक: {balance}",
+  "udhrLastEntry": "शेवटची नोंद: {date}",
+  "udhrLedgerEntries": "लेजर नोंदी",
+  "udhrLoadEntriesFailed": "नोंदी लोड करता आल्या नाहीत: {error}",
+  "udhrModeBank": "बँक",
+  "udhrModeCard": "कार्ड",
+  "udhrModeCash": "रोखड",
+  "udhrModeUpi": "यूपीआई",
+  "udhrNoLedgerEntries": "कोणत्याही लेजर नोंदी नाहीत",
+  "udhrNoRecords": "अजून उधारी नोंदी नाहीत",
+  "udhrNoteOptional": "टीप (पर्यायी)",
+  "udhrOutstandingBalance": "बाकी रक्कम: {amount}",
+  "udhrPaidVia": "✓ {mode} द्वारे {amount} प्राप्त झाले",
+  "udhrPaidViaNote": "✓ {mode} द्वारे {amount} प्राप्त झाले · {note}",
+  "udhrPaymentMode": "पेमेंट पद्धत",
+  "udhrPaymentReceived": "उधारी पेमेंट यशस्वीरित्या प्राप्त झाले.",
+  "udhrReceive": "प्राप्त करा",
+  "udhrReceivePaymentFrom": "{name} कडून पेमेंट प्राप्त करा",
+  "udhrRecordPayment": "पेमेंट प्राप्त करा",
+  "udhrTitle": "ग्राहक उधारी",
+  "udhrTotalAmount": "एकूण: {amount}",
+  "udhrTotalReceivables": "एकूण बाकी रक्कम",
+  "udhrUpcoming": "आगामी",
+  "userAllUsers": "सर्व वापरकर्ते ({count})",
+  "userEmailOptional": "ईमेल (ऐच्छिक)",
+  "userFullName": "पूर्ण नाव",
+  "userInvite": "आमंत्रित करा",
+  "userInviteHint": "त्यांना या भूमिकेसह लॉगिन लिंक मिळेल.",
+  "userInviteMember": "सदस्याला आमंत्रित करा",
+  "userInviteTitle": "टीम सदस्याला आमंत्रित करा",
+  "userJoinedAt": "सामील: {date}",
+  "userMobileOptional": "मोबाईल (ऐच्छिक)",
+  "userNoUsers": "अद्याप इतर वापरकर्ते नाहीत",
+  "userRole": "भूमिका",
+  "userRoleAdmin": "प्रशासक",
+  "userRoleCashier": "कॅशियर",
+  "userRoleManager": "व्यवस्थापक",
+  "userRoleOwner": "मालक",
+  "userRoleStaff": "स्टाफ",
+  "userTitle": "टीम आणि वापरकर्ते",
+  "userYou": "आपण",
+  "userYouLabel": "{name} (आपण)",
+  "yes": "होय",
+  "mobileNumber": "मोबाईल क्रमांक",
+  "udhrAdd": "उधारी जोडा",
+  "udhrAddNewCustomer": "नवीन ग्राहक जोडा",
+  "udhrAmountLabel": "रक्कम",
+  "udhrAmountRequired": "शून्याहून अधिक रक्कम नोंदवा",
+  "udhrCustomer": "ग्राहक",
+  "udhrDueDate": "देय तारीख",
+  "udhrEntryDate": "नोंद तारीख",
+  "udhrNewEntry": "नवीन उधारी नोंद",
+  "udhrSelectCustomer": "ग्राहक निवडा",
+  "validationMobileNumber": "वैध मोबाईल क्रमांक नोंदवा (10-12 अंक)",
+  "errCreateUdhaari": "उधारी जोडता आली नाही: {error}",
+  "menuViewBusinessProfile": "व्यवसाय प्रोफाइल पहा",
+  "bizProfileTitle": "व्यवसाय प्रोफाइल",
+  "bizProfileSubtitle": "तुमची व्यवसाय माहिती आणि योजना",
+  "bizOwnerName": "मालक",
+  "bizGstin": "GSTIN",
+  "bizAddress": "पत्ता",
+  "bizMobile": "मोबाईल",
+  "bizCategory": "श्रेणी",
+  "bizRegisteredOn": "नोंदणी तारीख",
+  "bizPlan": "योजना",
+  "bizPlanStatus": "स्थिती",
+  "bizPlanFree": "फ्री",
+  "bizPlanTrial": "ट्रायल",
+  "bizStatusSuspended": "स्थगित",
+  "signOutConfirmTitle": "साइन आउट करायचे?",
+  "signOutConfirmMessage": "तुम्हाला साइन आउट करायचे आहे का? पुढील वेळी साइन इन करण्यासाठी तुम्हाला OTP सत्यापित करावे लागेल.",
+  "navDashboard": "डॅशबोर्ड",
+  "navProductsStock": "उत्पादने आणि स्टॉक",
+  "navSalesInvoices": "विक्री आणि बिल",
+  "navCustomers": "ग्राहक",
+  "navSystem": "सिस्टम",
+  "userRoleStockManager": "स्टॉक व्यवस्थापक",
+  "userRolePlatformAdmin": "प्लॅटफॉर्म प्रशासक",
+  "roleAccessFull": "Full Access / संपूर्ण प्रवेश",
+  "roleAccessLimited": "मर्यादित दृश्यता / Limited Visibility",
+  "roleAccessPlatform": "Platform Access / प्रशासक",
+  "syncOnline": "ऑनलाइन",
+  "syncOffline": "ऑफलाइन",
+  "appVersion": "v3.4.2",
+  "appTagline": "मी दुकानदार - स्मार्ट व्यवसाय व्यवस्थापन",
+  "exitAppTitle": "MiDukandar बाहेर पडायचे?",
+  "exitAppMessage": "तुम्हाला खरं ऐप बाहेर पडायचे आहे का?",
+  "exitApp": "बाहेर पडा",
+  "billReverseTitle": "बिल रद्द/परत घ्या",
+  "billReverseMessage": "तुम्हाला बिल \"{invoiceNumber}\" रद्द/परत घायचे आहे का? हे एक परत घेणारी एन्ट्री तयार करते आणि मूळ बिलला रद्द असे चिन्हांकते. एक कारण आवश्यक आहे.",
+  "billReverse": "रद्द/परत घ्या",
+  "errReverseInvoice": "बिल रद्द करू शकले नाही: {error}",
+  "errUpdateInvoice": "इनव्हॉइस अद्यतन करू शकले नाही: {error}",
+  "suppEditSupplier": "पुरवठादार संपादित करा",
+  "suppDeleteTitle": "पुरवठादार हटवा?",
+  "suppDeleteMessage": "पुरवठादार \"{name}\" हटवा? हे पुरवठादारला संग्रहित करते आणि यादीमधून काढते. बकाया खरेदी ऑर्डर पहिले रद्द केले पाहिजेत.",
+  "errUpdateSupplier": "पुरवठादार अद्यतन करू शकले नाही: {error}",
+  "errDeleteSupplier": "पुरवठादार हटवू शकले नाही: {error}",
+  "expnEditExpense": "खर्च संपादित करा",
+  "expnDeleteTitle": "खर्च हटवा?",
+  "expnDeleteMessage": "खर्च \"{title}\" हटवा? हे पूर्ववत केले जाणार नाही.",
+  "errUpdateExpense": "खर्च अद्यतन करू शकले नाही: {error}",
+  "errDeleteExpense": "खर्च हटवू शकले नाही: {error}",
+  "purchPayTitle": "पेमेंट नोंदवा",
+  "userChangeRole": "भूमिका बदला",
+  "userDeactivate": "निष्क्रिय करा",
+  "userActivate": "सक्रिय करा",
+  "userCannotManage": "फक्त मालक इतर टीम सदस्यांचे व्यवस्थापन करू शकतात.",
+  "errUpdateUserStatus": "वापरकर्ता स्थिती अद्यतन करू शकले नाही: {error}",
+  "errUpdateUserRole": "वापरकर्ता भूमिका अद्यतन करू शकले नाही: {error}",
+  "regTitle": "तुमचा खाते तयार करा",
+  "regSubtitle": "एकच पाऊलात तुमचे खाते आणि दुकान नोंदणी करा।",
+  "regEmailLabel": "खाते ईमेल",
+  "regEmailRequired": "तुमच्या खात्यासाठी ईमेल पता प्रविष्ट करा।",
+  "regEmailInvalid": "वैध ईमेल पता प्रविष्ट करा।",
+  "regOwnerNameLabel": "दुकान मालकाचे नाव",
+  "regOwnerNameRequired": "दुकान मालकाचे नाव प्रविष्ट करा",
+  "regShopNameLabel": "दुकान / व्यवसाय नाव",
+  "regShopNameRequired": "तुमची दुकानचे नाव प्रविष्ट करा",
+  "regStoreTypeLabel": "दुकान प्रकार",
+  "regPhoneLabel": "मोबाइल नंबर",
+  "regGstLabel": "GSTIN (पर्यायी)",
+  "regGstHint": "27ABCDE1234F1Z5",
+  "regLanguageLabel": "ऐप भाषा",
+  "regAddressLabel": "पत्ता",
+  "regAddressHint": "दुकान क्रमांक, गल्ली, क्षेत्र",
+  "regAddressRequired": "तुमची दुकानचा पत्ता प्रविष्ट करा",
+  "regCityLabel": "शहर",
+  "regCityRequired": "तुमचे शहर प्रविष्ट करा",
+  "regStateLabel": "राज्य",
+  "regPincodeLabel": "पिनकोड",
+  "regPincodeHint": "411001",
+  "regPincodeRequired": "वैध ६-अंकीय पिनकोड प्रविष्ट करा",
+  "regPincodeInvalid": "पिनकोड ६ अंकोंचा असावा",
+  "regCurrencyLabel": "चलन",
+  "regInvoicePrefixLabel": "इनव्हॉइस प्रीफिक्स",
+  "regInvoicePrefixHint": "उदा. INV → INV-0001",
+  "regCreateAccount": "खाते तयार करा",
+  "regSubmitting": "खाते तयार होत आहे...",
+  "regSuccessMessage": "खाते तयार झाले! सुरू ठेवण्यासाठी साइन इन करा।",
+  "regBackToLogin": "लॉगिनवर परत जा",
+  "regSecureNotice": "तुमचे डेटा एन्क्रिप्ट केलेले आणि सुरक्षितपणे संग्रहीत केलेले आहे।",
+  "regSecureBadge": "सुरक्षित आणि निजी",
+  "regGstBadge": "GST-तयार इनव्हॉइसिंग",
+  "regOfflineBadge": "ऑफलाइन बिलिंग समर्थन",
+  "regSectionAccountDetails": "वितरण विवरण",
+  "regSectionStoreDetails": "दुकान विवरण",
+  "regSectionLocation": "स्थान",
+  "regSectionPreferences": "प्राधान्ये"
+}

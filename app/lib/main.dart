@@ -1,0 +1,1055 @@
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:intl/intl.dart';
+
+import 'l10n/generated/app_localizations.dart';
+import 'l10n/locale_controller.dart';
+import 'models/app_models.dart';
+import 'screens/auth_screen.dart';
+import 'screens/business_profile_screen.dart';
+import 'screens/customer_screen.dart';
+import 'screens/dashboard_screen.dart';
+import 'screens/expenses_screen.dart';
+import 'screens/inventory_screen.dart';
+import 'screens/invoice_screen.dart';
+import 'screens/payments_screen.dart';
+import 'screens/product_screen.dart';
+import 'screens/purchases_screen.dart';
+import 'screens/register_screen.dart';
+import 'screens/report_screen.dart';
+import 'screens/settings_screen.dart';
+import 'screens/suppliers_screen.dart';
+import 'screens/udhaari_screen.dart';
+import 'screens/users_screen.dart';
+import 'services/api_service.dart';
+import 'theme/md_design.dart';
+import 'widgets/app_dialogs.dart';
+import 'widgets/navy_drawer.dart';
+import 'widgets/profile_menu.dart';
+
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  // Apply the persisted locale before the first frame renders.
+  await LocaleController.instance.load();
+  runApp(const MiDukandarApp());
+}
+
+class MiDukandarApp extends StatelessWidget {
+  const MiDukandarApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: LocaleController.instance,
+      builder: (context, _) {
+        return MaterialApp(
+          onGenerateTitle: (context) => AppLocalizations.of(context)!.appTitle,
+          debugShowCheckedModeBanner: false,
+          theme: buildMdTheme(),
+          locale: LocaleController.instance.locale,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: const AuthGate(),
+        );
+      },
+    );
+  }
+}
+
+class AuthGate extends StatefulWidget {
+  const AuthGate({super.key});
+
+  @override
+  State<AuthGate> createState() => _AuthGateState();
+}
+
+class _AuthGateState extends State<AuthGate> {
+  late final ApiService _apiService;
+  bool _isAuthenticated = false;
+  bool _isBootstrapping = true;
+  bool _isLoading = false;
+  bool _showRegister = false;
+  AuthUser? _user;
+  Store? _store;
+
+  DashboardStats _stats = const DashboardStats(
+    todaySales: 0,
+    todayPurchases: 0,
+    todayProfit: 0,
+    receivables: 0,
+    payables: 0,
+    lowStockCount: 0,
+    recentTransactions: [],
+  );
+
+  @override
+  void initState() {
+    super.initState();
+    _apiService = ApiService();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _bootstrap());
+  }
+
+  Future<void> _bootstrap() async {
+    try {
+      await _apiService.loadTokens();
+      // Cold start: no access token exists yet (in-memory only). Silently
+      // exchange the persisted refresh token for a fresh access token so a
+      // returning user lands straight on the Dashboard.
+      final restored = await _apiService.restoreSession();
+      if (restored) {
+        try {
+          final me = await _apiService.getCurrentUser();
+          final store = await _apiService.getStore();
+          if (mounted) {
+            setState(() {
+              _user = me;
+              _store = store;
+            });
+          }
+          await _loadDashboardStats();
+          if (mounted) {
+            setState(() {
+              _isAuthenticated = true;
+            });
+          }
+        } on SessionExpiredException {
+          await _apiService.logout();
+        } catch (_) {
+          // Refresh succeeded but profile/data fetch failed (e.g. transient
+          // network). Keep the session; dashboard renders with empty data and
+          // the user can pull to refresh.
+          if (mounted) {
+            setState(() {
+              _isAuthenticated = true;
+            });
+          }
+        }
+      }
+    } catch (_) {}
+    if (mounted) {
+      setState(() => _isBootstrapping = false);
+    }
+  }
+
+  Future<void> _loadDashboardStats() async {
+    try {
+      final stats = await _apiService.getDashboardSummary();
+      if (mounted) {
+        setState(() {
+          _stats = stats;
+        });
+      }
+    } catch (_) {
+      // Keep default empty stats
+    }
+  }
+
+  Future<String> _handleRequestOtp(String email) async {
+    return _apiService.requestLoginOtp(email: email);
+  }
+
+  Future<void> _handleVerifyOtp(String email, String otp) async {
+    try {
+      setState(() => _isLoading = true);
+      final user = await _apiService.verifyLoginOtp(email: email, otp: otp);
+      Store? store;
+      try {
+        store = await _apiService.getStore();
+      } catch (_) {}
+      if (!mounted) return;
+
+      setState(() {
+        _user = user;
+        _store = store;
+      });
+      await _loadDashboardStats();
+      if (!mounted) return;
+      setState(() {
+        _isAuthenticated = true;
+      });
+    } on SessionExpiredException {
+      await _signOut(showError: false);
+      rethrow;
+    } catch (error) {
+      rethrow;
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  Future<void> _handleRegister({
+    required String email,
+    required String ownerName,
+    required String name,
+    required String type,
+    required String address,
+    required String city,
+    required String state,
+    required String pincode,
+    required String phone,
+    required String gst,
+    required String currency,
+    required String language,
+    required String invoicePrefix,
+  }) async {
+    try {
+      setState(() => _isLoading = true);
+      await _apiService.register(
+        email: email,
+        ownerName: ownerName,
+        name: name,
+        type: type,
+        address: address,
+        city: city,
+        state: state,
+        pincode: pincode,
+        phone: phone,
+        gst: gst,
+        currency: currency,
+        language: language,
+        invoicePrefix: invoicePrefix,
+      );
+      if (!mounted) return;
+      setState(() => _showRegister = false);
+      AppDialogs.showSuccess(
+        context,
+        AppLocalizations.of(context)!.regSuccessMessage,
+      );
+    } on SessionExpiredException {
+      await _signOut(showError: false);
+    } catch (error) {
+      if (!mounted) return;
+      AppDialogs.showError(
+        context,
+        error.toString().replaceFirst('HttpException: ', ''),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  void _showRegisterScreen() {
+    setState(() => _showRegister = true);
+  }
+
+  Future<void> _signOut({bool showError = false}) async {
+    await _apiService.logout();
+    if (!mounted) return;
+    setState(() {
+      _isAuthenticated = false;
+      _user = null;
+      _store = null;
+    });
+    if (showError) {
+      AppDialogs.showError(
+        context,
+        AppLocalizations.of(context)!.errSessionExpired,
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_isBootstrapping) {
+      return const _SplashScreen();
+    }
+
+    if (!_isAuthenticated) {
+      if (_showRegister) {
+        return RegisterScreen(
+          apiService: _apiService,
+          onRegister: _handleRegister,
+          onBackToLogin: () => setState(() => _showRegister = false),
+        );
+      }
+      return AuthScreen(
+        onRequestOtp: _handleRequestOtp,
+        onVerifyOtp: _handleVerifyOtp,
+        isLoading: _isLoading,
+        onRegister: _showRegisterScreen,
+      );
+    }
+
+    return AppShell(
+      apiService: _apiService,
+      user: _user,
+      store: _store,
+      stats: _stats,
+      onSignOut: _signOut,
+    );
+  }
+}
+
+class _SplashScreen extends StatelessWidget {
+  const _SplashScreen();
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Image.asset('assets/logo.png', height: 120),
+            const SizedBox(height: 28),
+            const SizedBox(
+              width: 32,
+              height: 32,
+              child: CircularProgressIndicator(strokeWidth: 2.5),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+String formatINR(num value) {
+  try {
+    final fmt = NumberFormat.currency(
+      locale: 'en_IN',
+      symbol: '₹',
+      decimalDigits: 0,
+    );
+    return fmt.format(value);
+  } catch (_) {
+    return '₹$value';
+  }
+}
+
+class AppShell extends StatefulWidget {
+  const AppShell({
+    super.key,
+    required this.apiService,
+    required this.user,
+    required this.store,
+    required this.stats,
+    required this.onSignOut,
+  });
+
+  final ApiService apiService;
+  final AuthUser? user;
+  final Store? store;
+  final DashboardStats stats;
+  final Future<void> Function({bool showError}) onSignOut;
+
+  @override
+  State<AppShell> createState() => _AppShellState();
+}
+
+/// All app sections reachable from the sidebar drawer. Key order mirrors the
+/// web `Sidebar.tsx` MAIN_NAV / SYSTEM_NAV ordering.
+enum AppSection {
+  dashboard,
+  products,
+  invoices,
+  customers,
+  udhaari,
+  suppliers,
+  expenses,
+  reports,
+  settings,
+  users,
+  inventory,
+  purchases,
+  payments,
+}
+
+class _AppShellState extends State<AppShell> {
+  AppSection _section = AppSection.dashboard;
+  bool _inventoryLowOnly = false;
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+  bool _drawerWasOpen = false;
+
+  bool get _isOwner => widget.user?.role == 'OWNER';
+
+  String get _sectionKey => switch (_section) {
+    AppSection.dashboard => 'dashboard',
+    AppSection.products => 'products',
+    AppSection.invoices => 'invoices',
+    AppSection.customers => 'customers',
+    AppSection.udhaari => 'udhaari',
+    AppSection.suppliers => 'suppliers',
+    AppSection.expenses => 'expenses',
+    AppSection.reports => 'reports',
+    AppSection.settings => 'settings',
+    AppSection.users => 'users',
+    AppSection.inventory => 'inventory',
+    AppSection.purchases => 'purchases',
+    AppSection.payments => 'payments',
+  };
+
+  int get _bottomNavIndex => switch (_section) {
+    AppSection.invoices => 0,
+    AppSection.customers => 1,
+    AppSection.udhaari => 2,
+    _ => 3,
+  };
+
+  void _onBottomNavTap(int index) {
+    if (index == 3) {
+      _scaffoldKey.currentState?.openDrawer();
+      return;
+    }
+    setState(() {
+      _section = switch (index) {
+        0 => AppSection.invoices,
+        1 => AppSection.customers,
+        2 => AppSection.udhaari,
+        _ => AppSection.invoices,
+      };
+    });
+  }
+
+  Future<bool> _onWillPop() async {
+    final scaffoldState = _scaffoldKey.currentState;
+    final isDrawerOpen = scaffoldState?.isDrawerOpen ?? false;
+
+    if (isDrawerOpen) {
+      scaffoldState?.closeDrawer();
+      return false;
+    }
+
+    if (_section != AppSection.dashboard) {
+      setState(() {
+        _section = AppSection.dashboard;
+      });
+      return false;
+    }
+
+    final l = AppLocalizations.of(context)!;
+    final shouldExit = await AppDialogs.showConfirm(
+      context,
+      title: l.exitAppTitle,
+      message: l.exitAppMessage,
+      confirmLabel: l.exitApp,
+      cancelLabel: l.cancel,
+      destructive: true,
+    );
+
+    if (shouldExit && mounted) {
+      await SystemNavigator.pop();
+    }
+    return false;
+  }
+
+  // ---------------- CRUD HANDLERS ----------------
+
+  Future<void> _handleCreateProduct(Map<String, dynamic> payload) async {
+    try {
+      await widget.apiService.createProduct(payload);
+    } catch (error) {
+      if (!mounted) return;
+      AppDialogs.showError(
+        context,
+        AppLocalizations.of(context)!.errCreateProduct(error.toString()),
+      );
+    }
+  }
+
+  Future<void> _handleUpdateProduct(
+    String id,
+    Map<String, dynamic> payload,
+  ) async {
+    try {
+      await widget.apiService.updateProduct(id, payload);
+    } catch (error) {
+      if (!mounted) return;
+      AppDialogs.showError(
+        context,
+        AppLocalizations.of(context)!.errUpdateProduct(error.toString()),
+      );
+    }
+  }
+
+  Future<void> _handleArchiveProduct(String id) async {
+    try {
+      await widget.apiService.archiveProduct(id);
+    } catch (error) {
+      if (!mounted) return;
+      AppDialogs.showError(
+        context,
+        AppLocalizations.of(context)!.errArchiveProduct(error.toString()),
+      );
+    }
+  }
+
+  Future<void> _handleAdjustStock(String id, num qty, String reason) async {
+    try {
+      await widget.apiService.adjustStock(id, qty: qty, reason: reason);
+    } catch (error) {
+      if (!mounted) return;
+      AppDialogs.showError(
+        context,
+        AppLocalizations.of(context)!.errAdjustStock(error.toString()),
+      );
+    }
+  }
+
+  Future<Map<String, dynamic>?> _handleFetchProductDetail(String id) async {
+    try {
+      return await widget.apiService.getProduct(id);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> _handleCreateCustomer(Map<String, dynamic> payload) async {
+    try {
+      await widget.apiService.createCustomer(payload);
+    } catch (error) {
+      if (!mounted) return;
+      AppDialogs.showError(
+        context,
+        AppLocalizations.of(context)!.errCreateCustomer(error.toString()),
+      );
+    }
+  }
+
+  Future<void> _handleUpdateCustomer(
+    String id,
+    Map<String, dynamic> payload,
+  ) async {
+    try {
+      await widget.apiService.updateCustomer(id, payload);
+    } catch (error) {
+      if (!mounted) return;
+      AppDialogs.showError(
+        context,
+        AppLocalizations.of(context)!.errUpdateCustomer(error.toString()),
+      );
+    }
+  }
+
+  Future<void> _handleDeleteCustomer(String id) async {
+    try {
+      await widget.apiService.deleteCustomer(id);
+    } catch (error) {
+      if (!mounted) return;
+      AppDialogs.showError(
+        context,
+        AppLocalizations.of(context)!.errDeleteCustomer(error.toString()),
+      );
+    }
+  }
+
+  Future<void> _handleCreateInvoice(Map<String, dynamic> payload) async {
+    try {
+      await widget.apiService.createSale(payload);
+    } catch (error) {
+      if (!mounted) return;
+      AppDialogs.showError(
+        context,
+        AppLocalizations.of(context)!.errCreateInvoice(error.toString()),
+      );
+    }
+  }
+
+  Future<void> _handleMarkInvoicePaid(InvoiceRecord invoice) async {
+    try {
+      await widget.apiService.markSalePaid(
+        invoice.id,
+        amount: invoice.dueAmount,
+      );
+    } catch (error) {
+      if (!mounted) return;
+      AppDialogs.showError(
+        context,
+        AppLocalizations.of(context)!.errMarkPaid(error.toString()),
+      );
+    }
+  }
+
+  Future<void> _handleCreatePurchase(Map<String, dynamic> payload) async {
+    try {
+      await widget.apiService.createPurchase(payload);
+    } catch (error) {
+      if (!mounted) return;
+      AppDialogs.showError(
+        context,
+        AppLocalizations.of(context)!.errCreatePurchase(error.toString()),
+      );
+    }
+  }
+
+  Future<void> _handleCreateExpense(Map<String, dynamic> payload) async {
+    try {
+      await widget.apiService.createExpense(payload);
+    } catch (error) {
+      if (!mounted) return;
+      AppDialogs.showError(
+        context,
+        AppLocalizations.of(context)!.errCreateExpense(error.toString()),
+      );
+    }
+  }
+
+  Future<void> _handleCreateSupplier(Map<String, dynamic> payload) async {
+    try {
+      await widget.apiService.createSupplier(payload);
+    } catch (error) {
+      if (!mounted) return;
+      AppDialogs.showError(
+        context,
+        AppLocalizations.of(context)!.errCreateSupplier(error.toString()),
+      );
+    }
+  }
+
+  Future<void> _handleCreateUdhaari(Map<String, dynamic> payload) async {
+    try {
+      await widget.apiService.createUdhaari(payload);
+    } catch (error) {
+      if (!mounted) return;
+      AppDialogs.showError(
+        context,
+        AppLocalizations.of(context)!.errCreateUdhaari(error.toString()),
+      );
+    }
+  }
+
+  Future<void> _handleReceivePayment({
+    required String customerId,
+    required num amount,
+    String mode = 'CASH',
+    String? note,
+  }) async {
+    try {
+      await widget.apiService.receiveCustomerPayment(
+        customerId: customerId,
+        amount: amount,
+        mode: mode,
+        note: note,
+      );
+    } catch (error) {
+      if (!mounted) return;
+      AppDialogs.showError(
+        context,
+        AppLocalizations.of(context)!.errRecordPayment(error.toString()),
+      );
+    }
+  }
+
+  Future<void> _handleUpdateSupplier(
+    String id,
+    Map<String, dynamic> payload,
+  ) async {
+    try {
+      await widget.apiService.updateSupplier(id, payload);
+    } catch (error) {
+      if (!mounted) return;
+      AppDialogs.showError(
+        context,
+        AppLocalizations.of(context)!.errUpdateSupplier(error.toString()),
+      );
+    }
+  }
+
+  Future<void> _handleDeleteSupplier(String id) async {
+    try {
+      await widget.apiService.deleteSupplier(id);
+    } catch (error) {
+      if (!mounted) return;
+      AppDialogs.showError(
+        context,
+        AppLocalizations.of(context)!.errDeleteSupplier(error.toString()),
+      );
+    }
+  }
+
+  Future<void> _handleUpdateExpense(
+    String id,
+    Map<String, dynamic> payload,
+  ) async {
+    try {
+      await widget.apiService.updateExpense(id, payload);
+    } catch (error) {
+      if (!mounted) return;
+      AppDialogs.showError(
+        context,
+        AppLocalizations.of(context)!.errUpdateExpense(error.toString()),
+      );
+    }
+  }
+
+  Future<void> _handleDeleteExpense(String id) async {
+    try {
+      await widget.apiService.deleteExpense(id);
+    } catch (error) {
+      if (!mounted) return;
+      AppDialogs.showError(
+        context,
+        AppLocalizations.of(context)!.errDeleteExpense(error.toString()),
+      );
+    }
+  }
+
+  Future<void> _handlePayPurchase(
+    Purchase item,
+    num amount,
+    String mode,
+  ) async {
+    try {
+      await widget.apiService.recordPurchasePayment(
+        item.id,
+        amount: amount,
+        mode: mode,
+      );
+    } catch (error) {
+      if (!mounted) return;
+      AppDialogs.showError(
+        context,
+        AppLocalizations.of(context)!.errRecordPayment(error.toString()),
+      );
+    }
+  }
+
+  Future<void> _handleReverseInvoice(
+    InvoiceRecord invoice,
+    String reason,
+  ) async {
+    try {
+      await widget.apiService.reverseSale(invoice.id, reason: reason);
+    } catch (error) {
+      if (!mounted) return;
+      AppDialogs.showError(
+        context,
+        AppLocalizations.of(context)!.errReverseInvoice(error.toString()),
+      );
+    }
+  }
+
+  Future<void> _handleUpdateInvoice(InvoiceRecord invoice, Map<String, dynamic> payload) async {
+    try {
+      await widget.apiService.updateSale(invoice.id, payload);
+    } catch (error) {
+      if (!mounted) return;
+      AppDialogs.showError(
+        context,
+        AppLocalizations.of(context)!.errCreateInvoice(error.toString()),
+      );
+    }
+  }
+
+  Future<void> _handleUpdateUserStatus(String id, bool isActive) async {
+    try {
+      await widget.apiService.updateUserStatus(id, isActive: isActive);
+    } catch (error) {
+      if (!mounted) return;
+      AppDialogs.showError(
+        context,
+        AppLocalizations.of(context)!.errUpdateUserStatus(error.toString()),
+      );
+    }
+  }
+
+  Future<void> _handleUpdateUserRole(String id, String role) async {
+    try {
+      await widget.apiService.updateUserRole(id, role: role);
+    } catch (error) {
+      if (!mounted) return;
+      AppDialogs.showError(
+        context,
+        AppLocalizations.of(context)!.errUpdateUserRole(error.toString()),
+      );
+    }
+  }
+
+  Future<void> _handleInviteUser({
+    required String name,
+    String? email,
+    String? phone,
+    required String role,
+  }) async {
+    try {
+      await widget.apiService.inviteUser(
+        name: name,
+        email: email,
+        phone: phone,
+        role: role,
+      );
+    } catch (error) {
+      if (!mounted) return;
+      AppDialogs.showError(
+        context,
+        AppLocalizations.of(context)!.errInviteUser(error.toString()),
+      );
+    }
+  }
+
+  // ---------------- NAVIGATION ----------------
+
+  void _selectSection(AppSection section, {bool lowOnly = false}) {
+    setState(() {
+      _section = section;
+      _inventoryLowOnly = lowOnly;
+    });
+  }
+
+  void _onDrawerSelect(String key) {
+    Navigator.of(context).pop(); // close the drawer
+    switch (key) {
+      case 'dashboard':
+        return _selectSection(AppSection.dashboard);
+      case 'products':
+        return _selectSection(AppSection.products);
+      case 'invoices':
+        return _selectSection(AppSection.invoices);
+      case 'customers':
+        return _selectSection(AppSection.customers);
+      case 'udhaari':
+        return _selectSection(AppSection.udhaari);
+      case 'suppliers':
+        return _selectSection(AppSection.suppliers);
+      case 'expenses':
+        return _selectSection(AppSection.expenses);
+      case 'reports':
+        return _selectSection(AppSection.reports);
+      case 'settings':
+        return _selectSection(AppSection.settings);
+      case 'users':
+        return _selectSection(AppSection.users);
+      case 'inventory':
+        return _selectSection(AppSection.inventory);
+      case 'purchases':
+        return _selectSection(AppSection.purchases);
+      case 'payments':
+        return _selectSection(AppSection.payments);
+    }
+  }
+
+  void _openBusinessProfile() {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => BusinessProfileScreen(
+          apiService: widget.apiService,
+          user: widget.user,
+          initialStore: widget.store,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _confirmSignOut() async {
+    final l = AppLocalizations.of(context)!;
+    final confirmed = await AppDialogs.showConfirm(
+      context,
+      title: l.signOutConfirmTitle,
+      message: l.signOutConfirmMessage,
+      confirmLabel: l.signOut,
+      cancelLabel: l.cancel,
+      destructive: true,
+    );
+    if (!confirmed || !mounted) return;
+    await widget.onSignOut();
+  }
+
+  // ---------------- BUILD ----------------
+
+  @override
+  Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context)!;
+    final user = widget.user;
+
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (didPop) return;
+        final shouldPop = await _onWillPop();
+        if (shouldPop && mounted) {
+          Navigator.of(context).pop();
+        }
+      },
+      child: Scaffold(
+        key: _scaffoldKey,
+        appBar: AppBar(
+          leading: Builder(
+            builder: (context) => IconButton(
+              icon: const Icon(Icons.menu),
+              tooltip: l.moreTitle,
+              onPressed: () => Scaffold.of(context).openDrawer(),
+            ),
+          ),
+          title: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                widget.store?.name ?? l.myStore,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: MdColors.navy900,
+                ),
+              ),
+              if (user?.name != null)
+                Text(
+                  user!.name,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: MdColors.mutedForeground,
+                  ),
+                ),
+            ],
+          ),
+          actions: [
+            ProfileMenu(
+              user: user,
+              onBusinessProfile: _openBusinessProfile,
+              onSettings: () => _selectSection(AppSection.settings),
+              onSignOut: _confirmSignOut,
+            ),
+          ],
+        ),
+        bottomNavigationBar: BottomNavigationBar(
+          currentIndex: _bottomNavIndex,
+          onTap: _onBottomNavTap,
+          type: BottomNavigationBarType.fixed,
+          selectedItemColor: MdColors.navy900,
+          unselectedItemColor: MdColors.mutedForeground,
+          selectedLabelStyle: const TextStyle(
+            fontWeight: FontWeight.w600,
+            fontSize: 12,
+          ),
+          unselectedLabelStyle: const TextStyle(
+            fontWeight: FontWeight.w500,
+            fontSize: 12,
+          ),
+          items: [
+            BottomNavigationBarItem(
+              icon: const Icon(Icons.receipt_long_outlined),
+              activeIcon: const Icon(Icons.receipt_long),
+              label: l.billInvoices,
+            ),
+            BottomNavigationBarItem(
+              icon: const Icon(Icons.people_alt_outlined),
+              activeIcon: const Icon(Icons.people_alt),
+              label: l.navCustomers,
+            ),
+            BottomNavigationBarItem(
+              icon: const Icon(Icons.payments_outlined),
+              activeIcon: const Icon(Icons.payments),
+              label: l.tabUdhari,
+            ),
+            BottomNavigationBarItem(
+              icon: const Icon(Icons.more_horiz),
+              activeIcon: const Icon(Icons.more_horiz),
+              label: l.moreTitle,
+            ),
+          ],
+        ),
+        drawer: Drawer(
+          backgroundColor: MdColors.navy950,
+          child: NavyDrawer(
+            current: _sectionKey,
+            role: user?.role,
+            onSelect: _onDrawerSelect,
+            width: MediaQuery.sizeOf(context).width * 0.8,
+          ),
+        ),
+        body: _buildSection(_section),
+      ),
+    );
+  }
+
+  Widget _buildSection(AppSection section) {
+    final l = AppLocalizations.of(context)!;
+    switch (section) {
+      case AppSection.dashboard:
+        return DashboardScreen(
+          stats: widget.stats,
+          storeName: widget.store?.name ?? l.myStore,
+          onNavigate: _selectSection,
+          onLowStockTap: () =>
+              _selectSection(AppSection.inventory, lowOnly: true),
+          onInvoiceDetailTap: () => _selectSection(AppSection.invoices),
+        );
+      case AppSection.invoices:
+        return InvoiceScreen(
+          apiService: widget.apiService,
+          onCreate: _handleCreateInvoice,
+          onMarkPaid: _handleMarkInvoicePaid,
+          onReverse: _handleReverseInvoice,
+          onUpdate: _handleUpdateInvoice,
+        );
+      case AppSection.customers:
+        return CustomerScreen(
+          apiService: widget.apiService,
+          onCreate: _handleCreateCustomer,
+          onUpdate: _handleUpdateCustomer,
+          onDelete: _handleDeleteCustomer,
+        );
+      case AppSection.udhaari:
+        return UdhaariScreen(
+          apiService: widget.apiService,
+          onPayment: _handleReceivePayment,
+          onCreate: _handleCreateUdhaari,
+        );
+      case AppSection.inventory:
+        return InventoryScreen(
+          apiService: widget.apiService,
+          onChanged: _refreshCurrentSection,
+          lowOnly: _inventoryLowOnly,
+        );
+      case AppSection.products:
+        return ProductScreen(
+          apiService: widget.apiService,
+          onCreate: _handleCreateProduct,
+          onUpdate: _handleUpdateProduct,
+          onArchive: _handleArchiveProduct,
+          onAdjust: _handleAdjustStock,
+          onFetchDetail: _handleFetchProductDetail,
+        );
+      case AppSection.purchases:
+        return PurchaseScreen(
+          apiService: widget.apiService,
+          onCreate: _handleCreatePurchase,
+          onPay: _handlePayPurchase,
+        );
+      case AppSection.suppliers:
+        return SuppliersScreen(
+          apiService: widget.apiService,
+          onCreate: _handleCreateSupplier,
+          onUpdate: _handleUpdateSupplier,
+          onDelete: _handleDeleteSupplier,
+          onRefresh: _refreshCurrentSection,
+        );
+      case AppSection.expenses:
+        return ExpensesScreen(
+          apiService: widget.apiService,
+          onCreate: _handleCreateExpense,
+          onUpdate: _handleUpdateExpense,
+          onDelete: _handleDeleteExpense,
+        );
+      case AppSection.payments:
+        return PaymentsScreen(apiService: widget.apiService);
+      case AppSection.reports:
+        return ReportScreen(
+          apiService: widget.apiService,
+          stats: widget.stats,
+        );
+      case AppSection.settings:
+        return SettingsScreen(
+          apiService: widget.apiService,
+          store: widget.store,
+          onChanged: _refreshCurrentSection,
+        );
+      case AppSection.users:
+        return UsersScreen(
+          apiService: widget.apiService,
+          user: widget.user,
+          onInvite: _isOwner ? _handleInviteUser : null,
+          onStatusChange: _isOwner ? _handleUpdateUserStatus : null,
+          onRoleChange: _isOwner ? _handleUpdateUserRole : null,
+        );
+    }
+  }
+
+  Future<void> _refreshCurrentSection() async {
+    // No-op: each screen manages its own refresh via its own state.
+    // This is kept for API compatibility with screens that expect a callback.
+  }
+}

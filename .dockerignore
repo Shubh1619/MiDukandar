@@ -1,0 +1,32 @@
+# dependencies
+**/node_modules/
+
+# builds / outputs
+**/dist/
+web/.next/
+superadmin-web/.next/
+**/*.tsbuildinfo
+web/next-env.d.ts
+superadmin-web/next-env.d.ts
+
+# env files
+.env
+.env.*
+!.env.example
+backend/.env.example
+web/.env.example
+
+# uploads / data
+**/uploads/
+pgdata/
+
+# git & tooling
+.git/
+.gitignore
+.dockerignore
+docker-compose.yml
+
+# misc
+assets/
+npm-debug.log*
+*.pem

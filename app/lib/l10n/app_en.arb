@@ -1,0 +1,969 @@
+{
+  "@@locale": "en",
+  "@authCodeSentTo": {
+    "placeholders": {
+      "email": {
+        "type": "String"
+      }
+    }
+  },
+  "@authDevMode": {
+    "placeholders": {
+      "masterCode": {
+        "type": "String"
+      }
+    }
+  },
+  "@authOtpInstructions": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "@authResendIn": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "@billCustomerLine": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "@billDateLine": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "@billDueAmount": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "@billLineItem": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "qty": {
+        "type": "String"
+      }
+    }
+  },
+  "@billMobileLine": {
+    "placeholders": {
+      "number": {
+        "type": "String"
+      }
+    }
+  },
+  "@billModeLine": {
+    "placeholders": {
+      "mode": {
+        "type": "String"
+      }
+    }
+  },
+  "@billNoteLine": {
+    "placeholders": {
+      "note": {
+        "type": "String"
+      }
+    }
+  },
+  "@billPayAmount": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "@custDeleteConfirm": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "@dashHeaderSubtitle": {
+    "placeholders": {
+      "storeName": {
+        "type": "String"
+      }
+    }
+  },
+  "@errAdjustStock": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "@errArchiveProduct": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "@errCreateCustomer": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "@errCreateExpense": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "@errCreateInvoice": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "@errCreateProduct": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "@errCreatePurchase": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "@errCreateSupplier": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "@errDeleteCustomer": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "@errInviteUser": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "@errMarkPaid": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "@errRecordPayment": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "@errRefreshFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "@errUpdateCustomer": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "@errUpdateProduct": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "@invnAdjustFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "@invnAdjustStockTitle": {
+    "placeholders": {
+      "product": {
+        "type": "String"
+      }
+    }
+  },
+  "@invnCurrentBalance": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "@invnMrp": {
+    "placeholders": {
+      "price": {
+        "type": "String"
+      }
+    }
+  },
+  "@paymReference": {
+    "placeholders": {
+      "type": {
+        "type": "String"
+      },
+      "id": {
+        "type": "String"
+      }
+    }
+  },
+  "@prodAdjustStockTitle": {
+    "placeholders": {
+      "productName": {
+        "type": "String"
+      }
+    }
+  },
+  "@prodArchiveMessage": {
+    "placeholders": {
+      "productName": {
+        "type": "String"
+      }
+    }
+  },
+  "@prodCurrently": {
+    "placeholders": {
+      "stock": {
+        "type": "String"
+      },
+      "unit": {
+        "type": "String"
+      }
+    }
+  },
+  "@prodLowQty": {
+    "placeholders": {
+      "qty": {
+        "type": "String"
+      }
+    }
+  },
+  "@prodProductMeta": {
+    "placeholders": {
+      "category": {
+        "type": "String"
+      },
+      "unit": {
+        "type": "String"
+      }
+    }
+  },
+  "@prodProductMetaSku": {
+    "placeholders": {
+      "category": {
+        "type": "String"
+      },
+      "unit": {
+        "type": "String"
+      },
+      "sku": {
+        "type": "String"
+      }
+    }
+  },
+  "@prodStockQty": {
+    "placeholders": {
+      "qty": {
+        "type": "String"
+      }
+    }
+  },
+  "@purchDueAmount": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "@settingsSaveFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "@signedInAs": {
+    "placeholders": {
+      "email": {
+        "type": "String"
+      }
+    }
+  },
+  "@suppAcrossOpenAccounts": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "@suppLastDate": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "@suppPayableAmount": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "@suppPurchasesAmount": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "@suppXOutstanding": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "@suppXOverdue": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "@suppXSettled": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "@udhrEntryAmount": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "@udhrEntryBalance": {
+    "placeholders": {
+      "balance": {
+        "type": "String"
+      }
+    }
+  },
+  "@udhrLastEntry": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "@udhrLoadEntriesFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "@udhrOutstandingBalance": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "@udhrPaidVia": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      },
+      "mode": {
+        "type": "String"
+      }
+    }
+  },
+  "@udhrPaidViaNote": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      },
+      "mode": {
+        "type": "String"
+      },
+      "note": {
+        "type": "String"
+      }
+    }
+  },
+  "@udhrReceivePaymentFrom": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "@udhrTotalAmount": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "@userAllUsers": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "@userJoinedAt": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "@userYouLabel": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "add": "Add",
+  "address": "Address",
+  "amount": "Amount",
+  "appTitle": "Smart Business",
+  "authChangeEmail": "Change email",
+  "authCodeSentNotice": "Login code sent. Check your email for the verification code.",
+  "authCodeSentTo": "Login code sent to {email}.",
+  "authDevMode": "Dev mode: master code is {masterCode}. No email was sent.",
+  "authEmail": "Email address",
+  "authEnterEmail": "Enter your email address.",
+  "authEnterOtp": "Enter verification code",
+  "authErrSendOtp": "Could not send OTP. Please try again.",
+  "authErrVerify": "Verification failed. Please try again.",
+  "authUnableToConnect": "Unable to connect to MiDukandar. Please check your internet connection and try again.",
+  "authServiceUnavailable": "MiDukandar service is temporarily unavailable. Please try again shortly.",
+  "authConnectionTimeout": "Connection timed out. Please try again.",
+  "authAccountNotFound": "Account not found. Please check your email or register your business.",
+  "authTryAgain": "Try Again",
+  "authOtpSent": "OTP Sent",
+  "authGetOtp": "Get OTP",
+  "authInvalidEmail": "Enter a valid email address.",
+  "authNoAccount": "Don't have an account?",
+  "authOtpInstructions": "Type the 6-digit code from your email. The code expires in {time}.",
+  "authOtpPlaceholder": "• • • • • •",
+  "authOtpTooShort": "Please enter the 4-6 digit code we sent.",
+  "authRegisterBusiness": "Register your business",
+  "authResendCode": "Resend code",
+  "authResendIn": "Resend code in {time}",
+  "authSendingOtp": "Sending OTP...",
+  "authSignInBadge": "SIGN IN",
+  "authSignInSubtitle": "Sign in to manage your shop and keep your business moving.",
+  "authSigningIn": "Signing in...",
+  "authVerifyAndSignIn": "Verify & Sign in",
+  "authWelcomeBack": "Welcome back",
+  "back": "Back",
+  "billAddInvoice": "Add invoice",
+  "billAll": "All",
+  "billCreatedFromMobileApp": "Created from mobile app",
+  "billCustomerLine": "Customer: {name}",
+  "billCustomerName": "Customer name",
+  "billDateLine": "Date: {date}",
+  "billDue": "Due",
+  "billDueAmount": "Due {amount}",
+  "billEditInvoice": "Edit Invoice",
+  "billGenericItem": "Generic item",
+  "billInvoices": "Invoices",
+  "billLineItem": "{name} x {qty}",
+  "billMobileLine": "Mobile: {number}",
+  "billMode": "Mode",
+  "billModeBank": "Bank",
+  "billModeCard": "Card",
+  "billModeCash": "Cash",
+  "billModeLine": "Mode: {mode}",
+  "billModeUpi": "UPI",
+  "billNewInvoice": "New Invoice",
+  "billNoLineItems": "No line items",
+  "billNoMatchingInvoices": "No matching invoices",
+  "billNoteLine": "Note: {note}",
+  "billPaidAmount": "Paid amount",
+  "billPayAmount": "Pay {amount}",
+  "billQty": "Qty",
+  "billRevenue": "Revenue",
+  "billSearchPlaceholder": "Search customer or invoice",
+  "billUdhaar": "Udhaar",
+  "billUnitPrice": "Unit price",
+  "billWalkInCustomer": "Walk-in customer",
+  "cancel": "Cancel",
+  "city": "City",
+  "close": "Close",
+  "confirm": "Confirm",
+  "custAddTitle": "Add customer",
+  "custDeleteConfirm": "Delete \"{name}\"? This cannot be undone.",
+  "custDeleteTitle": "Delete customer",
+  "custEditTitle": "Edit customer",
+  "custNameLabel": "Customer name",
+  "custNoMobile": "No mobile",
+  "dashCustomerUdhaari": "Customer Udhaari",
+  "dashCustomerUdhaariSub": "Total outstanding ledger",
+  "dashHeaderSubtitle": "Today's performance across {storeName}",
+  "dashLowStock": "Low Stock",
+  "dashLowStockSub": "Products below min stock level",
+  "dashNoTransactions": "No transactions yet",
+  "dashNoTransactionsSub": "Create your first sale from the Sales tab.",
+  "dashProfitToday": "Est. Profit Today",
+  "dashProfitTodaySub": "Margin before tax today",
+  "dashPurchasesToday": "Purchases Today",
+  "dashPurchasesTodaySub": "Stock purchases today",
+  "dashQuickControls": "Quick Controls",
+  "dashQuickInvoices": "Invoices",
+  "dashQuickReports": "Reports",
+  "dashRecentTransactions": "Recent Transactions",
+  "dashSalesToday": "Sales Today",
+  "dashSalesTodaySub": "Confirmed bills today",
+  "dashSupplierPayables": "Supplier Payables",
+  "dashSupplierPayablesSub": "Due on open purchase invoices",
+  "dashTimeAm": "AM",
+  "dashTimePm": "PM",
+  "dashTitle": "Dashboard",
+  "dashTypePayment": "Payment",
+  "dashTypePurchase": "Purchase",
+  "dashTypeSale": "Sale",
+  "dashViewAll": "View all",
+  "date": "Date",
+  "delete": "Delete",
+  "done": "Done",
+  "edit": "Edit",
+  "errAdjustStock": "Could not adjust stock: {error}",
+  "errArchiveProduct": "Could not archive product: {error}",
+  "errCreateCustomer": "Could not create customer: {error}",
+  "errCreateExpense": "Could not create expense: {error}",
+  "errCreateInvoice": "Could not create invoice: {error}",
+  "errCreateProduct": "Could not create product: {error}",
+  "errCreatePurchase": "Could not create purchase: {error}",
+  "errCreateSupplier": "Could not create supplier: {error}",
+  "errDeleteCustomer": "Could not delete customer: {error}",
+  "errInviteUser": "Could not invite user: {error}",
+  "errMarkPaid": "Could not mark invoice paid: {error}",
+  "errRecordPayment": "Could not record payment: {error}",
+  "errRefreshFailed": "Refresh failed: {error}",
+  "errSessionExpired": "Your session expired. Please sign in again.",
+  "errUpdateCustomer": "Could not update customer: {error}",
+  "errUpdateProduct": "Could not update product: {error}",
+  "expnAddExpense": "Add expense",
+  "expnByCategory": "By category",
+  "expnCategoryOptional": "Category (optional)",
+  "expnDefaultTitle": "Expense",
+  "expnExpenseTitle": "Expense title",
+  "expnGeneral": "General",
+  "expnLastMonth": "Last month",
+  "expnNoExpenses": "No expenses yet",
+  "expnNoteFromApp": "Created from mobile app",
+  "expnOther": "Other",
+  "expnPaymentBank": "Bank",
+  "expnPaymentCard": "Card",
+  "expnPaymentCash": "Cash",
+  "expnPaymentMode": "Payment mode",
+  "expnPaymentUpi": "UPI",
+  "expnThisMonth": "This month",
+  "invnAddPlus": "Add (+)",
+  "invnAdjustFailed": "Adjust failed: {error}",
+  "invnAdjustStockTitle": "Adjust stock — {product}",
+  "invnAll": "All",
+  "invnBal": "bal",
+  "invnCurrentBalance": "Current balance: {value}",
+  "invnGeneral": "General",
+  "invnHeaderSubtitle": "Live stock from the movement ledger",
+  "invnLoadError": "Could not load inventory",
+  "invnLowOnly": "Low only",
+  "invnLowStock": "Low stock",
+  "invnManualAdjustment": "Manual adjustment",
+  "invnMovements": "Movements",
+  "invnMovementsSubtitle": "Append-only movement ledger",
+  "invnMovementsTitle": "Stock Movements",
+  "invnMrp": "MRP {price}",
+  "invnNoMovements": "No movements yet",
+  "invnNoMovementsSub": "Sales, purchases and adjustments will appear here.",
+  "invnNoSku": "no SKU",
+  "invnNoStock": "No stock found",
+  "invnNoStockSub": "Add products or adjust stock to get started.",
+  "invnQuantity": "Quantity",
+  "invnReason": "Reason",
+  "invnRemoveMinus": "Remove (−)",
+  "invnSearchHint": "Search products...",
+  "invnStockUpdated": "Stock updated",
+  "invnValueLabel": "Inventory value",
+  "loading": "Loading...",
+  "mobile": "Mobile",
+  "moreExpenses": "Expenses",
+  "moreExpensesSub": "Register & category breakdown",
+  "moreInventory": "Inventory",
+  "moreInventorySub": "Stock levels, low stock & movements",
+  "morePayments": "Payments",
+  "morePaymentsSub": "Customer receipts history",
+  "morePurchases": "Purchases",
+  "morePurchasesSub": "Purchase register & payments",
+  "moreReports": "GST & Reports",
+  "moreReportsSub": "Sales, purchases, P&L and GST",
+  "moreSettings": "Settings",
+  "moreSettingsSub": "Store profile & language",
+  "moreSignOut": "Sign out",
+  "moreSignOutSub": "End this session",
+  "moreSubtitle": "All services",
+  "moreSuppliers": "Suppliers",
+  "moreSuppliersSub": "Vendors, due payments & details",
+  "moreTitle": "More",
+  "moreUsers": "Users & Roles",
+  "moreUsersSub": "Team members & invites",
+  "myStore": "My Store",
+  "name": "Name",
+  "no": "No",
+  "ok": "OK",
+  "paymEmpty": "No payments yet",
+  "paymPayment": "Payment",
+  "paymReference": "{type} #{id}",
+  "phone": "Phone",
+  "pincode": "Pincode",
+  "pleaseWait": "Please wait...",
+  "prodAbbrevCrore": "Cr",
+  "prodAbbrevLakh": "L",
+  "prodAbbrevThousand": "k",
+  "prodActionsTitle": "Product actions",
+  "prodAddLabel": "Add (+)",
+  "prodAddTitle": "Add product",
+  "prodAdjustStock": "Adjust stock",
+  "prodAdjustStockTitle": "Adjust stock · {productName}",
+  "prodAll": "All",
+  "prodApply": "Apply",
+  "prodArchive": "Archive",
+  "prodArchiveConfirmTitle": "Archive product?",
+  "prodArchiveMessage": "\"{productName}\" will be hidden from sales and listings. Movements are kept for records.",
+  "prodArchiveProduct": "Archive product",
+  "prodCategory": "Category",
+  "prodCurrently": "Currently: {stock} {unit}",
+  "prodEditProduct": "Edit product",
+  "prodEmptySubtitle": "Try a different search or add a new product.",
+  "prodEmptyTitle": "No products found",
+  "prodGeneral": "General",
+  "prodGstPercent": "GST %",
+  "prodLowQty": "LOW · {qty}",
+  "prodManualAdjustment": "Manual adjustment",
+  "prodMinStock": "Min stock",
+  "prodNoMovements": "No movements recorded yet",
+  "prodOpeningStock": "Opening stock",
+  "prodProductMeta": "{category} · {unit}",
+  "prodProductMetaSku": "{category} · {unit} · SKU {sku}",
+  "prodProductName": "Product name",
+  "prodPurchase": "Purchase",
+  "prodPurchasePrice": "Purchase price",
+  "prodQuantity": "Quantity",
+  "prodReason": "Reason",
+  "prodRemoveLabel": "Remove (−)",
+  "prodSearchHint": "Search by name, SKU or barcode...",
+  "prodSelling": "Selling",
+  "prodSellingPrice": "Selling price",
+  "prodStockMovements": "Stock movements",
+  "prodStockQty": "{qty} in stock",
+  "prodSubtitle": "Catalog, pricing and stock",
+  "prodTitle": "Products",
+  "prodUnit": "Unit",
+  "prodValue": "Value",
+  "purchAddPurchase": "Add purchase",
+  "purchDueAmount": "Due: {amount}",
+  "purchFromMobileApp": "Created from mobile app",
+  "purchNoPurchasesYet": "No purchases yet",
+  "purchPurchaseItem": "Purchase item",
+  "purchSupplierName": "Supplier name",
+  "purchTotalAmount": "Total amount",
+  "purchTotalBilled": "Total billed",
+  "purchUnknownSupplier": "Unknown supplier",
+  "refresh": "Refresh",
+  "reptBills": "Bills",
+  "reptEstProfit": "Est. Profit",
+  "reptEstimatedProfit": "Estimated Profit",
+  "reptGstSummary": "GST Summary",
+  "reptInputGst": "Input GST (purchases)",
+  "reptInventoryValue": "Inventory Value (cost)",
+  "reptInvoices": "Invoices",
+  "reptLessTotalPurchases": "Less: Total Purchases",
+  "reptNetGstPayable": "Net GST Payable",
+  "reptNoChartData": "No data yet for chart",
+  "reptNoSalesRows": "No sales rows yet",
+  "reptOutputGst": "Output GST (sales)",
+  "reptProfitLossPeriod": "Profit & Loss (period)",
+  "reptRecentSalesRows": "Recent sales rows",
+  "reptSales": "Sales",
+  "reptSalesVsPurchasesPeriod": "Sales vs Purchases (period)",
+  "reptTitle": "Reports",
+  "reptTotalSales": "Total Sales",
+  "required": "Required",
+  "retry": "Try again",
+  "save": "Save",
+  "searchHint": "Search...",
+  "sectionExpenses": "Expenses",
+  "sectionInventory": "Inventory",
+  "sectionPayments": "Payments",
+  "sectionProducts": "Products",
+  "sectionPurchases": "Purchases",
+  "sectionReports": "GST & Reports",
+  "sectionSettings": "Settings",
+  "sectionSuppliers": "Suppliers",
+  "sectionUdhaari": "Udhaari",
+  "sectionUsers": "Users & Roles",
+  "settingsAddressSection": "Address",
+  "settingsAppLanguage": "App language",
+  "settingsBusinessName": "Business name",
+  "settingsBusinessType": "Business type (e.g. Grocery, Pharmacy)",
+  "settingsGstin": "GSTIN",
+  "settingsInvoicePrefix": "Invoice prefix",
+  "settingsLanguageSection": "Language",
+  "settingsSave": "Save settings",
+  "settingsSaveFailed": "Could not save settings: {error}",
+  "settingsSaved": "Settings saved",
+  "settingsSaving": "Saving...",
+  "settingsStoreProfile": "Store profile",
+  "settingsSubtitle": "Store profile and preferences",
+  "settingsTitle": "Settings",
+  "signOut": "Sign out",
+  "signedInAs": "Signed in as {email}",
+  "state": "State",
+  "status": "Status",
+  "statusActive": "Active",
+  "statusCancelled": "Cancelled",
+  "statusClosed": "Closed",
+  "statusCompleted": "Completed",
+  "statusDelivered": "Delivered",
+  "statusDraft": "Draft",
+  "statusInStock": "In stock",
+  "statusInactive": "Inactive",
+  "statusLow": "Low",
+  "statusOpen": "Open",
+  "statusOutOfStock": "Out of stock",
+  "statusOutstanding": "Outstanding",
+  "statusOverdue": "Overdue",
+  "statusPaid": "Paid",
+  "statusPartial": "Partial",
+  "statusPending": "Pending",
+  "statusReceived": "Received",
+  "statusSent": "Sent",
+  "statusSettled": "Settled",
+  "statusUnpaid": "Unpaid",
+  "statusVoid": "Void",
+  "suppAcrossOpenAccounts": "Across {count} open accounts",
+  "suppAddSupplier": "Add supplier",
+  "suppAddressOptional": "Address (optional)",
+  "suppEmailOptional": "Email (optional)",
+  "suppGstinOptional": "GSTIN (optional)",
+  "suppLastDate": "Last: {date}",
+  "suppNoSuppliers": "No suppliers yet",
+  "suppNoSuppliersSub": "Add your first supplier to track purchases and dues.",
+  "suppPayableAmount": "Payable: {amount}",
+  "suppPurchasesAmount": "Purchases: {amount}",
+  "suppSubtitle": "Manage vendors and dues",
+  "suppSupplierName": "Supplier name",
+  "suppTotalPayable": "Total Payable",
+  "suppTotalRegisteredVendors": "Total registered vendors",
+  "suppXOutstanding": "{count} outstanding",
+  "suppXOverdue": "{count} overdue",
+  "suppXSettled": "{count} settled",
+  "tabCustomers": "Customers",
+  "tabHome": "Home",
+  "tabInvoice": "Invoice",
+  "tabMore": "More",
+  "tabStock": "Stock",
+  "tabUdhari": "Udhari",
+  "total": "Total",
+  "udhrAmountReceived": "Amount received",
+  "udhrBalance": "Balance",
+  "udhrDueToday": "Due today",
+  "udhrEntryAmount": "Amount: {amount}",
+  "udhrEntryBalance": "Balance: {balance}",
+  "udhrLastEntry": "Last: {date}",
+  "udhrLedgerEntries": "Ledger entries",
+  "udhrLoadEntriesFailed": "Could not load entries: {error}",
+  "udhrModeBank": "Bank",
+  "udhrModeCard": "Card",
+  "udhrModeCash": "Cash",
+  "udhrModeUpi": "UPI",
+  "udhrNoLedgerEntries": "No ledger entries",
+  "udhrNoRecords": "No udhaar records yet",
+  "udhrNoteOptional": "Note (optional)",
+  "udhrOutstandingBalance": "Outstanding balance: {amount}",
+  "udhrPaidVia": "✓ Paid {amount} via {mode}",
+  "udhrPaidViaNote": "✓ Paid {amount} via {mode} · {note}",
+  "udhrPaymentMode": "Payment mode",
+  "udhrPaymentReceived": "Udhari payment received successfully.",
+  "udhrReceive": "Receive",
+  "udhrReceivePaymentFrom": "Receive payment from {name}",
+  "udhrRecordPayment": "Receive payment",
+  "udhrTitle": "Customer Udhaar",
+  "udhrTotalAmount": "Total: {amount}",
+  "udhrTotalReceivables": "Total Receivables",
+  "udhrUpcoming": "Upcoming",
+  "userAllUsers": "All users ({count})",
+  "userEmailOptional": "Email (optional)",
+  "userFullName": "Full name",
+  "userInvite": "Invite",
+  "userInviteHint": "They will receive a login link with this role.",
+  "userInviteMember": "Invite member",
+  "userInviteTitle": "Invite team member",
+  "userJoinedAt": "Joined: {date}",
+  "userMobileOptional": "Mobile (optional)",
+  "userNoUsers": "No other users yet",
+  "userRole": "Role",
+  "userRoleAdmin": "Admin",
+  "userRoleCashier": "Cashier",
+  "userRoleManager": "Manager",
+  "userRoleOwner": "Owner",
+  "userRoleStaff": "Staff",
+  "userTitle": "Team & Users",
+  "userYou": "You",
+  "userYouLabel": "{name} (you)",
+  "yes": "Yes",
+  "mobileNumber": "Mobile number",
+  "udhrAdd": "Add Udhari",
+  "udhrAddNewCustomer": "Add new customer",
+  "udhrAmountLabel": "Amount",
+  "udhrAmountRequired": "Enter an amount greater than 0",
+  "udhrCustomer": "Customer",
+  "udhrDueDate": "Due date",
+  "udhrEntryDate": "Entry date",
+  "udhrNewEntry": "New Udhari Entry",
+  "udhrSelectCustomer": "Select customer",
+  "validationMobileNumber": "Enter a valid mobile number (10-12 digits)",
+  "errCreateUdhaari": "Could not add udhaari: {error}",
+  "menuViewBusinessProfile": "View Business Profile",
+  "bizProfileTitle": "Business Profile",
+  "bizProfileSubtitle": "Your business details & plan",
+  "bizOwnerName": "Owner",
+  "bizGstin": "GSTIN",
+  "bizAddress": "Address",
+  "bizMobile": "Mobile",
+  "bizCategory": "Category",
+  "bizRegisteredOn": "Registered on",
+  "bizPlan": "Plan",
+  "bizPlanStatus": "Plan status",
+  "bizPlanFree": "Free",
+  "bizPlanTrial": "Trial",
+  "bizStatusSuspended": "Suspended",
+  "signOutConfirmTitle": "Sign out?",
+  "signOutConfirmMessage": "Are you sure you want to sign out? You'll be asked to verify an OTP again the next time you sign in.",
+  "navDashboard": "Dashboard",
+  "navProductsStock": "Products & Stock",
+  "navSalesInvoices": "Sales & Invoices",
+  "navCustomers": "Customers",
+  "navSystem": "System",
+  "userRoleStockManager": "Stock Manager",
+  "userRolePlatformAdmin": "Platform Admin",
+  "roleAccessFull": "Full Access / संपूर्ण प्रवेश",
+  "roleAccessLimited": "मर्यादित दृश्यता / Limited Visibility",
+  "roleAccessPlatform": "Platform Access / प्रशासक",
+  "syncOnline": "Online",
+  "syncOffline": "Offline",
+  "appVersion": "v3.4.2",
+  "appTagline": "मी दुकानदार - स्मार्ट व्यवसाय व्यवस्थापन",
+  "exitAppTitle": "Exit MiDukandar?",
+  "exitAppMessage": "Are you sure you want to exit the app?",
+  "exitApp": "Exit",
+  "billReverseTitle": "Void / Reverse Sale",
+  "billReverseMessage": "Reverse invoice \"{invoiceNumber}\"? This creates a reversing entry and marks the original as void. A reason is required.",
+  "billReverse": "Void/Reverse",
+  "errReverseInvoice": "Could not reverse invoice: {error}",
+  "errUpdateInvoice": "Could not update invoice: {error}",
+  "suppEditSupplier": "Edit supplier",
+  "suppDeleteTitle": "Delete supplier?",
+  "suppDeleteMessage": "Delete supplier \"{name}\"? This archives the supplier and removes them from lists. Outstanding purchase orders must be cancelled first.",
+  "errUpdateSupplier": "Could not update supplier: {error}",
+  "errDeleteSupplier": "Could not delete supplier: {error}",
+  "expnEditExpense": "Edit expense",
+  "expnDeleteTitle": "Delete expense?",
+  "expnDeleteMessage": "Delete expense \"{title}\"? This cannot be undone.",
+  "errUpdateExpense": "Could not update expense: {error}",
+  "errDeleteExpense": "Could not delete expense: {error}",
+  "purchPayTitle": "Record payment",
+  "userChangeRole": "Change role",
+  "userDeactivate": "Deactivate",
+  "userActivate": "Activate",
+  "userCannotManage": "Only the Owner can manage other team members.",
+  "errUpdateUserStatus": "Could not update user status: {error}",
+  "errUpdateUserRole": "Could not update user role: {error}",
+  "regTitle": "Create your account",
+  "regSubtitle": "Register your account and store in one step.",
+  "regEmailLabel": "Account Email",
+  "regEmailRequired": "Enter an email address for your account.",
+  "regEmailInvalid": "Enter a valid email address.",
+  "regOwnerNameLabel": "Shop Owner Name",
+  "regOwnerNameRequired": "Enter the shop owner's name",
+  "regShopNameLabel": "Shop / Business Name",
+  "regShopNameRequired": "Enter your shop name",
+  "regStoreTypeLabel": "Store Type",
+  "regPhoneLabel": "Mobile Number",
+  "regGstLabel": "GSTIN (Optional)",
+  "regGstHint": "27ABCDE1234F1Z5",
+  "regLanguageLabel": "App Language",
+  "regAddressLabel": "Address",
+  "regAddressHint": "Shop no, street, area",
+  "regAddressRequired": "Enter your shop address",
+  "regCityLabel": "City",
+  "regCityRequired": "Enter your city",
+  "regStateLabel": "State",
+  "regPincodeLabel": "Pincode",
+  "regPincodeHint": "411001",
+  "regPincodeRequired": "Enter a valid 6-digit pincode",
+  "regPincodeInvalid": "Pincode must be 6 digits",
+  "regCurrencyLabel": "Currency",
+  "regInvoicePrefixLabel": "Invoice Prefix",
+  "regInvoicePrefixHint": "e.g. INV → INV-0001",
+  "regCreateAccount": "Create Account",
+  "regSubmitting": "Creating account...",
+  "regSuccessMessage": "Account created! Sign in to continue.",
+  "regBackToLogin": "Back to login",
+  "regSecureNotice": "Your data is encrypted and stored securely.",
+  "regSecureBadge": "Secure & private",
+  "regGstBadge": "GST-ready invoicing",
+  "regOfflineBadge": "Offline billing support",
+  "regSectionAccountDetails": "Account Details",
+  "regSectionStoreDetails": "Store Details",
+  "regSectionLocation": "Location",
+  "regSectionPreferences": "Preferences"
+}

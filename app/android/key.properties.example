@@ -1,0 +1,22 @@
+# Release signing configuration — TEMPLATE ONLY.
+#
+# Copy this file to `key.properties` (same directory) and fill in the real
+# values. `key.properties` and `*.jks` / `*.keystore` are git-ignored and must
+# never be committed.
+#
+# Generate a keystore once, and store it somewhere backed up outside the repo:
+#
+#   keytool -genkey -v \
+#     -keystore upload-keystore.jks \
+#     -keyalg RSA -keysize 2048 -validity 10000 \
+#     -alias upload
+#
+# Paths are resolved relative to the `android/app` Gradle project directory, so
+# a bare filename means "next to build.gradle.kts".
+#
+# Note: losing this keystore means you can never update the app on Play again.
+
+storePassword=change-me
+keyPassword=change-me
+keyAlias=upload
+storeFile=upload-keystore.jks

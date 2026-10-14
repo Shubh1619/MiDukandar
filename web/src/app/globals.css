@@ -1,0 +1,419 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-inter);
+  --font-display: var(--font-jakarta);
+  --font-heading: var(--font-jakarta);
+  --font-mono: var(--font-geist-mono);
+
+  --color-navy-50: #f0f4f9;
+  --color-navy-100: #dce5f1;
+  --color-navy-200: #b9cbdd;
+  --color-navy-300: #8faac4;
+  --color-navy-400: #5e80a5;
+  --color-navy-500: #3c5d83;
+  --color-navy-600: #2a4669;
+  --color-navy-700: #1e3556;
+  --color-navy-800: #162c48;
+  --color-navy-900: #0f2747;
+  --color-navy-950: #091a33;
+
+  --color-royal-50: #eff6ff;
+  --color-royal-100: #dbeafe;
+  --color-royal-200: #bfdbfe;
+  --color-royal-300: #93c5fd;
+  --color-royal-400: #60a5fa;
+  --color-royal-500: #3b82f6;
+  --color-royal-600: #1473e6;
+  --color-royal-700: #1d4ed8;
+  --color-royal-800: #1e40af;
+  --color-royal-900: #1e3a8a;
+
+  --color-green-50: #ebfbf3;
+  --color-green-100: #d3f5e5;
+  --color-green-200: #abebcc;
+  --color-green-300: #78dcae;
+  --color-green-400: #44c890;
+  --color-green-500: #18b978;
+  --color-green-600: #0fa665;
+  --color-green-700: #0c8553;
+  --color-green-800: #0c6a44;
+  --color-green-900: #0a5739;
+
+  --color-chip: #e8edf3;
+  --color-chip-hover: #d3dce7;
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+  --shadow-card: 0 1px 2px 0 rgb(15 39 71 / 0.04), 0 4px 16px -4px rgb(15 39 71 / 0.08);
+  --shadow-lift: 0 4px 12px -2px rgb(15 39 71 / 0.08), 0 12px 32px -8px rgb(20 115 230 / 0.16);
+}
+
+.otp-input:focus {
+  box-shadow: 0 0 0 2px #1473e6;
+}
+
+@keyframes countdown-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+.countdown-pulse {
+  animation: countdown-pulse 1s ease-in-out infinite;
+}
+
+@keyframes clock-colon {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.12; }
+}
+
+.clock-colon {
+  animation: clock-colon 1s step-start infinite;
+}
+
+@keyframes stat-counter {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.stat-animate {
+  animation: stat-counter 0.4s ease-out forwards;
+}
+
+@keyframes login-rise {
+  from { opacity: 0; transform: translateY(18px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.login-rise {
+  animation: login-rise 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes auth-soft-in {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.auth-soft-in {
+  animation: auth-soft-in 0.3s ease-out both;
+}
+
+@keyframes auth-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.auth-fade-in {
+  animation: auth-fade-in 0.4s ease-out both;
+}
+
+@keyframes float-slow {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+.float-slow {
+  animation: float-slow 6s ease-in-out infinite;
+}
+
+@keyframes float-slower {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+
+.float-slower {
+  animation: float-slower 8s ease-in-out infinite;
+}
+
+:root {
+  --background: #f8fafc;
+  --foreground: #172033;
+  --card: #ffffff;
+  --card-foreground: #172033;
+  --popover: #ffffff;
+  --popover-foreground: #172033;
+  --primary: #0f2747;
+  --primary-foreground: #ffffff;
+  --secondary: #eef2f7;
+  --secondary-foreground: #172033;
+  --muted: #f1f5f9;
+  --muted-foreground: #64748b;
+  --accent: #eff6ff;
+  --accent-foreground: #0f2747;
+  --destructive: #ef4444;
+  --destructive-foreground: #ffffff;
+  --border: #e2e8f0;
+  --input: #e2e8f0;
+  --ring: #1473e6;
+  --chart-1: #0f2747;
+  --chart-2: #1473e6;
+  --chart-3: #18b978;
+  --chart-4: #f59e0b;
+  --chart-5: #8b5cf6;
+  --radius: 0.75rem;
+  --sidebar: #f8fafc;
+  --sidebar-foreground: #172033;
+  --sidebar-primary: #0f2747;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #eef2f7;
+  --sidebar-accent-foreground: #0f2747;
+  --sidebar-border: #e2e8f0;
+  --sidebar-ring: #1473e6;
+}
+
+.dark {
+  --background: #0b1523;
+  --foreground: #edf2f7;
+  --card: #122033;
+  --card-foreground: #edf2f7;
+  --popover: #122033;
+  --popover-foreground: #edf2f7;
+  --primary: #1473e6;
+  --primary-foreground: #ffffff;
+  --secondary: #1b2a3f;
+  --secondary-foreground: #edf2f7;
+  --muted: #16243a;
+  --muted-foreground: #94a3b8;
+  --accent: #16243a;
+  --accent-foreground: #edf2f7;
+  --destructive: #f87171;
+  --destructive-foreground: #1a1a1a;
+  --border: #1e293b;
+  --input: #334155;
+  --ring: #60a5fa;
+  --chart-1: #60a5fa;
+  --chart-2: #18b978;
+  --chart-3: #f59e0b;
+  --chart-4: #8b5cf6;
+  --chart-5: #f472b6;
+  --sidebar: #091a33;
+  --sidebar-foreground: #edf2f7;
+  --sidebar-primary: #1473e6;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #1b2a3f;
+  --sidebar-accent-foreground: #edf2f7;
+  --sidebar-border: #1e293b;
+  --sidebar-ring: #60a5fa;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground text-base leading-relaxed;
+  }
+  html {
+    @apply font-sans;
+  }
+}
+
+/* ============================================================
+   INVOICE PRINT / PREVIEW GLOBAL SAFEGUARDS
+   ============================================================ */
+
+/* Any content inside the printable invoice must never render list markers.
+   These are "last line of defense" rules; the component also ships its own
+   scoped resets so these are intentionally broad and defensive. */
+#invoice-print-area,
+#invoice-print-area * {
+  list-style: none !important;
+  list-style-type: none !important;
+  counter-reset: none !important;
+  counter-increment: none !important;
+  margin: 0;
+  padding: 0;
+}
+
+#invoice-print-area ol,
+#invoice-print-area ul,
+#invoice-print-area li {
+  list-style: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+#invoice-print-area li::before,
+#invoice-print-area li::after,
+#invoice-print-area li::marker,
+#invoice-print-area *::before,
+#invoice-print-area *::after {
+  content: none !important;
+  display: none !important;
+  list-style: none !important;
+}
+
+/* Kill any CSS-counter numbering accidentally applied to tables. */
+#invoice-print-area table,
+#invoice-print-area thead,
+#invoice-print-area tbody,
+#invoice-print-area tfoot,
+#invoice-print-area tr,
+#invoice-print-area th,
+#invoice-print-area td,
+#invoice-print-area section,
+#invoice-print-area header,
+#invoice-print-area footer {
+  counter-reset: none !important;
+  counter-increment: none !important;
+  list-style: none !important;
+  list-style-type: none !important;
+}
+
+#invoice-print-area tr::before,
+#invoice-print-area tr::after,
+#invoice-print-area td::before,
+#invoice-print-area td::after,
+#invoice-print-area th::before,
+#invoice-print-area th::after {
+  content: none !important;
+  display: none !important;
+}
+
+/* ── Page-break behaviour (inside the invoice) ───────────── */
+#invoice-print-area tr,
+#invoice-print-area .invoice-item-row {
+  break-inside: avoid !important;
+  page-break-inside: avoid !important;
+}
+
+#invoice-print-area thead {
+  display: table-header-group !important;
+}
+
+#invoice-print-area tfoot {
+  display: table-footer-group !important;
+}
+
+#invoice-print-area .invoice-totals,
+#invoice-print-area .invoice-footer,
+#invoice-print-area section,
+#invoice-print-area header {
+  break-inside: avoid !important;
+  page-break-inside: avoid !important;
+}
+
+#invoice-print-area * {
+  break-before: auto !important;
+  page-break-before: auto !important;
+  break-after: auto !important;
+  page-break-after: auto !important;
+}
+
+/* ── Global print media query ──────────────────────────── */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 0;
+  }
+
+  @page :first {
+    margin-top: 0;
+  }
+
+  html,
+  body {
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    width: 210mm !important;
+    overflow: visible !important;
+  }
+
+  /*
+    Full-document print isolation.  Hides EVERYTHING (including Radix
+    Dialog portals / overlays / toasts / shell chrome) EXCEPT the
+    printable invoice node and its descendants.  Works whether the
+    invoice is rendered inside a Dialog portal or in the normal flow.
+  */
+  body,
+  body * {
+    visibility: hidden !important;
+  }
+
+  #invoice-print-area,
+  #invoice-print-area * {
+    visibility: visible !important;
+  }
+
+  #invoice-print-area {
+    all: unset !important;
+    display: block !important;
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 210mm !important;
+    min-height: 297mm !important;
+    height: auto !important;
+    max-width: none !important;
+    max-height: none !important;
+    min-width: 0 !important;
+    margin: 0 !important;
+    padding: 12mm 14mm !important;
+    box-sizing: border-box !important;
+    background: #ffffff !important;
+    box-shadow: none !important;
+    overflow: visible !important;
+    border: none !important;
+    border-radius: 0 !important;
+    transform: none !important;
+    filter: none !important;
+    opacity: 1 !important;
+    z-index: 2147483647 !important;
+  }
+
+  /* If printing from inside the modal view, still render the green line */
+  #invoice-print-area.invoice-modal::before {
+    content: "" !important;
+    display: block !important;
+    height: 3px !important;
+    background: #15803d !important;
+    margin-bottom: 5mm !important;
+  }
+
+  /* modal class must never hide the invoice during print */
+  .invoice-modal {
+    display: block !important;
+  }
+}

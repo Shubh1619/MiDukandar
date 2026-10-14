@@ -1,0 +1,9 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "rootDir": "scripts",
+    "outDir": "dist/scripts",
+    "noEmit": false
+  },
+  "include": ["scripts/migrate.ts", "scripts/create-superadmin.ts"]
+}

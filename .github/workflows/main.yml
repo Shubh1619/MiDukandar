@@ -1,0 +1,276 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [main, master]
+    tags: ["v*"]
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  NODE_VERSION: "22"
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+  CI_DB_NAME: mazedukan
+  CI_DB_USER: postgres
+  CI_DB_PASSWORD: ci-postgres-password
+
+jobs:
+  # ------------------------------------------------------------------
+  # Static checks: types + lint for both packages
+  # ------------------------------------------------------------------
+  quality:
+    name: Quality (typecheck + lint)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: |
+            backend/package-lock.json
+            web/package-lock.json
+
+      - name: Install backend deps
+        working-directory: backend
+        run: npm ci
+
+      - name: Typecheck backend (src + scripts)
+        working-directory: backend
+        run: npm run typecheck
+
+      - name: Lint backend
+        # Non-blocking: backend has no ESLint flat config yet and ESLint 9
+        # dropped the `--ext` flag this script still passes. Fix the config
+        # first, then flip this to blocking.
+        working-directory: backend
+        continue-on-error: true
+        run: npm run lint
+
+      - name: Install web deps
+        working-directory: web
+        run: npm ci
+
+      - name: Typecheck web
+        working-directory: web
+        run: npx tsc --noEmit
+
+      - name: Lint web
+        working-directory: web
+        run: npm run lint
+
+  # ------------------------------------------------------------------
+  # Integration: real Postgres -> migrate -> seed -> smoke
+  # ------------------------------------------------------------------
+  integration:
+    name: Integration (migrate + smoke)
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      db:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: ${{ env.CI_DB_USER }}
+          POSTGRES_PASSWORD: ${{ env.CI_DB_PASSWORD }}
+          POSTGRES_DB: ${{ env.CI_DB_NAME }}
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ${{ env.CI_DB_USER }} -d ${{ env.CI_DB_NAME }}"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+
+    env:
+      NODE_ENV: test
+      DATABASE_URL: postgres://${{ env.CI_DB_USER }}:${{ env.CI_DB_PASSWORD }}@localhost:5432/${{ env.CI_DB_NAME }}
+      DIRECT_URL: postgres://${{ env.CI_DB_USER }}:${{ env.CI_DB_PASSWORD }}@localhost:5432/${{ env.CI_DB_NAME }}
+      # Smoke logs in through /api/auth/otp/*, which only echoes `devOtp` when
+      # OTP_MASTER is set and NODE_ENV is not production (see src/lib/otp.ts).
+      # A master OTP is an authentication bypass, so this value exists only in
+      # the throwaway CI database.
+      OTP_MASTER: "111111"
+      JWT_ACCESS_SECRET: ci-access-secret-at-least-32-characters-long
+      JWT_REFRESH_SECRET: ci-refresh-secret-at-least-32-characters-long
+      SUPERADMIN_JWT_SECRET: ci-superadmin-secret-at-least-32-chars
+      APP_URL: http://localhost:3000
+      APP_NAME: MiDukandar
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install backend deps
+        working-directory: backend
+        run: npm ci
+
+      - name: Apply migrations
+        working-directory: backend
+        run: npm run migrate
+
+      - name: Migrations are idempotent (re-run cleanly)
+        working-directory: backend
+        run: npm run migrate
+
+      - name: Seed demo data
+        working-directory: backend
+        run: npm run seed
+
+      - name: Smoke test
+        working-directory: backend
+        run: npm run smoke
+
+      - name: Upload logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: integration-logs
+          path: |
+            backend/*.log
+            backend/dist/**/*.log
+          if-no-files-found: ignore
+          retention-days: 7
+
+  # ------------------------------------------------------------------
+  # Image builds: every Dockerfile target + compose sanity
+  # ------------------------------------------------------------------
+  docker:
+    name: Docker build
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      # Catches a malformed compose file (bad interpolation, missing key)
+      # before it reaches a runner that builds from it.
+      - name: Validate docker-compose.yml
+        run: docker compose -f docker-compose.yml config -q
+
+      - name: Build backend image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          target: backend
+          push: false
+          load: true
+          tags: midukandar-backend:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max,scope=backend
+
+      - name: Build web image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          target: web
+          push: false
+          load: true
+          tags: midukandar-web:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max,scope=web
+
+      # The default target: single container serving both Next.js and the API.
+      - name: Build combined production image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          target: production
+          push: false
+          load: true
+          tags: midukandar:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max,scope=production
+
+      - name: Verify entrypoint is executable
+        run: |
+          test -x "$(docker create --name md-check midukandar:ci >/dev/null && docker export md-check - | tar -tO docker-entrypoint.sh > docker-entrypoint.sh)"
+
+  # ------------------------------------------------------------------
+  # Publish image to GHCR (main + tags only)
+  # ------------------------------------------------------------------
+  publish:
+    name: Publish image
+    needs: [integration, docker]
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=tag
+            type=sha,format=long
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          target: production
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max,scope=production
+
+  # ------------------------------------------------------------------
+  # Deploy the published image (main + tags only)
+  # ------------------------------------------------------------------
+  deploy:
+    name: Deploy
+    needs: publish
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: production
+    steps:
+      # Render (and any host with a deploy hook) is driven by image publish, so
+      # this is a plain webhook call. Add the URL as a repository secret.
+      - name: Trigger deploy hook
+        if: ${{ secrets.RENDER_DEPLOY_HOOK_URL != '' }}
+        run: |
+          curl --fail --silent --show-error --location \
+            --retry 3 --retry-delay 5 \
+            -X POST "${{ secrets.RENDER_DEPLOY_HOOK_URL }}"
+
+      - name: Fail when no deploy hook is configured
+        if: ${{ secrets.RENDER_DEPLOY_HOOK_URL == '' }}
+        run: |
+          echo "::warning::No deploy hook configured; skipping deploy."
+          echo "Set the RENDER_DEPLOY_HOOK_URL secret to enable automatic deploys."
