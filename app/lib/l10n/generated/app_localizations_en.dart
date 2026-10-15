@@ -941,6 +941,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get sectionSuppliers => 'Suppliers';
 
   @override
+  String get sectionSupplierInvoices => 'Supplier Invoices';
+
+  @override
   String get sectionUdhaari => 'Udhaari';
 
   @override

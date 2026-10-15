@@ -97,12 +97,14 @@ String _extractRefreshTokenFromCookies(http.Response response) {
 }
 
 class ApiService {
-  ApiService({String? baseUrl})
+  ApiService({String? baseUrl, http.Client? client})
     : _baseUrl = ApiConfig.normalize(
         baseUrl == null || baseUrl.trim().isEmpty ? ApiConfig.baseUrl : baseUrl,
-      );
+      ),
+      _http = client ?? http.Client();
 
   final String _baseUrl;
+  final http.Client _http;
   String? _accessToken;
   String? _refreshToken;
   Future<_RefreshOutcome>? _refreshFuture;
@@ -169,11 +171,11 @@ class ApiService {
     http.Response response;
     try {
       if (method == 'GET') {
-        response = await http
+        response = await _http
             .get(uri, headers: requestHeaders)
             .timeout(_timeout);
       } else if (method == 'POST') {
-        response = await http
+        response = await _http
             .post(
               uri,
               headers: requestHeaders,
@@ -181,7 +183,7 @@ class ApiService {
             )
             .timeout(_timeout);
       } else if (method == 'PUT') {
-        response = await http
+        response = await _http
             .put(
               uri,
               headers: requestHeaders,
@@ -189,7 +191,7 @@ class ApiService {
             )
             .timeout(_timeout);
       } else if (method == 'PATCH') {
-        response = await http
+        response = await _http
             .patch(
               uri,
               headers: requestHeaders,
@@ -197,7 +199,7 @@ class ApiService {
             )
             .timeout(_timeout);
       } else if (method == 'DELETE') {
-        response = await http
+        response = await _http
             .delete(uri, headers: requestHeaders)
             .timeout(_timeout);
       } else {
@@ -276,7 +278,7 @@ class ApiService {
         final uri = ApiConfig.uri('/api/auth/refresh', baseUrl: _baseUrl);
         http.Response res;
         try {
-          res = await http
+          res = await _http
               .post(
                 uri,
                 headers: {'Content-Type': 'application/json'},
@@ -389,7 +391,7 @@ class ApiService {
     });
     http.Response verification;
     try {
-      verification = await http
+      verification = await _http
           .post(
             verifyUri,
             headers: {
@@ -485,7 +487,7 @@ class ApiService {
     final uri = ApiConfig.uri('/api/auth/register', baseUrl: _baseUrl);
     http.Response response;
     try {
-      response = await http
+      response = await _http
           .post(
             uri,
             headers: {
@@ -875,10 +877,11 @@ class ApiService {
   }
 
   Future<Map<String, dynamic>> createSupplierInvoice(
+    String supplierId,
     Map<String, dynamic> payload,
   ) async {
     final data = await _request(
-      '/api/suppliers/invoice',
+      '/api/suppliers/$supplierId/invoice',
       method: 'POST',
       body: payload,
     );

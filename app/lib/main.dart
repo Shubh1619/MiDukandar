@@ -1062,12 +1062,11 @@ case AppSection.purchases:
     // This is kept for API compatibility with screens that expect a callback.
   }
 
-  Future<void> _handleCreateSupplierInvoice(Map<String, dynamic> payload) async {
-    // TODO: Implement supplier invoice creation using apiService.createSupplierInvoice
+  Future<void> _handleCreateSupplierInvoice(String supplierId, Map<String, dynamic> payload) async {
     if (!context.mounted) return;
     AppDialogs.showLoading(context);
     try {
-      await widget.apiService.createSupplierInvoice(payload);
+      await widget.apiService.createSupplierInvoice(supplierId, payload);
       if (!context.mounted) return;
       AppDialogs.hideLoading(context);
       if (!context.mounted) return;

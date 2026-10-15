@@ -1780,6 +1780,12 @@ abstract class AppLocalizations {
   /// **'Suppliers'**
   String get sectionSuppliers;
 
+  /// No description provided for @sectionSupplierInvoices.
+  ///
+  /// In en, this message translates to:
+  /// **'Supplier Invoices'**
+  String get sectionSupplierInvoices;
+
   /// No description provided for @sectionUdhaari.
   ///
   /// In en, this message translates to:

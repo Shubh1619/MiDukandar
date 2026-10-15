@@ -11,7 +11,8 @@ class SupplierInvoiceScreen extends StatefulWidget {
   const SupplierInvoiceScreen({super.key, required this.apiService, this.onCreate, this.onPay});
 
   final ApiService apiService;
-  final Future<void> Function(Map<String, dynamic>)? onCreate;
+  final Future<void> Function(String supplierId, Map<String, dynamic>)?
+  onCreate;
   final Future<void> Function(Purchase, num amount, String mode)? onPay;
 
   @override
@@ -22,6 +23,7 @@ class _SupplierInvoiceScreenState extends State<SupplierInvoiceScreen> {
   bool _loading = true;
   String? _error;
   List<Purchase> _purchases = const [];
+  List<Supplier> _suppliers = const [];
 
   @override
   void initState() {
@@ -36,9 +38,11 @@ class _SupplierInvoiceScreenState extends State<SupplierInvoiceScreen> {
     });
     try {
       final purchases = await widget.apiService.getPurchases();
+      final suppliers = await widget.apiService.getSuppliers();
       if (!mounted) return;
       setState(() {
         _purchases = purchases;
+        _suppliers = suppliers;
         _loading = false;
       });
     } catch (e) {
@@ -52,75 +56,92 @@ class _SupplierInvoiceScreenState extends State<SupplierInvoiceScreen> {
 
   Future<void> _showCreateDialog(BuildContext context) async {
     final l = AppLocalizations.of(context)!;
-    final supplierController = TextEditingController();
+    if (_suppliers.isEmpty) {
+      AppDialogs.showError(context, l.suppNoSuppliers);
+      return;
+    }
     final totalController = TextEditingController(text: '0');
+    String selectedSupplierId = _suppliers.first.id;
 
     final result = await AppDialogs.showFormSheet<Map<String, dynamic>>(
       context,
       title: l.purchAddPurchase,
       builder: (sheetContext) {
-        return Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            TextField(
-              controller: supplierController,
-              decoration: InputDecoration(labelText: l.purchSupplierName),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: totalController,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              decoration: InputDecoration(labelText: l.purchTotalAmount),
-            ),
-            const SizedBox(height: 16),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
+        return StatefulBuilder(
+          builder: (ctx, setSheetState) {
+            return Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                TextButton(
-                  onPressed: () => Navigator.pop(sheetContext),
-                  child: Text(l.cancel),
-                ),
-                const SizedBox(width: 8),
-                FilledButton(
-                  onPressed: () {
-                    final supplier = supplierController.text.trim();
-                    final total = num.tryParse(totalController.text.trim()) ?? 0;
-                    final payload = {
-                      'supplierName': supplier.isNotEmpty ? supplier : l.purchUnknownSupplier,
-                      'supplierMobile': '',
-                      'lines': [
-                        {
-                          'productId': null,
-                          'productName': l.purchPurchaseItem,
-                          'qty': 1,
-                          'unitPrice': total,
-                          'discount': 0,
-                          'gstPercent': 0,
-                        }
-                      ],
-                      'discount': 0,
-                      'discountType': 'FLAT',
-                      'paidAmount': 0,
-                      'notes': l.purchFromMobileApp,
-                    };
-                    Navigator.pop(sheetContext, payload);
+                DropdownButtonFormField<String>(
+                  value: selectedSupplierId,
+                  decoration: InputDecoration(labelText: l.purchSupplierName),
+                  items: _suppliers
+                      .map(
+                        (s) => DropdownMenuItem(value: s.id, child: Text(s.name)),
+                      )
+                      .toList(),
+                  onChanged: (v) {
+                    if (v != null) setSheetState(() => selectedSupplierId = v);
                   },
-                  child: Text(l.save),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: totalController,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  decoration: InputDecoration(labelText: l.purchTotalAmount),
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(sheetContext),
+                      child: Text(l.cancel),
+                    ),
+                    const SizedBox(width: 8),
+                    FilledButton(
+                      onPressed: () {
+                        final total = num.tryParse(totalController.text.trim()) ?? 0;
+                        final supplier = _suppliers.firstWhere(
+                          (s) => s.id == selectedSupplierId,
+                          orElse: () => _suppliers.first,
+                        );
+                        Navigator.pop(sheetContext, {
+                          'supplierId': selectedSupplierId,
+                          'supplierMobile': supplier.phone ?? '',
+                          'lines': [
+                            {
+                              'productId': null,
+                              'productName': l.purchPurchaseItem,
+                              'qty': 1,
+                              'unitPrice': total,
+                              'gstPercent': 0,
+                            }
+                          ],
+                          'discount': 0,
+                          'paidAmount': 0,
+                          'notes': l.purchFromMobileApp,
+                        });
+                      },
+                      child: Text(l.save),
+                    ),
+                  ],
                 ),
               ],
-            ),
-          ],
+            );
+          },
         );
       },
     );
-    supplierController.dispose();
     totalController.dispose();
 
     if (result == null || widget.onCreate == null || !context.mounted) return;
+    final supplierId = result['supplierId'] as String;
+    final payload = Map<String, dynamic>.from(result)..remove('supplierId');
     AppDialogs.showLoading(context);
     try {
-      await widget.onCreate!(result);
+      await widget.onCreate!(supplierId, payload);
     } finally {
       if (context.mounted) AppDialogs.hideLoading(context);
     }
