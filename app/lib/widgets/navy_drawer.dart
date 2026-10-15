@@ -123,6 +123,7 @@ List<_NavRowData> _mainNavItems(BuildContext context) {
     _NavRowData(key: 'invoices', icon: Icons.receipt_long_outlined, label: l.navSalesInvoices),
     _NavRowData(key: 'customers', icon: Icons.people_alt_outlined, label: l.navCustomers),
     _NavRowData(key: 'suppliers', icon: Icons.local_shipping_outlined, label: l.sectionSuppliers),
+    _NavRowData(key: 'supplierInvoices', icon: Icons.insert_drive_file_outlined, label: l.sectionSupplierInvoices),
     _NavRowData(key: 'expenses', icon: Icons.account_balance_wallet_outlined, label: l.sectionExpenses),
     _NavRowData(key: 'reports', icon: Icons.bar_chart_outlined, label: l.sectionReports),
   ];

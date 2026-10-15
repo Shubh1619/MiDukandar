@@ -17,6 +17,7 @@ import 'screens/product_screen.dart';
 import 'screens/purchases_screen.dart';
 import 'screens/register_screen.dart';
 import 'screens/report_screen.dart';
+import 'screens/supplier_invoice_screen.dart';
 import 'screens/settings_screen.dart';
 import 'screens/suppliers_screen.dart';
 import 'screens/udhaari_screen.dart';
@@ -350,6 +351,7 @@ enum AppSection {
   customers,
   udhaari,
   suppliers,
+  supplierInvoices,
   expenses,
   reports,
   settings,
@@ -374,6 +376,7 @@ class _AppShellState extends State<AppShell> {
     AppSection.customers => 'customers',
     AppSection.udhaari => 'udhaari',
     AppSection.suppliers => 'suppliers',
+    AppSection.supplierInvoices => 'supplierInvoices',
     AppSection.expenses => 'expenses',
     AppSection.reports => 'reports',
     AppSection.settings => 'settings',
@@ -819,6 +822,8 @@ class _AppShellState extends State<AppShell> {
         return _selectSection(AppSection.purchases);
       case 'payments':
         return _selectSection(AppSection.payments);
+    case 'supplierInvoices':
+        return _selectSection(AppSection.supplierInvoices);
     }
   }
 
@@ -1003,11 +1008,15 @@ class _AppShellState extends State<AppShell> {
           onAdjust: _handleAdjustStock,
           onFetchDetail: _handleFetchProductDetail,
         );
-      case AppSection.purchases:
+case AppSection.purchases:
         return PurchaseScreen(
           apiService: widget.apiService,
           onCreate: _handleCreatePurchase,
-          onPay: _handlePayPurchase,
+        );
+      case AppSection.supplierInvoices:
+        return SupplierInvoiceScreen(
+          apiService: widget.apiService,
+          onCreate: _handleCreateSupplierInvoice,
         );
       case AppSection.suppliers:
         return SuppliersScreen(
@@ -1051,5 +1060,22 @@ class _AppShellState extends State<AppShell> {
   Future<void> _refreshCurrentSection() async {
     // No-op: each screen manages its own refresh via its own state.
     // This is kept for API compatibility with screens that expect a callback.
+  }
+
+  Future<void> _handleCreateSupplierInvoice(Map<String, dynamic> payload) async {
+    // TODO: Implement supplier invoice creation using apiService.createSupplierInvoice
+    if (!context.mounted) return;
+    AppDialogs.showLoading(context);
+    try {
+      await widget.apiService.createSupplierInvoice(payload);
+      if (!context.mounted) return;
+      AppDialogs.hideLoading(context);
+      if (!context.mounted) return;
+      AppDialogs.showSuccess(context, 'Supplier invoice created successfully');
+      _refreshCurrentSection();
+    } catch (error) {
+      if (!context.mounted) return;
+      AppDialogs.showError(context, 'Failed to create supplier invoice: ${error.toString()}');
+    }
   }
 }

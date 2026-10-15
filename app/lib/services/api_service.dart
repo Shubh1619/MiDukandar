@@ -874,6 +874,20 @@ class ApiService {
     await _request('/api/suppliers/$id', method: 'DELETE');
   }
 
+  Future<Map<String, dynamic>> createSupplierInvoice(
+    Map<String, dynamic> payload,
+  ) async {
+    final data = await _request(
+      '/api/suppliers/invoice',
+      method: 'POST',
+      body: payload,
+    );
+    final invoice = data['purchase'];
+    if (invoice is Map<String, dynamic>) return invoice;
+    if (invoice is Map) return Map<String, dynamic>.from(invoice);
+    return data;
+  }
+
   // ---------------- EXPENSES ----------------
 
   Future<Map<String, dynamic>> createExpense(
