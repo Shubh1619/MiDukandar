@@ -1,4 +1,4 @@
-﻿import type { FastifyInstance, FastifyRequest } from "fastify";
+import type { FastifyInstance, FastifyRequest } from "fastify";
 import { verifyRazorpayWebhookSignature, type RazorpayPayload } from "../lib/razorpay.js";
 import { logger } from "../lib/logger.js";
 import { pool } from "../db/pool.js";
@@ -7,30 +7,32 @@ function rawBody(request: FastifyRequest): string {
   return String((request as import("fastify").FastifyRequest & { rawBody?: Buffer }).rawBody?.toString() ?? "");
 }
 
+export async function isProcessed(eventId: string, entityId: string): Promise<boolean> {
+  const { rows } = await pool.query<{ processed_at: string }[], [string, string]>(
+    `SELECT 1 FROM webhook_events WHERE event_id = $1 AND entity_id = $2 LIMIT 1`,
+    [eventId, entityId],
+  );
+  return rows.length > 0;
+}
+
+export async function markProcessed(eventId: string, entityId: string): Promise<void> {
+  await pool.query(
+    `INSERT INTO webhook_events (event_id, entity_id, payload) VALUES ($1, $2, $3) ON CONFLICT (event_id, entity_id) DO NOTHING`,
+    [eventId, entityId, JSON.stringify({ entity_id: entityId })],
+  );
+}
+
 export async function webhookRoutes(app: FastifyInstance) {
-  // Ensures each (event, entity_id) is processed at most once.
+  // Ensures each (event, entity_id) is processed at most once (P2-04).
   await pool.query(`
     CREATE TABLE IF NOT EXISTS webhook_events (
-      event_id TEXT PRIMARY KEY,
+      event_id     TEXT NOT NULL,
+      entity_id    TEXT NOT NULL,
       processed_at TIMESTAMPTZ DEFAULT now(),
-      payload JSONB
+      payload      JSONB,
+      PRIMARY KEY (event_id, entity_id)
     )
   `);
-
-  async function isProcessed(eventId: string, entityId: string): Promise<boolean> {
-    const { rows } = await pool.query<{ processed_at: string }[], [string, string]>(
-      `SELECT 1 FROM webhook_events WHERE event_id = $1 AND payload->>'entity_id' = $2 LIMIT 1`,
-      [eventId, entityId],
-    );
-    return rows.length > 0;
-  }
-
-  async function markProcessed(eventId: string, entityId: string): Promise<void> {
-    await pool.query(
-      `INSERT INTO webhook_events (event_id, payload) VALUES ($1, $2) ON CONFLICT (event_id) DO NOTHING`,
-      [eventId, JSON.stringify({ entity_id: entityId })],
-    );
-  }
 
   // Razorpay payment webhook (UPI QR scans resolve here).
   app.post("/razorpay", async (request, reply) => {
