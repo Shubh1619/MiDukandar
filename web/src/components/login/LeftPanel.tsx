@@ -99,7 +99,7 @@ export default function LeftPanel() {
                   <ReceiptText className="size-3.5" strokeWidth={1.75} />
                 </span>
                 <div>
-                  <div className="text-[11px] font-semibold text-white">Today's sales</div>
+                  <div className="text-[11px] font-semibold text-white">Today&apos;s sales</div>
                   <div className="text-[10px] text-navy-300">Bill #1024</div>
                 </div>
               </div>

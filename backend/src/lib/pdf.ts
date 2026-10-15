@@ -442,9 +442,9 @@ export function generateInvoicePdf(data: InvoiceData): Promise<Buffer> {
 
     // Snapshot the current margins, disable the bottom margin for footer
     // drawing so doc.text() can never auto-add page 2.
-    const savedBottom = (doc.page.margins as any).bottom;
+    const savedBottom = (doc.page.margins as { bottom: number }).bottom;
     try {
-      (doc.page.margins as any).bottom = 0;
+      (doc.page.margins as { bottom: number }).bottom = 0;
 
       // Separator line — rectangle primitive, never triggers page break
       doc
@@ -463,7 +463,7 @@ export function generateInvoicePdf(data: InvoiceData): Promise<Buffer> {
           { width: contentWidth, align: "center", height: 12, lineBreak: false },
         );
     } finally {
-      (doc.page.margins as any).bottom = savedBottom;
+      (doc.page.margins as { bottom: number }).bottom = savedBottom;
     }
 
     doc.end();

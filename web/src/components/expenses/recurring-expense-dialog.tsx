@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 import { apiFetch, ApiError } from "@/lib/api";
 import type { ExpenseCategory, ExpensePaymentMode, RecurringExpense } from "@/lib/types";
@@ -41,31 +41,15 @@ export function RecurringExpenseDialog({
 }: RecurringExpenseDialogProps) {
   const todayStr = new Date().toISOString().split("T")[0];
 
-  const [title, setTitle] = useState("");
-  const [amount, setAmount] = useState("");
-  const [categoryId, setCategoryId] = useState<string>("none");
-  const [frequency, setFrequency] = useState<"MONTHLY" | "WEEKLY">("MONTHLY");
-  const [nextDueDate, setNextDueDate] = useState(todayStr);
-  const [paymentMode, setPaymentMode] = useState<ExpensePaymentMode>("CASH");
+  const [title, setTitle] = useState(editing?.title ?? "");
+  const [amount, setAmount] = useState(editing ? String(editing.amount) : "");
+  const [categoryId, setCategoryId] = useState<string>(
+    editing ? editing.categoryId || "none" : categories.find((c) => c.isDefault)?.id || "none",
+  );
+  const [frequency, setFrequency] = useState<"MONTHLY" | "WEEKLY">(editing?.frequency || "MONTHLY");
+  const [nextDueDate, setNextDueDate] = useState(editing?.nextDueDate || todayStr);
+  const [paymentMode, setPaymentMode] = useState<ExpensePaymentMode>(editing?.paymentMode || "CASH");
   const [submitting, setSubmitting] = useState(false);
-
-  useEffect(() => {
-    if (editing) {
-      setTitle(editing.title);
-      setAmount(String(editing.amount));
-      setCategoryId(editing.categoryId || "none");
-      setFrequency(editing.frequency || "MONTHLY");
-      setNextDueDate(editing.nextDueDate || todayStr);
-      setPaymentMode(editing.paymentMode || "CASH");
-    } else {
-      setTitle("");
-      setAmount("");
-      setCategoryId(categories.find((c) => c.isDefault)?.id || "none");
-      setFrequency("MONTHLY");
-      setNextDueDate(todayStr);
-      setPaymentMode("CASH");
-    }
-  }, [editing, open, categories, todayStr]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

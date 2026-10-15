@@ -307,6 +307,7 @@ export default function PurchaseOrdersPage() {
 
       {/* View PO Detail Dialog */}
       <PoDetailDialog
+        key={detailTarget?.id ?? "none"}
         poId={detailTarget ? detailTarget.id : null}
         onOpenChange={(open: boolean) => { if (!open) setDetailTarget(null); }}
         onChanged={() => void loadOrders()}

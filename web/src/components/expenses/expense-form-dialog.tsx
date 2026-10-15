@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 import { Plus, Upload, Paperclip, X } from "lucide-react";
 import { apiFetch, apiUploadFile, ApiError } from "@/lib/api";
@@ -46,37 +46,19 @@ export function ExpenseFormDialog({
 }: ExpenseFormDialogProps) {
   const todayStr = new Date().toISOString().split("T")[0];
 
-  const [title, setTitle] = useState("");
-  const [amount, setAmount] = useState("");
-  const [categoryId, setCategoryId] = useState<string>("none");
-  const [expenseDate, setExpenseDate] = useState(todayStr);
-  const [paymentMode, setPaymentMode] = useState<ExpensePaymentMode>("CASH");
-  const [note, setNote] = useState("");
-  const [attachmentUrl, setAttachmentUrl] = useState<string | null>(null);
+  const [title, setTitle] = useState(editing?.title ?? "");
+  const [amount, setAmount] = useState(editing ? String(editing.amount) : "");
+  const [categoryId, setCategoryId] = useState<string>(
+    editing ? editing.categoryId || "none" : categories.find((c) => c.isDefault)?.id || "none",
+  );
+  const [expenseDate, setExpenseDate] = useState(editing?.expenseDate || todayStr);
+  const [paymentMode, setPaymentMode] = useState<ExpensePaymentMode>(editing?.paymentMode || "CASH");
+  const [note, setNote] = useState(editing?.note || "");
+  const [attachmentUrl, setAttachmentUrl] = useState<string | null>(editing?.attachmentUrl || null);
 
   const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [addCatOpen, setAddCatOpen] = useState(false);
-
-  useEffect(() => {
-    if (editing) {
-      setTitle(editing.title);
-      setAmount(String(editing.amount));
-      setCategoryId(editing.categoryId || "none");
-      setExpenseDate(editing.expenseDate || todayStr);
-      setPaymentMode(editing.paymentMode || "CASH");
-      setNote(editing.note || "");
-      setAttachmentUrl(editing.attachmentUrl || null);
-    } else {
-      setTitle("");
-      setAmount("");
-      setCategoryId(categories.find((c) => c.isDefault)?.id || "none");
-      setExpenseDate(todayStr);
-      setPaymentMode("CASH");
-      setNote("");
-      setAttachmentUrl(null);
-    }
-  }, [editing, open, categories, todayStr]);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];

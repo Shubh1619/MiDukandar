@@ -48,11 +48,7 @@ jobs:
         run: npm run typecheck
 
       - name: Lint backend
-        # Non-blocking: backend has no ESLint flat config yet and ESLint 9
-        # dropped the `--ext` flag this script still passes. Fix the config
-        # first, then flip this to blocking.
         working-directory: backend
-        continue-on-error: true
         run: npm run lint
 
       - name: Install web deps
@@ -66,6 +62,31 @@ jobs:
       - name: Lint web
         working-directory: web
         run: npm run lint
+
+  # ------------------------------------------------------------------
+  # Flutter app: widget tests (blocking)
+  # ------------------------------------------------------------------
+  flutter:
+    name: Flutter (test)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.44.4"
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Run widget tests
+        run: flutter test
 
   # ------------------------------------------------------------------
   # Integration: real Postgres -> migrate -> seed -> smoke
@@ -209,7 +230,7 @@ jobs:
   # ------------------------------------------------------------------
   publish:
     name: Publish image
-    needs: [integration, docker]
+    needs: [integration, docker, flutter]
     if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
     runs-on: ubuntu-latest
     timeout-minutes: 30

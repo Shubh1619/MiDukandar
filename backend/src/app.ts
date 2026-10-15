@@ -31,7 +31,7 @@ import { superadminPlanRoutes } from "./routes/superadmin-plans.routes.js";
 import { planRoutes } from "./routes/plan.routes.js";
 import { supplierRoutes } from "./routes/supplier.routes.js";
 import { purchaseOrderRoutes } from "./routes/purchase-order.routes.js";
-import { expenseRoutes } from "./routes/expense.routes.js";
+import { expenseRoutes, recurringExpenseRoutes } from "./routes/expense.routes.js";
 import { userRoutes } from "./routes/user.routes.js";
 import { roleRoutes } from "./routes/role.routes.js";
 import { settingsRoutes } from "./routes/settings.routes.js";
@@ -78,7 +78,6 @@ export function buildApp(opts: { logger?: boolean } = {}): FastifyInstance {
   });
 
   if (config.sentryDsn) {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
     const Sentry = require("@sentry/node");
     Sentry.init({ dsn: config.sentryDsn, environment: config.nodeEnv, tracesSampleRate: 0.05 });
   }
@@ -196,7 +195,6 @@ export function buildApp(opts: { logger?: boolean } = {}): FastifyInstance {
         path: request.url,
         error: { name: error.name, message: error.message, stack: error.stack },
       });
-      // eslint-disable-next-line @typescript-eslint/no-var-requires
       if (config.sentryDsn) require("@sentry/node").captureException(error);
     } else {
       logger.warn("client error", {
@@ -242,7 +240,7 @@ function registerRoutes(app: FastifyInstance) {
   app.register(purchaseOrderRoutes, { prefix: "/api/purchase-orders" });
   app.register(expenseRoutes, { prefix: "/api/expenses" });
   app.register(expenseRoutes, { prefix: "/api/expense-categories" });
-  app.register(expenseRoutes, { prefix: "/api/recurring-expenses" });
+  app.register(recurringExpenseRoutes, { prefix: "/api/recurring-expenses" });
   app.register(saleRoutes, { prefix: "/api/sales" });
   app.register(purchaseRoutes, { prefix: "/api/purchases" });
   app.register(inventoryRoutes, { prefix: "/api/inventory" });

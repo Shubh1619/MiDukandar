@@ -35,6 +35,26 @@ async function main() {
   const { rows } = await client.query(`SELECT name FROM schema_migrations`);
   const applied = new Set(rows.map((r) => r.name as string));
 
+  // Guard against duplicate numeric prefixes (e.g. 012_plans.sql and
+  // 012_refresh_tokens_grace.sql). Applied state is keyed by full filename, so
+  // these still apply exactly once — but the numeric prefix no longer implies a
+  // unique position. Surface it so the ordering (lexical by full filename) is
+  // never a silent assumption. Non-fatal: existing databases already record the
+  // exact filenames, so failing here would block otherwise-valid re-runs.
+  const byPrefix = new Map<string, string[]>();
+  for (const file of files) {
+    const prefix = /^(\d+)_/.exec(file)?.[1];
+    if (!prefix) continue;
+    (byPrefix.get(prefix) ?? byPrefix.set(prefix, []).get(prefix)!).push(file);
+  }
+  for (const [prefix, group] of byPrefix) {
+    if (group.length > 1) {
+      console.warn(
+        `warn   duplicate migration prefix ${prefix}: ${group.join(", ")} (applied in lexical order by full filename)`,
+      );
+    }
+  }
+
   for (const file of files) {
     if (applied.has(file)) {
       console.log(`skip   ${file} (already applied)`);

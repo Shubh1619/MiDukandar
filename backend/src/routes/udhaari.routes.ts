@@ -244,14 +244,14 @@ export async function udhaariRoutes(app: FastifyInstance) {
     );
 
     const customers = rows.map((r) => {
-      const total = Number(r.total_amount) ?? 0;
-      const paid = Number(r.paid_amount) ?? 0;
+      const total = Number(r.total_amount ?? 0);
+      const paid = Number(r.paid_amount ?? 0);
       const outstanding = Math.max(0, total - paid);
       return {
         customerId: r.customer_id,
         customerName: r.customer_name,
         customerMobile: r.customer_mobile ?? null,
-        entryCount: Number(r.entry_count) ?? 0,
+        entryCount: Number(r.entry_count ?? 0),
         totalAmount: total,
         paidAmount: paid,
         outstanding,
@@ -301,8 +301,8 @@ export async function udhaariRoutes(app: FastifyInstance) {
 
     const reminders = rows
       .map((r) => {
-        const amount = Number(r.amount) ?? 0;
-        const paid = Number(r.paid) ?? 0;
+        const amount = Number(r.amount ?? 0);
+        const paid = Number(r.paid ?? 0);
         const remaining = Math.max(0, amount - paid);
         const status = entryStatus(paid, amount);
         const dueDate = toYmd(r.due_date);
@@ -400,7 +400,7 @@ export async function udhaariRoutes(app: FastifyInstance) {
         status: entryStatus(paid, amount),
         payments: pays.map((p) => ({
           id: p.id,
-          amount: Number(p.amount) ?? 0,
+          amount: Number(p.amount ?? 0),
           mode: p.mode,
           note: p.note ?? null,
           createdAt: p.created_at,

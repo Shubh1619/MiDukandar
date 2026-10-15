@@ -279,6 +279,7 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ id: s
 
       {/* View PO Detail Modal */}
       <PoDetailDialog
+        key={selectedPo?.id ?? "none"}
         poId={selectedPo ? selectedPo.id : null}
         onOpenChange={(open: boolean) => { if (!open) setSelectedPo(null); }}
         onChanged={() => void loadSupplier()}

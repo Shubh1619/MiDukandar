@@ -62,6 +62,7 @@ export function isUniqueViolation(err: unknown): boolean {
 export const scrubNul = (v: unknown): string | null => {
   if (v == null) return null;
   const s = String(v);
+  // eslint-disable-next-line no-control-regex -- intentional: strip embedded NUL bytes (see comment above)
   const cleaned = s.includes("\u0000") ? s.replace(/\u0000/g, "") : s;
   return cleaned === "" ? null : cleaned;
 };

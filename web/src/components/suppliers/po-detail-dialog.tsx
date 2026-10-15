@@ -46,18 +46,14 @@ export function PoDetailDialog({ poId, onOpenChange, onChanged }: Props) {
   const { t } = useI18n();
   const router = useRouter();
   const [detail, setDetail] = useState<PurchaseOrderDetail | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const [confirm, setConfirm] = useState<"received" | "cancelled" | "delete" | null>(null);
   const [editOpen, setEditOpen] = useState(false);
 
   useEffect(() => {
-    if (!poId) {
-      setDetail(null);
-      return;
-    }
+    if (!poId) return;
     let cancelled = false;
-    setLoading(true);
     apiFetch<{ purchaseOrder: PurchaseOrderDetail }>(`/api/purchase-orders/${poId}`)
       .then((data) => {
         if (!cancelled) setDetail(data.purchaseOrder);

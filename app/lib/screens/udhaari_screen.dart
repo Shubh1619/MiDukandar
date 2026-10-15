@@ -173,7 +173,7 @@ class _UdhaariScreenState extends State<UdhaariScreen> {
                   child: MdCard(
                     padding: const EdgeInsets.all(12),
                     color: MdColors.red50,
-                    borderColor: MdColors.red500.withOpacity(0.3),
+                    borderColor: MdColors.red500.withAlpha(77),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [

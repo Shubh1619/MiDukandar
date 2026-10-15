@@ -286,8 +286,8 @@ class _DigitalClock extends StatelessWidget {
           decoration: BoxDecoration(
             color: Colors.black,
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.red.shade900.withOpacity(0.4)),
-            boxShadow: [BoxShadow(color: Colors.red.shade500.withOpacity(0.2), blurRadius: 16, spreadRadius: -4)],
+            border: Border.all(color: Colors.red.shade900.withAlpha(102)),
+            boxShadow: [BoxShadow(color: Colors.red.shade500.withAlpha(51), blurRadius: 16, spreadRadius: -4)],
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,

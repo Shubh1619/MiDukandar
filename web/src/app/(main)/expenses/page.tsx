@@ -545,6 +545,7 @@ export default function ExpensesPage() {
 
       {/* Dialogs */}
       <ExpenseFormDialog
+        key={`expense-add-${addExpenseOpen}`}
         open={addExpenseOpen}
         onOpenChange={setAddExpenseOpen}
         categories={categories}
@@ -557,6 +558,7 @@ export default function ExpensesPage() {
       />
 
       <ExpenseFormDialog
+        key={`expense-edit-${editExpenseTarget?.id ?? "none"}`}
         open={!!editExpenseTarget}
         onOpenChange={(o) => !o && setEditExpenseTarget(null)}
         categories={categories}
@@ -578,6 +580,7 @@ export default function ExpensesPage() {
       />
 
       <RecurringExpenseDialog
+        key={`recurring-add-${addRecurringOpen}`}
         open={addRecurringOpen}
         onOpenChange={setAddRecurringOpen}
         categories={categories}
@@ -586,6 +589,7 @@ export default function ExpensesPage() {
       />
 
       <RecurringExpenseDialog
+        key={`recurring-edit-${editRecurringTarget?.id ?? "none"}`}
         open={!!editRecurringTarget}
         onOpenChange={(o) => !o && setEditRecurringTarget(null)}
         categories={categories}
