@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
@@ -124,7 +125,22 @@ export async function recoveryRoutes(app: FastifyInstance) {
 
     await verifyOtp(target.email, body.otp, "RECOVERY");
 
-    const resetToken = app.jwt.sign({ sub: target.userId, kind: "PIN_RESET", email: target.email }, { expiresIn: RESET_TOKEN_TTL });
+    // P2-10: single-use reset token. The jti is persisted now and consumed in
+    // the same transaction that writes the new PIN, so a captured token can
+    // reset the PIN exactly once. Expired rows for this account are dropped
+    // opportunistically so the table cannot grow without bound.
+    const jti = randomUUID();
+    await q(`DELETE FROM pin_reset_tokens WHERE user_id = $1 AND expires_at < now()`, [target.userId]);
+    await q(
+      `INSERT INTO pin_reset_tokens (jti, user_id, expires_at)
+       VALUES ($1, $2, now() + ($3 * interval '1 second'))`,
+      [jti, target.userId, RESET_TOKEN_TTL_SECONDS],
+    );
+
+    const resetToken = app.jwt.sign(
+      { sub: target.userId, kind: "PIN_RESET", email: target.email, jti },
+      { expiresIn: RESET_TOKEN_TTL },
+    );
     return { ok: true, resetToken, expiresInSeconds: RESET_TOKEN_TTL_SECONDS };
   });
 
@@ -133,13 +149,15 @@ export async function recoveryRoutes(app: FastifyInstance) {
     if (body.newPin !== body.confirmPin) throw ApiError.badRequest("PINs do not match.");
     if (isWeakPin(body.newPin)) throw ApiError.badRequest("Pick a stronger PIN that isn't repeated or sequential.");
 
-    let payload: { kind?: string; sub?: string };
+    let payload: { kind?: string; sub?: string; jti?: string };
     try {
-      payload = app.jwt.verify<{ kind?: string; sub?: string }>(body.resetToken);
+      payload = app.jwt.verify<{ kind?: string; sub?: string; jti?: string }>(body.resetToken);
     } catch {
       throw ApiError.badRequestCode("Invalid or expired reset token. Start over.", "RESET_TOKEN_INVALID");
     }
-    if (payload?.kind !== "PIN_RESET" || !payload.sub) {
+    // A token minted without a jti predates single-use tracking (P2-10) and is
+    // rejected rather than accepted with an unverifiable spend state.
+    if (payload?.kind !== "PIN_RESET" || !payload.sub || !payload.jti) {
       throw ApiError.badRequestCode("Invalid reset token.", "RESET_TOKEN_INVALID");
     }
 
@@ -150,6 +168,20 @@ export async function recoveryRoutes(app: FastifyInstance) {
     const pinHash = await bcrypt.hash(body.newPin, 10);
 
     const auditId = await withTx(async (db) => {
+      // P2-10: claim the token first, in the same transaction as the PIN
+      // write. `WHERE consumed_at IS NULL` makes the claim atomic, so two
+      // concurrent replays of one token cannot both succeed, and a rollback
+      // anywhere later in this transaction restores the token to unspent.
+      const claimed = await db.query(
+        `UPDATE pin_reset_tokens SET consumed_at = now()
+         WHERE jti = $1 AND user_id = $2 AND consumed_at IS NULL AND expires_at > now()
+         RETURNING id`,
+        [payload.jti as string, user.id],
+      );
+      if (!claimed.rowCount) {
+        throw ApiError.badRequestCode("Invalid or expired reset token. Start over.", "RESET_TOKEN_INVALID");
+      }
+
       await db.query(`UPDATE users SET pin_hash = $1, updated_at = now() WHERE id = $2`, [pinHash, user.id]);
       await db.query(`UPDATE refresh_tokens SET revoked = TRUE WHERE user_id = $1 AND revoked = FALSE`, [user.id]);
       const [audit] = await db.q<Row>(
