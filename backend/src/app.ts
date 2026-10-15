@@ -137,8 +137,19 @@ export function buildApp(opts: { logger?: boolean } = {}): FastifyInstance {
     // through a trusted proxy hop, so rotating the header no longer mints a
     // fresh bucket.
     keyGenerator: rateLimitKey,
+    // @fastify/rate-limit `throw`s whatever this builder returns, so it must be
+    // an Error carrying statusCode 429. Returning a bare object left the
+    // central handler with no statusCode: every rate-limit trip was reported as
+    // a 500 "Internal server error" (and sent to Sentry) instead of the 429 the
+    // error contract advertises, so clients could not back off correctly.
     errorResponseBuilder: () => {
-      return { error: "Too many requests. Please slow down.", code: "RATE_LIMITED" };
+      const err = new Error("Too many requests. Please slow down.") as Error & {
+        statusCode?: number;
+        code?: string;
+      };
+      err.statusCode = 429;
+      err.code = "RATE_LIMITED";
+      return err;
     },
   });
   app.register(multipart, { limits: { fileSize: 5 * 1024 * 1024, files: 1 } });

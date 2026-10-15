@@ -6,7 +6,6 @@ import { config } from "../config.js";
 import { requestOtp, verifyOtp } from "../lib/otp.js";
 import { ApiError } from "../lib/api-error.js";
 import { parse } from "../lib/validate.js";
-import { ledgerBalanceExpr } from "../services/ledger.service.js";
 import { logger } from "../lib/logger.js";
 
 const RESET_TOKEN_TTL = "10m";
@@ -95,11 +94,6 @@ const isWeakPin = (pin: string) =>
   /^(0123|1234|2345|3456|4567|5678|6789|9876|8765|7654|6543|5432|4321|3210)$/.test(pin) ||
   /^(19|20)\d{2}$/.test(pin);
 
-const initialsOf = (name: string, fallback = "M") => {
-  const parts = String(name ?? "").trim().split(/\s+/).filter(Boolean).slice(0, 2);
-  return parts.map((w) => w[0]?.toUpperCase() ?? "").join("") || fallback;
-};
-
 export async function recoveryRoutes(app: FastifyInstance) {
   app.post("/initiate", async (request) => {
     const body = parse(initiateSchema, request.body);
@@ -183,46 +177,19 @@ export async function recoveryRoutes(app: FastifyInstance) {
 }
 
 export async function merchantVerifyRoutes(app: FastifyInstance) {
-  app.get("/verify-context", async (request) => {
-    const { mobile } = parse(mobileQuerySchema, request.query);
-    const store = await qOne<Row>(STORE_BY_PHONE, [onlyDigits(mobile)]);
-    if (!store) return { ok: false, merchant: null };
-
-    const owner = await qOne<Row>(`SELECT name FROM users WHERE id = $1`, [store.ownerId as string]);
-    const [todayInvoices, receipts, pendingUdhaari] = await Promise.all([
-      qOne<{ c: number }>(
-        `SELECT COUNT(*)::int AS c FROM sales WHERE store_id=$1 AND status='CONFIRMED' AND created_at::date = CURRENT_DATE`,
-        [store.id as string],
-      ),
-      qOne<{ c: number }>(
-        `SELECT COUNT(*)::int AS c FROM payments WHERE store_id=$1 AND type='RECEIVED' AND created_at::date = CURRENT_DATE`,
-        [store.id as string],
-      ),
-      qOne<{ total: number }>(
-        `SELECT COALESCE(SUM(bal), 0) AS total FROM (
-           SELECT ${ledgerBalanceExpr()} AS bal
-           FROM ledger_entries WHERE store_id=$1 GROUP BY customer_id
-         ) t WHERE t.bal > 0`,
-        [store.id as string],
-      ),
-    ]);
-
-    const ownerName = String(owner?.name ?? "");
-    return {
-      ok: true,
-      merchant: {
-        merchantId: store.id,
-        storeName: String(store.name ?? ""),
-        city: String(store.city ?? ""),
-        ownerName,
-        ownerInitials: initialsOf(ownerName),
-        gstin: String(store.gst ?? ""),
-        terminalId: `${String(store.invoice_prefix ?? "INV")}-${String(store.id).slice(0, 8).toUpperCase()}`,
-        ledgerStatus: "Online",
-        todayInvoices: todayInvoices?.c ?? 0,
-        pendingUdhaari: pendingUdhaari?.total ?? 0,
-        receipts: receipts?.c ?? 0,
-      },
-    };
-  });
+  // P2-08: this lookup runs pre-auth (the forgot-PIN flow), so it cannot be
+  // gated behind `authenticate`. It is therefore reduced to a single non-PII
+  // fact — does this number match a registered store? — with no store name,
+  // city, owner, GSTIN, terminal id or ledger/revenue counts. The route also
+  // carries its own per-IP budget so the boolean cannot be swept to map which
+  // phone numbers have an account.
+  app.get(
+    "/verify-context",
+    { config: { rateLimit: { max: 30, timeWindow: 60_000 } } },
+    async (request) => {
+      const { mobile } = parse(mobileQuerySchema, request.query);
+      const store = await qOne<Row>(STORE_BY_PHONE, [onlyDigits(mobile)]);
+      return { ok: true, matched: Boolean(store?.ownerId) };
+    },
+  );
 }

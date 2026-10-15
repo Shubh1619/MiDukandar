@@ -22,7 +22,7 @@ import MerchantSidebar from "./MerchantSidebar";
 import StepIdentity from "./StepIdentity";
 import StepOtp from "./StepOtp";
 import StepNewPin from "./StepNewPin";
-import type { MerchantContext, Method, Step } from "./types";
+import type { Method, Step } from "./types";
 
 interface InitiateResponse {
   ok: boolean;
@@ -57,8 +57,7 @@ export default function RecoveryClient() {
   const [mobile, setMobile] = useState("");
   const [email, setEmail] = useState("");
 
-  const [merchant, setMerchant] = useState<MerchantContext | null>(null);
-  const [merchantChecking, setMerchantChecking] = useState(false);
+  const [matched, setMatched] = useState(false);
 
   const [identifier, setIdentifier] = useState("");
   const [expiresIn, setExpiresIn] = useState(300);
@@ -76,27 +75,12 @@ export default function RecoveryClient() {
   const [resetResult, setResetResult] = useState<ResetPinResponse | null>(null);
   const [redirectIn, setRedirectIn] = useState(5);
 
-  const loadMerchantContext = useCallback(async (mob: string) => {
-    setMerchantChecking(true);
-    try {
-      const res = await apiFetch<{ ok: boolean; merchant?: MerchantContext }>(
-        `/api/merchant/verify-context?mobile=${encodeURIComponent(mob)}`,
-        { noAuth: true },
-      );
-      if (res.ok && res.merchant) setMerchant(res.merchant);
-    } catch {
-      // silently ignore - sidebar keeps its empty state
-    } finally {
-      setMerchantChecking(false);
-    }
-  }, []);
-
-  const handleMatched = useCallback((_mob: string, ctx: MerchantContext) => {
-    setMerchant(ctx);
+  const handleMatched = useCallback(() => {
+    setMatched(true);
   }, []);
 
   const handleClearMatch = useCallback(() => {
-    setMerchant(null);
+    setMatched(false);
   }, []);
 
   const handleContinue = async () => {
@@ -115,9 +99,6 @@ export default function RecoveryClient() {
       setExpiresIn(res.expiresIn ?? 300);
       setOtpSession((s) => s + 1);
       setStep(2);
-      if (method === "email" && res.matchedMobile) {
-        void loadMerchantContext(res.matchedMobile);
-      }
       toast.success("Recovery code dispatched via SMS & WhatsApp");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not start recovery. Try again.");
@@ -372,7 +353,7 @@ export default function RecoveryClient() {
           </div>
 
           {/* RIGHT - Merchant verification sidebar */}
-          <MerchantSidebar merchant={merchant} checking={merchantChecking} />
+          <MerchantSidebar matched={matched} />
         </div>
       </main>
 

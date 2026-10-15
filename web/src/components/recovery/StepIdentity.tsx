@@ -1,9 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { BadgeCheck, Loader2, Mail, MessageCircle, PhoneOff, SearchX, Store, UserX, Zap } from "lucide-react";
+import { BadgeCheck, Loader2, Mail, MessageCircle, PhoneOff, SearchX, UserX, Zap } from "lucide-react";
 import { apiFetch } from "@/lib/api";
-import type { MerchantContext, MerchantContextResponse, Method } from "./types";
+import type { MerchantContextResponse, Method } from "./types";
 
 const INVALID_MOBILE = /^[6-9]\d{9}$/;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -17,7 +17,7 @@ interface StepIdentityProps {
   setMobile: (m: string) => void;
   email: string;
   setEmail: (e: string) => void;
-  onMatched: (mobile: string, merchant: MerchantContext) => void;
+  onMatched: (mobile: string) => void;
   onClearMatch: () => void;
   onContinue: () => Promise<void>;
   loading: boolean;
@@ -37,7 +37,6 @@ export default function StepIdentity({
 }: StepIdentityProps) {
   const [lookup, setLookup] = useState<LookupState>("idle");
   const [lookupError, setLookupError] = useState<string | null>(null);
-  const [matchedMerchant, setMatchedMerchant] = useState<MerchantContext | null>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -60,10 +59,9 @@ export default function StepIdentity({
           `/api/merchant/verify-context?mobile=${encodeURIComponent(value)}`,
           { noAuth: true },
         );
-        if (res.ok && res.merchant) {
+        if (res.ok && res.matched) {
           setLookup("matched");
-          setMatchedMerchant(res.merchant);
-          onMatched(value, res.merchant);
+          onMatched(value);
         } else {
           setLookup("not-found");
           setLookupError("No registered store matches this number");
@@ -80,7 +78,6 @@ export default function StepIdentity({
     setMethod(m);
     setLookup("idle");
     setLookupError(null);
-    setMatchedMerchant(null);
     setMobile("");
     setEmail("");
     onClearMatch();
@@ -90,7 +87,6 @@ export default function StepIdentity({
     setMobile("");
     setLookup("idle");
     setLookupError(null);
-    setMatchedMerchant(null);
     onClearMatch();
   };
 
@@ -202,16 +198,6 @@ export default function StepIdentity({
               </p>
             )}
           </div>
-
-          {mobileMatch && matchedMerchant && (
-            <p className="mt-1 flex items-center gap-1.5 rounded-lg bg-navy-50 px-3 py-2 text-xs font-medium text-navy-600">
-              <Store className="size-3.5 text-royal-600" />
-              Linked Merchant:{" "}
-              <span className="font-semibold text-navy-900">
-                {matchedMerchant.storeName}, {matchedMerchant.city}
-              </span>
-            </p>
-          )}
         </div>
       ) : (
         <div>

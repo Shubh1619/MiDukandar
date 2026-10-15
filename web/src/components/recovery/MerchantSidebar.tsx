@@ -1,18 +1,16 @@
 "use client";
 
-import { AlertCircle, BadgeCheck, Fingerprint, LifeBuoy, MessageCircle, Phone, RefreshCcw, ShieldCheck, Store, Timer, Wallet } from "lucide-react";
-import { formatINR, formatQty } from "@/lib/format";
-import type { MerchantContext } from "./types";
+import { AlertCircle, BadgeCheck, Fingerprint, LifeBuoy, MessageCircle, Phone, RefreshCcw, Store, Timer } from "lucide-react";
 
 interface MerchantSidebarProps {
-  merchant: MerchantContext | null;
+  matched?: boolean;
   checking?: boolean;
 }
 
-export default function MerchantSidebar({ merchant, checking = false }: MerchantSidebarProps) {
+export default function MerchantSidebar({ matched = false, checking = false }: MerchantSidebarProps) {
   return (
     <aside className="flex flex-col gap-4">
-      {merchant ? (
+      {matched ? (
         <>
           <section className="overflow-hidden rounded-2xl border border-navy-100 bg-white shadow-sm">
             <div className="flex items-center justify-between border-b border-navy-100 bg-navy-50/60 px-4 py-2.5">
@@ -29,72 +27,17 @@ export default function MerchantSidebar({ merchant, checking = false }: Merchant
             </div>
 
             <div className="px-4 py-4">
-              <div className="mb-4 flex items-center gap-3">
-                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-royal-500 to-royal-700 font-display text-lg font-bold text-white">
-                  {merchant.ownerInitials}
-                </div>
+              <div className="flex items-start gap-3">
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-green-100">
+                  <BadgeCheck className="size-5 text-green-700" />
+                </span>
                 <div className="min-w-0">
-                  <p className="flex items-center gap-1.5 font-display text-base font-bold text-navy-900">
-                    {merchant.ownerName}
-                    <BadgeCheck className="size-4 text-royal-600" />
-                  </p>
-                  <p className="flex items-center gap-1 text-sm text-navy-500">
-                    <Store className="size-3.5" />
-                    {merchant.storeName}, {merchant.city}
+                  <p className="font-display text-sm font-bold text-navy-900">Registered store verified</p>
+                  <p className="mt-0.5 text-xs leading-relaxed text-navy-500">
+                    This number is linked to an active MiDukandar store. Owner and ledger
+                    details stay private until you sign in.
                   </p>
                 </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-2.5">
-                <div className="rounded-xl border border-navy-100 bg-navy-50/50 p-3">
-                  <p className="mb-0.5 text-[10px] font-semibold uppercase tracking-wider text-navy-400">
-                    GSTIN
-                  </p>
-                  <p className="font-mono text-xs font-semibold text-navy-800">{merchant.gstin}</p>
-                </div>
-                <div className="rounded-xl border border-navy-100 bg-navy-50/50 p-3">
-                  <p className="mb-0.5 text-[10px] font-semibold uppercase tracking-wider text-navy-400">
-                    Terminal ID
-                  </p>
-                  <p className="font-mono text-xs font-semibold text-navy-800">{merchant.terminalId}</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-px border-t border-navy-100 bg-navy-100">
-              <div className="bg-white px-4 py-3">
-                <p className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-navy-400">
-                  <ShieldCheck className="size-3 text-green-600" />
-                  Ledger Status
-                </p>
-                <p className="mt-0.5 font-display text-sm font-bold text-green-700">
-                  {merchant.ledgerStatus === "Online" ? "Safe · Online" : "Safe · Synced Offline"}
-                </p>
-              </div>
-              <div className="bg-white px-4 py-3">
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-navy-400">
-                  Today&rsquo;s Invoices
-                </p>
-                <p className="mt-0.5 font-display text-sm font-bold text-navy-900">
-                  {formatQty(merchant.todayInvoices)}
-                </p>
-              </div>
-              <div className="bg-white px-4 py-3">
-                <p className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-navy-400">
-                  <Wallet className="size-3 text-royal-600" />
-                  Pending Udhaari
-                </p>
-                <p className="mt-0.5 font-display text-sm font-bold text-navy-900">
-                  {formatINR(merchant.pendingUdhaari)}
-                </p>
-              </div>
-              <div className="bg-white px-4 py-3">
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-navy-400">
-                  Receipts
-                </p>
-                <p className="mt-0.5 font-display text-sm font-bold text-navy-900">
-                  {formatQty(merchant.receipts)}
-                </p>
               </div>
             </div>
 
