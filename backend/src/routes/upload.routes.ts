@@ -44,7 +44,12 @@ export async function uploadRoutes(app: FastifyInstance) {
     { preHandler: authenticate },
     async (request: AuthenticatedRequest, reply) => {
       const storeId = requireStore(request);
-      const query = parse(z.object({ entity: z.string().default("images") }), request.query);
+      // `entity` becomes a path segment in the R2 object key, so it is
+      // restricted to a single safe path segment (P2-06).
+      const query = parse(
+        z.object({ entity: z.string().regex(/^[a-z0-9_-]{1,32}$/).default("images") }),
+        request.query,
+      );
 
       const part = await request.file();
       if (!part) throw ApiError.badRequestCode("No file uploaded.", "NO_FILE");
@@ -73,19 +78,16 @@ export async function uploadRoutes(app: FastifyInstance) {
         );
       }
 
-      const filename = part.filename || "image";
       const buffer = rawBuffer;
 
       const url = await uploadToR2({
         storeId,
         entity: query.entity,
         buffer,
-        contentType: part.mimetype,
-        filename,
+        contentType: detected,
       });
       if (!url) {
-        // If R2 is not configured, still return the raw (unused) URL.
-        logger.warn("upload: R2 unavailable", { storeId, filename });
+        logger.warn("upload: R2 unavailable", { storeId, entity: query.entity });
         return reply.status(503).send({ error: "Storage not configured.", code: "STORAGE_UNAVAILABLE" });
       }
       logger.info("upload: image stored", { storeId, entity: query.entity, size: buffer.length });

@@ -23,24 +23,59 @@ function r2Client(): S3Client | null {
   return s3;
 }
 
+/** Extension derived from the validated content type (never the filename). */
+const EXT_BY_CONTENT_TYPE: Record<string, string> = {
+  "image/jpeg": "jpg",
+  "image/png": "png",
+  "image/webp": "webp",
+  "image/gif": "gif",
+};
+
+/** A single safe object-key path segment: no `/`, `\`, `.`, NUL or spaces. */
+const SAFE_SEGMENT = /^[A-Za-z0-9_-]{1,64}$/;
+
+export type R2KeyResult =
+  | { ok: true; key: string }
+  | { ok: false; reason: "unsupported_type" | "unsafe_entity" };
+
+/**
+ * Builds a nav-safe object key `storeId/entity/<time>-<rand>.<ext>`. The
+ * extension comes from the content type (never the client filename) and
+ * `entity` must be a single safe path segment, so untrusted input cannot
+ * escape the storeId prefix (P2-06).
+ */
+export function buildR2Key(storeId: string, entity: string, contentType: string): R2KeyResult {
+  const ext = EXT_BY_CONTENT_TYPE[contentType];
+  if (!ext) return { ok: false, reason: "unsupported_type" };
+  if (!SAFE_SEGMENT.test(entity)) return { ok: false, reason: "unsafe_entity" };
+  return { ok: true, key: `${storeId}/${entity}/${Date.now()}-${cryptoRandomBase36()}.${ext}` };
+}
+
 /**
  * Uploads a buffer to Cloudflare R2 under the given key, returning the CDN
- * URL. Creates the key nav-safe (storeId/entity/random.ext).
+ * URL.
  */
 export async function uploadToR2(opts: {
   storeId: string;
   entity: string;
   buffer: Buffer;
   contentType: string;
-  filename: string;
 }): Promise<string | null> {
   const client = r2Client();
   if (!client) {
     logger.warn("r2: credentials not configured - skipping upload", { entity: opts.entity });
     return null;
   }
-  const ext = opts.filename.split(".").pop()?.toLowerCase() ?? "bin";
-  const key = `${opts.storeId}/${opts.entity}/${Date.now()}-${cryptoRandomBase36()}.${ext}`;
+  const built = buildR2Key(opts.storeId, opts.entity, opts.contentType);
+  if (!built.ok) {
+    logger.warn("r2: refusing upload", {
+      entity: opts.entity,
+      contentType: opts.contentType,
+      reason: built.reason,
+    });
+    return null;
+  }
+  const key = built.key;
 
   try {
     await client.send(
