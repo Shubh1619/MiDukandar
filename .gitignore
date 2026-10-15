@@ -4,3 +4,26 @@
 
 # Backend local env (never tracked)
 backend/.env
+
+# === Node / Build artifacts (never track) ===
+/node_modules/
+/dist/
+/build/
+
+# === IDE / runtime files ===
+/.idea/
+/.vscode/
+/*.local/
+
+# === Package-lock and snapshot files ===
+package-lock.json
+yarn.lock
+pnpm-lockfile
+
+# === Next.js / Nuxt / build outputs ===
+/.next/
+/nuxt/
+/dist/
+
+# === Environment and secrets (override root .env above)
+backend/.env
