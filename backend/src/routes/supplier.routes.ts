@@ -366,7 +366,7 @@ export async function supplierRoutes(app: FastifyInstance) {
         createdById: getAuth(request).id,
       };
 
-      const purchase = await createPurchase(withTx as any, input);
+      const purchase = await withTx(async (tx) => createPurchase(tx, input));
       return reply.status(201).send({ purchase });
     }
   );
