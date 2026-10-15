@@ -7,6 +7,7 @@ import { buildUpdate } from "../lib/db.js";
 import { authenticate, requireStore, requireRole, getAuth, type AuthenticatedRequest } from "../middlewares/auth.js";
 import { ROLES } from "../middlewares/auth.types.js";
 import { logger } from "../lib/logger.js";
+import { createPurchase, type PurchaseInput, type PurchaseRow } from "../services/invoice.service.js";
 
 const supplierSchema = z.object({
   name: z.string().min(1).max(120),
@@ -304,6 +305,73 @@ export async function supplierRoutes(app: FastifyInstance) {
     );
     return { payments };
   });
+
+  // Create invoice (supplier purchase with invoice number)
+  app.post(
+    "/:id/invoice",
+    { preHandler: [authenticate, requireRole(ROLES.OWNER, ROLES.MANAGER)] },
+    async (request: AuthenticatedRequest, reply) => {
+      const storeId = requireStore(request);
+      const { id } = request.params as { id: string };
+      const supplier = await qOne<Row>(`SELECT id, name FROM suppliers WHERE id = $1 AND store_id = $2`, [id, storeId]);
+      if (!supplier) throw ApiError.notFound("Supplier not found");
+
+      const body = request.body as {
+        supplierMobile?: string;
+        lines: { productId?: string; productName?: string; qty: number; unitPrice?: number; gstPercent?: number }[];
+        discount?: number;
+        paidAmount?: number;
+        notes?: string;
+      };
+
+      if (!body.lines || body.lines.length === 0) {
+        throw ApiError.badRequestCode("Purchase must have at least one line item.", "EMPTY_PURCHASE");
+      }
+
+      // Validate products exist in this store using withTx
+      const productIds = [...new Set(body.lines.filter((l) => l.productId).map((l) => l.productId as string))];
+      if (productIds.length > 0) {
+        let products: Array<{ id: string; name: string; barcode: string | null; purchase_price: number; gst_percent: number; store_id: string }> = [];
+        await withTx(async (tx) => {
+          products = (await tx.q<{
+            id: string; name: string; barcode: string | null; purchase_price: number; gst_percent: number; store_id: string;
+          }>(`SELECT id, name, barcode, purchase_price, gst_percent, store_id FROM products WHERE id = ANY($1::uuid[]) AND store_id = $2`, [productIds, storeId])) as Array<{
+            id: string; name: string; barcode: string | null; purchase_price: number; gst_percent: number; store_id: string;
+          }>;
+          if (products.length !== productIds.length) {
+            throw ApiError.badRequestCode("One or more products are invalid or belong to another store.", "INVALID_PRODUCT");
+          }
+          for (const p of products) {
+            if (p.store_id !== storeId) {
+              throw ApiError.badRequestCode("One or more products belong to another store.", "INVALID_PRODUCT");
+            }
+          }
+        });
+      }
+
+      const input: PurchaseInput = {
+        storeId,
+        supplierName: supplier.name as string,
+        supplierMobile: body.supplierMobile,
+        lines: body.lines.map((l) => ({
+          productId: l.productId ?? null,
+          productName: l.productName?.trim() || undefined,
+          qty: l.qty,
+          unitPrice: l.unitPrice ?? 0,
+          gstPercent: l.gstPercent ?? 0,
+        })),
+        discount: body.discount ?? 0,
+        paidAmount: body.paidAmount ?? 0,
+        notes: body.notes,
+        createdById: getAuth(request).id,
+      };
+
+      const purchase = await createPurchase(withTx as any, input);
+      return reply.status(201).send({ purchase });
+    }
+  );
+
+  // Payment history
 
   // Reorder message (WhatsApp deep link from latest non-cancelled PO)
   app.get("/:id/reorder-message", { preHandler: authenticate }, async (request: AuthenticatedRequest) => {
