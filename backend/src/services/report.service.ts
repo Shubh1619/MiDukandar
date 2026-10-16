@@ -367,7 +367,7 @@ export async function getStockMovementReport(
     id: string; name: string; sku: string | null; category: string | null; unit: string; purchase_price: number;
   }>(
     `SELECT id, name, sku, category, unit, purchase_price
-     FROM products WHERE store_id=$1 AND is_archived=FALSE${searchClause} ORDER BY lower(name)`,
+     FROM products p WHERE store_id=$1 AND is_archived=FALSE${searchClause} ORDER BY lower(name)`,
     params,
   );
 

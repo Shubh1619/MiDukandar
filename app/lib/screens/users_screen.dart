@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 
 import '../l10n/generated/app_localizations.dart';
@@ -12,7 +13,7 @@ class UsersScreen extends StatefulWidget {
 
   final ApiService apiService;
   final AuthUser? user;
-  final Future<void> Function({
+  final Future<String?> Function({
     required String name,
     String? email,
     String? phone,
@@ -85,7 +86,7 @@ class _UsersScreenState extends State<UsersScreen> {
                 TextField(
                   controller: emailController,
                   keyboardType: TextInputType.emailAddress,
-                  decoration: InputDecoration(labelText: l.userEmailOptional),
+                  decoration: InputDecoration(labelText: l.userEmailRequired),
                 ),
                 const SizedBox(height: 12),
                 MobileNumberField(
@@ -124,14 +125,17 @@ class _UsersScreenState extends State<UsersScreen> {
                       child: FilledButton(
                         onPressed: () {
                           final name = nameController.text.trim();
-                          if (name.isEmpty || widget.onInvite == null) {
-                            Navigator.pop(sheetContext);
+                          final email = emailController.text.trim();
+                          if (name.isEmpty ||
+                              email.isEmpty ||
+                              !email.contains('@') ||
+                              widget.onInvite == null) {
                             return;
                           }
                           if (phoneKey.currentState?.validate() != null) return;
                           Navigator.pop(sheetContext, {
                             'name': name,
-                            'email': emailController.text.trim(),
+                            'email': email,
                             'phone': phoneController.text.trim(),
                             'role': role,
                           });
@@ -156,8 +160,9 @@ class _UsersScreenState extends State<UsersScreen> {
     if (result != null && widget.onInvite != null) {
       if (!context.mounted) return;
       AppDialogs.showLoading(context);
+      String? link;
       try {
-        await widget.onInvite!(
+        link = await widget.onInvite!(
           name: result['name'] as String,
           email: result['email'] as String?,
           phone: result['phone'] as String?,
@@ -168,7 +173,44 @@ class _UsersScreenState extends State<UsersScreen> {
           AppDialogs.hideLoading(context);
         }
       }
+      if (link != null && link.isNotEmpty && context.mounted) {
+        await _showInviteLinkDialog(context, link);
+      }
     }
+  }
+
+  Future<void> _showInviteLinkDialog(BuildContext context, String link) async {
+    final l = AppLocalizations.of(context)!;
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(l.userInviteTitle),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(l.userInviteHint),
+            const SizedBox(height: 12),
+            SelectableText(link),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () async {
+              await Clipboard.setData(ClipboardData(text: link));
+              if (dialogContext.mounted) {
+                Navigator.pop(dialogContext);
+              }
+            },
+            child: Text(l.copyInviteLink),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: Text(l.done),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _showActions(BuildContext context, AppUser u) async {

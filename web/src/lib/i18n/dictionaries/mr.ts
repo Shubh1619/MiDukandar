@@ -91,6 +91,11 @@
   downloadPdf: "PDF डाउनलोड करा",
   noInvoices: "अद्याप कोणतेही बीजक नाहीत",
   createFirstInvoice: "आपले पहिले बीजक तयार करा",
+  holdBill: "बिल होल्ड करा",
+  heldBills: "होल्ड बिले",
+  resumeBill: "पुन्हा सुरू करा",
+  noHeldBills: "कोणतीही होल्ड बिले नाहीत",
+  heldBillSaved: "बिल होल्ड झाले",
   totalInvoices: "एकूण बीजक",
   totalRevenue: "एकूण महसूल",
   pendingAmount: "प्रलंबित रक्कम",
@@ -315,6 +320,20 @@
   receiveLineItemsNote: "सर्व ओळ वस्तूंची संख्या तुमच्या इन्व्हेंटरीमध्ये जोडली जाईल.",
   cancelPoConfirm: "तुम्हाला खरेदी ऑर्डर {{po}} रद्द करायची आहे का?",
   exceedsOutstanding: "रक्कम थकबाकीपेक्षा जास्त आहे",
+
+  // Invite acceptance
+  inviteAcceptTitle: "तुमचे आमंत्रण स्वीकार करा",
+  inviteAcceptSubtitle: "टीममध्ये सामील होण्यासाठी तुमचे खाते तयार करा.",
+  inviteAcceptName: "तुमचे नाव",
+  inviteAcceptPassword: "पासवर्ड तयार करा",
+  inviteAcceptConfirmPassword: "पासवर्डची पुष्टी करा",
+  inviteAcceptSubmit: "आमंत्रण स्वीकार करा",
+  inviteAccepting: "स्वीकार करत आहे...",
+  inviteAcceptSuccess: "आमंत्रण स्वीकारले. आता तुम्ही साइन इन करू शकता.",
+  inviteAcceptMissingToken: "ही आमंत्रण लिंक अवैध किंवा अपूर्ण आहे.",
+  inviteAcceptPasswordMismatch: "पासवर्ड जुळत नाहीत.",
+  inviteAcceptPasswordTooShort: "पासवर्ड किमान 6 अक्षरांचा असावा.",
+  inviteAcceptGoToLogin: "साइन इन वर जा",
 };
 
 export default mr;

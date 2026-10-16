@@ -3,6 +3,7 @@ import { qOne, type Row } from "../db/pool.js";
 import { ApiError } from "../lib/api-error.js";
 import { hasModuleAccess } from "../lib/plans.js";
 import { logger } from "../lib/logger.js";
+import { defaultPermissionsFor, permissionRoleKey, type PermissionFlag } from "../lib/permissions.js";
 import type { Role } from "./auth.types.js";
 
 export interface AuthUser {
@@ -70,6 +71,27 @@ export async function authenticate(request: FastifyRequest, reply: FastifyReply)
       verifyError: msg.slice(0, 160),
     });
     throw ApiError.unauthorized("Invalid or expired access token.");
+    throw ApiError.unauthorized("Invalid or expired access token.");
+  }
+
+  // Suspended / non-active businesses must not keep API access. The access
+  // token is otherwise valid, so check the store's live status on every
+  // request (a single indexed primary-key lookup). Platform superadmins are
+  // unaffected because they never reach this middleware — their routes use
+  // the separate mz_sa cookie guard.
+  if (request.auth?.storeId) {
+    const store = await qOne<Row>(`SELECT status FROM stores WHERE id = $1`, [request.auth.storeId]);
+    const status = (store?.status as string | undefined) ?? null;
+    if (status && status !== "ACTIVE") {
+      logger.warn("authz: denied", {
+        ...base,
+        userId: request.auth.id,
+        storeId: request.auth.storeId,
+        status,
+        reason: "store_not_active",
+      });
+      throw ApiError.forbidden("This business account is suspended. Contact support for help restoring access.");
+    }
   }
   void reply;
 }
@@ -109,21 +131,39 @@ export function requireRole(...roles: Role[]) {
   };
 }
 
-export function checkPermission(module: string, action = "manage") {
+/**
+ * Permission-flag guard. Owner always passes; every other role's configured
+ * flag is read from `roles_permissions` for the store. When no row exists the
+ * role's documented default applies (never a permissive fallback), so a
+ * missing row cannot silently grant access.
+ */
+export function requirePermission(flag: PermissionFlag) {
   return async (request: FastifyRequest) => {
     const user = getAuth(request);
     if (user.role === "OWNER") return;
     const storeId = requireStore(request);
-    const flag = `can_${action}_${module}`;
+    const roleKey = permissionRoleKey(user.role);
     const row = await qOne<Row>(
       `SELECT permissions FROM roles_permissions WHERE store_id = $1 AND role = $2`,
-      [storeId, user.role === "STOCK_MANAGER" ? "STAFF" : user.role],
+      [storeId, roleKey],
     );
-    const permissions = (row?.permissions ?? {}) as Record<string, unknown>;
-    if (permissions[flag] !== true) {
+    const stored = (row?.permissions ?? {}) as Record<string, unknown>;
+    const allowed = typeof stored[flag] === "boolean" ? stored[flag] : defaultPermissionsFor(roleKey)[flag];
+    if (allowed !== true) {
+      logger.warn("authz: denied", {
+        path: request.url,
+        userId: user.id,
+        role: user.role,
+        flag,
+        reason: "blocked_by_permission_flag",
+      });
       throw ApiError.forbidden("You do not have permission to perform this action.");
     }
   };
+}
+
+export function checkPermission(module: string, action = "manage") {
+  return requirePermission(`can_${action}_${module}` as PermissionFlag);
 }
 
 export function requireModuleAccess(moduleKey: string) {

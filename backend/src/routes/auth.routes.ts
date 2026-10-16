@@ -10,6 +10,7 @@ import { authenticate, getAuth, type AuthenticatedRequest } from "../middlewares
 import { logger } from "../lib/logger.js";
 import { type DbUser, type Role } from "../middlewares/auth.types.js";
 import { defaultPermissionsFor } from "./role.routes.js";
+import { resolveReferralCode } from "./referral.routes.js";
 import { getPlanForBusiness } from "../lib/plans.js";
 
 const REFRESH_DAYS_MS = config.refreshTokenDays * 24 * 60 * 60 * 1000;
@@ -158,6 +159,7 @@ export async function authRoutes(app: FastifyInstance) {
       currency: z.string().max(8).optional().default("INR"),
       language: z.string().max(8).optional().default("hi"),
       invoicePrefix: z.string().max(10).optional().default("INV"),
+      referralCode: z.string().min(4).max(32).optional(),
     });
     const body = parse(registerSchema, request.body);
     const email = body.email.trim().toLowerCase();
@@ -167,6 +169,8 @@ export async function authRoutes(app: FastifyInstance) {
       throw ApiError.conflict("An account with this email already exists. Sign in instead.");
     }
 
+    const referrerId = await resolveReferralCode(body.referralCode);
+
     const { store } = await withTx(async (db) => {
       const [user] = await db.q<Row>(
         `INSERT INTO users (email, name) VALUES ($1, $2) RETURNING *`,
@@ -175,8 +179,8 @@ export async function authRoutes(app: FastifyInstance) {
       const [store] = await db.q<Row>(
         `INSERT INTO stores
            (name, type, address, city, state, pincode, phone, gst, currency, language, invoice_prefix,
-            plan_id, plan_status, trial_ends_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11,
+            referred_by_store_id, plan_id, plan_status, trial_ends_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12,
                  (SELECT id FROM plans WHERE is_default = TRUE AND status = 'ACTIVE' LIMIT 1),
                  'TRIAL',
                  (SELECT CASE WHEN trial_days > 0 THEN now() + trial_days * interval '1 day' END
@@ -184,7 +188,7 @@ export async function authRoutes(app: FastifyInstance) {
          RETURNING *`,
         [
           body.name, body.type, body.address, body.city, body.state, body.pincode, body.phone,
-          body.gst || null, body.currency, body.language, body.invoicePrefix,
+          body.gst || null, body.currency, body.language, body.invoicePrefix, referrerId,
         ],
       );
       await db.query(`UPDATE users SET store_id = $1, role = 'OWNER' WHERE id = $2`, [store.id, user.id]);

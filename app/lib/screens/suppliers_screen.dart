@@ -71,15 +71,6 @@ class _SuppliersScreenState extends State<SuppliersScreen> {
     _load();
   }
 
-  Future<void> _loadSummary() async {
-    try {
-      final summary = await widget.apiService.getSupplierSummary();
-      if (mounted) {
-        setState(() => _summary = summary);
-      }
-    } catch (_) {}
-  }
-
   Future<void> _showCreateDialog(BuildContext context) async {
     final l = AppLocalizations.of(context)!;
     final nameController = TextEditingController();
@@ -308,6 +299,14 @@ class _SuppliersScreenState extends State<SuppliersScreen> {
         return Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            ListTile(
+              leading: const Icon(Icons.receipt_long_outlined),
+              title: Text(l.suppViewDetails),
+              onTap: () {
+                Navigator.pop(sheetContext);
+                _showDetail(context, s);
+              },
+            ),
             if (widget.onUpdate != null)
               ListTile(
                 leading: const Icon(Icons.edit_outlined),
@@ -332,12 +331,121 @@ class _SuppliersScreenState extends State<SuppliersScreen> {
     );
   }
 
+  void _showDetail(BuildContext context, Supplier s) {
+    final l = AppLocalizations.of(context)!;
+    final formatCurrency = NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
+    final formatDate = DateFormat('d MMM yy');
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (sheetContext) {
+        return DraggableScrollableSheet(
+          expand: false,
+          initialChildSize: 0.7,
+          maxChildSize: 0.95,
+          builder: (context, controller) {
+            return FutureBuilder<Map<String, dynamic>>(
+              future: widget.apiService.getSupplierDetail(s.id),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState != ConnectionState.done) {
+                  return const Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(24),
+                      child: CircularProgressIndicator(),
+                    ),
+                  );
+                }
+                if (snapshot.hasError) {
+                  return Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Text(snapshot.error.toString(), style: const TextStyle(color: Colors.red)),
+                    ),
+                  );
+                }
+                final data = snapshot.data ?? const <String, dynamic>{};
+                final supplier = (data['supplier'] as Map?) ?? const {};
+                final pos = (data['purchaseOrders'] as List?) ?? const [];
+                final payments = (data['payments'] as List?) ?? const [];
+                final outstanding = _toNum(supplier['outstandingPayable']);
+
+                return ListView(
+                  controller: controller,
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                  children: [
+                    Text(s.name, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 4),
+                    if (outstanding > 0)
+                      Text(
+                        l.suppPayableAmount(formatCurrency.format(outstanding)),
+                        style: TextStyle(color: Colors.red.shade700, fontWeight: FontWeight.w600),
+                      ),
+                    const SizedBox(height: 16),
+                    Text(l.suppPurchaseOrders, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                    const SizedBox(height: 8),
+                    if (pos.isEmpty)
+                      Text(l.suppNoPOs, style: TextStyle(color: Colors.grey.shade600))
+                    else
+                      ...pos.map((raw) {
+                        final po = raw is Map ? raw : const {};
+                        final poDate = DateTime.tryParse('${po['orderDate'] ?? ''}');
+                        return ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          leading: const Icon(Icons.description_outlined),
+                          title: Text('${po['poNumber'] ?? ''}'),
+                          subtitle: Text(
+                            poDate != null ? formatDate.format(poDate) : '${po['orderDate'] ?? ''}',
+                          ),
+                          trailing: Text(
+                            formatCurrency.format(_toNum(po['totalAmount'])),
+                            style: const TextStyle(fontWeight: FontWeight.w600),
+                          ),
+                        );
+                      }),
+                    const SizedBox(height: 16),
+                    Text(l.suppPayments, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                    const SizedBox(height: 8),
+                    if (payments.isEmpty)
+                      Text(l.suppNoPayments, style: TextStyle(color: Colors.grey.shade600))
+                    else
+                      ...payments.map((raw) {
+                        final p = raw is Map ? raw : const {};
+                        final payDate = DateTime.tryParse('${p['paymentDate'] ?? ''}');
+                        return ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          leading: const Icon(Icons.payments_outlined),
+                          title: Text(formatCurrency.format(_toNum(p['amount']))),
+                          subtitle: Text(
+                            [
+                              if (payDate != null) formatDate.format(payDate),
+                              if ('${p['paymentMode'] ?? ''}'.isNotEmpty) '${p['paymentMode']}',
+                              if ('${p['poNumber'] ?? ''}'.isNotEmpty) '${p['poNumber']}',
+                            ].join(' • '),
+                          ),
+                        );
+                      }),
+                  ],
+                );
+              },
+            );
+          },
+        );
+      },
+    );
+  }
+
+  num _toNum(dynamic value) {
+    if (value is num) return value;
+    if (value == null) return 0;
+    return num.tryParse(value.toString()) ?? 0;
+  }
+
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
     final formatCurrency = NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
     final formatDate = DateFormat('d MMM yy');
-
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Column(

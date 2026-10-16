@@ -69,14 +69,6 @@ class _InvoiceScreenState extends State<InvoiceScreen> {
     }
   }
 
-  void _onSearchChanged(String value) {
-    setState(() => _search = value);
-  }
-
-  void _onFilterChanged(String? value) {
-    setState(() => _filter = value ?? 'all');
-  }
-
   List<InvoiceRecord> get _filteredInvoices {
     final query = _search.trim().toLowerCase();
     return _invoices.where((invoice) {
@@ -97,15 +89,34 @@ class _InvoiceScreenState extends State<InvoiceScreen> {
   num get totalRevenue => _invoices.fold(0, (sum, inv) => sum + inv.amount);
   num get pendingAmount => _invoices.fold(0, (sum, inv) => sum + inv.dueAmount);
 
-  Future<void> _showCreateDialog() async {
+  Future<void> _showCreateDialog({
+    Map<String, dynamic>? resume,
+    String? resumeId,
+  }) async {
     final l = AppLocalizations.of(context)!;
-    final customerController = TextEditingController();
-    final mobileController = TextEditingController();
+    final resumeCustomer = (resume?['customer'] is Map)
+        ? Map<String, dynamic>.from(resume!['customer'] as Map)
+        : const <String, dynamic>{};
+    final resumeLines = (resume?['lines'] is List && (resume!['lines'] as List).isNotEmpty)
+        ? Map<String, dynamic>.from((resume['lines'] as List).first as Map)
+        : const <String, dynamic>{};
+    final customerController = TextEditingController(
+      text: (resumeCustomer['name']?.toString() ?? ''),
+    );
+    final mobileController = TextEditingController(
+      text: (resumeCustomer['mobile']?.toString() ?? ''),
+    );
     final mobileKey = GlobalKey<MobileNumberFieldState>();
-    final qtyController = TextEditingController(text: '1');
-    final amountController = TextEditingController(text: '0');
-    final paidController = TextEditingController(text: '0');
-    String mode = 'CASH';
+    final qtyController = TextEditingController(
+      text: (resumeLines['qty']?.toString() ?? '1'),
+    );
+    final amountController = TextEditingController(
+      text: (resumeLines['unitPrice']?.toString() ?? '0'),
+    );
+    final paidController = TextEditingController(
+      text: (resume?['paidAmount']?.toString() ?? '0'),
+    );
+    String mode = (resume?['paymentMode']?.toString() ?? 'CASH');
 
     final result = await AppDialogs.showFormSheet<Map<String, dynamic>>(
       context,
@@ -181,39 +192,36 @@ class _InvoiceScreenState extends State<InvoiceScreen> {
                       child: Text(l.cancel),
                     ),
                     const SizedBox(width: 8),
+                    OutlinedButton.icon(
+                      onPressed: () {
+                        if (mobileKey.currentState?.validate() != null) return;
+                        final payload = _buildBillPayload(
+                          l: l,
+                          customerName: customerController.text.trim(),
+                          mobile: mobileController.text.trim(),
+                          qty: qtyController.text.trim(),
+                          unitPrice: amountController.text.trim(),
+                          paid: paidController.text.trim(),
+                          mode: mode,
+                        );
+                        Navigator.pop(sheetContext, {...payload, '__hold': true});
+                      },
+                      icon: const Icon(Icons.pause_circle_outline),
+                      label: Text(l.billHold),
+                    ),
+                    const SizedBox(width: 8),
                     FilledButton(
                       onPressed: () {
                         if (mobileKey.currentState?.validate() != null) return;
-                        final customerName = customerController.text.trim();
-                        final qty = num.tryParse(qtyController.text.trim()) ?? 1;
-                        final unitPrice = num.tryParse(amountController.text.trim()) ?? 0;
-                        final paid = num.tryParse(paidController.text.trim()) ?? 0;
-                        final payload = {
-                          'customer': {
-                            'name': customerName.isNotEmpty ? customerName : l.billWalkInCustomer,
-                            'mobile': mobileController.text.trim(),
-                            'address': '',
-                            'city': '',
-                            'state': '',
-                            'pincode': '',
-                            'gst': '',
-                          },
-                          'lines': [
-                            {
-                              'productId': null,
-                              'productName': l.billGenericItem,
-                              'qty': qty,
-                              'unitPrice': unitPrice,
-                              'discount': 0,
-                              'gstPercent': 0,
-                            }
-                          ],
-                          'paymentMode': mode,
-                          'discount': 0,
-                          'discountType': 'FLAT',
-                          'paidAmount': paid,
-                          'notes': l.billCreatedFromMobileApp,
-                        };
+                        final payload = _buildBillPayload(
+                          l: l,
+                          customerName: customerController.text.trim(),
+                          mobile: mobileController.text.trim(),
+                          qty: qtyController.text.trim(),
+                          unitPrice: amountController.text.trim(),
+                          paid: paidController.text.trim(),
+                          mode: mode,
+                        );
                         Navigator.pop(sheetContext, payload);
                       },
                       child: Text(l.save),
@@ -232,14 +240,148 @@ class _InvoiceScreenState extends State<InvoiceScreen> {
     amountController.dispose();
     paidController.dispose();
 
-    if (result != null && widget.onCreate != null && mounted) {
+    if (result != null && mounted) {
+      final isHold = result['__hold'] == true;
+      final payload = Map<String, dynamic>.from(result)..remove('__hold');
+      final customer = payload['customer'];
+      final label = customer is Map ? customer['name']?.toString() : null;
       AppDialogs.showLoading(context);
       try {
-        await widget.onCreate!(result);
+        if (isHold) {
+          await widget.apiService.holdSale(payload, label: label);
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(l.billHeldSaved)),
+            );
+          }
+        } else if (widget.onCreate != null) {
+          await widget.onCreate!(payload);
+          if (resumeId != null) {
+            await widget.apiService.deleteHeldBill(resumeId);
+          }
+        }
       } finally {
         if (mounted) AppDialogs.hideLoading(context);
       }
     }
+  }
+
+  Map<String, dynamic> _buildBillPayload({
+    required AppLocalizations l,
+    required String customerName,
+    required String mobile,
+    required String qty,
+    required String unitPrice,
+    required String paid,
+    required String mode,
+  }) {
+    return {
+      'customer': {
+        'name': customerName.isNotEmpty ? customerName : l.billWalkInCustomer,
+        'mobile': mobile,
+        'address': '',
+        'city': '',
+        'state': '',
+        'pincode': '',
+        'gst': '',
+      },
+      'lines': [
+        {
+          'productId': null,
+          'productName': l.billGenericItem,
+          'qty': num.tryParse(qty) ?? 1,
+          'unitPrice': num.tryParse(unitPrice) ?? 0,
+          'discount': 0,
+          'gstPercent': 0,
+        }
+      ],
+      'paymentMode': mode,
+      'discount': 0,
+      'discountType': 'FLAT',
+      'paidAmount': num.tryParse(paid) ?? 0,
+      'notes': l.billCreatedFromMobileApp,
+    };
+  }
+
+  Future<void> _showHeldBills() async {
+    final l = AppLocalizations.of(context)!;
+    List<Map<String, dynamic>> held;
+    AppDialogs.showLoading(context);
+    try {
+      held = await widget.apiService.listHeldBills();
+    } catch (e) {
+      if (mounted) {
+        AppDialogs.hideLoading(context);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+      }
+      return;
+    }
+    if (!mounted) return;
+    AppDialogs.hideLoading(context);
+
+    await AppDialogs.showFormSheet<void>(
+      context,
+      title: l.billHeldBills,
+      builder: (sheetContext) => held.isEmpty
+          ? Padding(
+              padding: const EdgeInsets.symmetric(vertical: 24),
+              child: Center(child: Text(l.billNoHeldBills)),
+            )
+          : Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                for (final bill in held)
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(bill['bill_number']?.toString() ?? ''),
+                    subtitle: Text(
+                      (bill['payload'] is Map &&
+                              (bill['payload'] as Map)['customer'] is Map)
+                          ? (((bill['payload'] as Map)['customer'] as Map)['name']
+                                  ?.toString() ??
+                              l.billWalkInCustomer)
+                          : l.billWalkInCustomer,
+                    ),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        TextButton(
+                          onPressed: () async {
+                            Navigator.pop(sheetContext);
+                            final payload = (bill['payload'] is Map)
+                                ? Map<String, dynamic>.from(bill['payload'] as Map)
+                                : <String, dynamic>{};
+                            await _showCreateDialog(
+                              resume: payload,
+                              resumeId: bill['id']?.toString(),
+                            );
+                            if (mounted) await _load();
+                          },
+                          child: Text(l.billResume),
+                        ),
+                        IconButton(
+                          tooltip: l.delete,
+                          icon: const Icon(Icons.delete_outline, color: Colors.red),
+                          onPressed: () async {
+                            Navigator.pop(sheetContext);
+                            try {
+                              await widget.apiService.deleteHeldBill(bill['id'].toString());
+                              if (mounted) await _load();
+                            } catch (e) {
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text(e.toString())),
+                                );
+                              }
+                            }
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+    );
   }
 
   Future<void> _confirmReverse(InvoiceRecord invoice) async {
@@ -526,12 +668,19 @@ class _InvoiceScreenState extends State<InvoiceScreen> {
           Row(
             children: [
               Expanded(child: Text(l.billInvoices, style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold))),
-              if (widget.onCreate != null)
+              OutlinedButton.icon(
+                onPressed: _showHeldBills,
+                icon: const Icon(Icons.pause_circle_outline),
+                label: Text(l.billHeldBills),
+              ),
+              if (widget.onCreate != null) ...[
+                const SizedBox(width: 8),
                 FilledButton.icon(
-                  onPressed: _showCreateDialog,
+                  onPressed: () => _showCreateDialog(),
                   icon: const Icon(Icons.add),
                   label: Text(l.billAddInvoice),
                 ),
+              ],
             ],
           ),
           const SizedBox(height: 12),

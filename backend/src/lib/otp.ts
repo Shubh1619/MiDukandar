@@ -44,13 +44,19 @@ export async function requestOtp(email: string, purpose: OtpPurpose = "LOGIN") {
 
   logger.info("otp: requested", { email: normalized, purpose, emailSent: result.ok });
 
-  const devOtp = !config.isProd && config.masterOtp ? config.masterOtp : undefined;
+  // Development convenience only: when a master OTP is configured in a
+  // non-production environment, note in the LOGS (never the HTTP response)
+  // that a bypass code is active. The code itself is never returned to the
+  // client — previously it was echoed in the response body as `devOtp`, which
+  // leaked a valid login code to any caller.
+  if (!config.isProd && config.masterOtp) {
+    logger.info("otp: dev master code available", { email: normalized, purpose });
+  }
 
   return {
     ok: true,
     expiresInSeconds: config.otpExpiryMinutes * 60,
     emailSent: result.ok,
-    ...(devOtp ? { devOtp } : {}),
   };
 }
 

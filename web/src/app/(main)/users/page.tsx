@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { Edit2, Loader2, MailPlus, Power, PowerOff, Save, Search, ShieldCheck, Trash2, UserPlus } from "lucide-react";
+import { Check, Copy, Edit2, Loader2, MailPlus, Power, PowerOff, Save, Search, ShieldCheck, Trash2, UserPlus } from "lucide-react";
 import { apiFetch, ApiError } from "@/lib/api";
 import { formatDateTime } from "@/lib/format";
 import type { AppUser, PermissionFlag, PermissionMap, Role, RolePermissions, UserInvite } from "@/lib/types";
@@ -54,6 +54,8 @@ export default function UsersPage() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [inviteOpen, setInviteOpen] = useState(false);
   const [invite, setInvite] = useState<InviteForm>(blankInvite);
+  const [inviteLink, setInviteLink] = useState<string | null>(null);
+  const [linkCopied, setLinkCopied] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [edit, setEdit] = useState<EditForm | null>(null);
   const [saving, setSaving] = useState(false);
@@ -92,21 +94,40 @@ export default function UsersPage() {
   }, [query, roleFilter, statusFilter, users]);
 
   const inviteUser = async () => {
-    if (!invite.name.trim() || (!invite.email.trim() && !invite.phone.trim())) return;
+    if (!invite.name.trim() || !invite.email.trim()) return;
     setSaving(true);
     try {
-      await apiFetch("/api/users/invite", {
+      const created = await apiFetch<{ inviteLink?: string }>("/api/users/invite", {
         method: "POST",
         body: { name: invite.name.trim(), email: invite.email.trim(), phone: invite.phone.trim(), role: invite.role },
       });
       await loadAll();
       setInvite(blankInvite);
       setInviteOpen(false);
-      toast.success("Invite created");
+      if (created.inviteLink) {
+        const absolute = created.inviteLink.startsWith("http")
+          ? created.inviteLink
+          : `${window.location.origin}${created.inviteLink}`;
+        setLinkCopied(false);
+        setInviteLink(absolute);
+      } else {
+        toast.success("Invite created");
+      }
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : "Failed to invite user");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const copyInviteLink = async () => {
+    if (!inviteLink) return;
+    try {
+      await navigator.clipboard.writeText(inviteLink);
+      setLinkCopied(true);
+      toast.success("Invite link copied");
+    } catch {
+      toast.error("Could not copy — select the link and copy manually");
     }
   };
 
@@ -339,7 +360,7 @@ export default function UsersPage() {
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="space-y-1.5">
-                <Label>Email</Label>
+                <Label>Email *</Label>
                 <Input type="email" value={invite.email} onChange={(e) => setInvite((v) => ({ ...v, email: e.target.value }))} />
               </div>
               <div className="space-y-1.5">
@@ -361,9 +382,29 @@ export default function UsersPage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setInviteOpen(false)}>Cancel</Button>
-            <Button onClick={() => void inviteUser()} disabled={saving || !invite.name.trim() || (!invite.email.trim() && !invite.phone.trim())}>
+            <Button onClick={() => void inviteUser()} disabled={saving || !invite.name.trim() || !invite.email.trim()}>
               {saving ? <Loader2 className="size-4 animate-spin" /> : <MailPlus className="size-4" />} Invite
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={inviteLink !== null} onOpenChange={(open) => { if (!open) setInviteLink(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Share the invite link</DialogTitle>
+            <DialogDescription>
+              Send this link to the invitee. They open it to set a password and join the team. It expires in 48 hours.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex items-center gap-2">
+            <Input readOnly value={inviteLink ?? ""} onFocus={(e) => e.target.select()} />
+            <Button variant="outline" onClick={() => void copyInviteLink()}>
+              {linkCopied ? <Check className="size-4" /> : <Copy className="size-4" />} Copy
+            </Button>
+          </div>
+          <DialogFooter>
+            <Button onClick={() => setInviteLink(null)}>Done</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -165,6 +165,21 @@ class AppLocalizationsMr extends AppLocalizations {
   String get billGenericItem => 'सामान्य वस्तू';
 
   @override
+  String get billHeldBills => 'होल्ड बिले';
+
+  @override
+  String get billHeldSaved => 'बिल होल्ड झाले';
+
+  @override
+  String get billHold => 'होल्ड करा';
+
+  @override
+  String get billNoHeldBills => 'कोणतीही होल्ड बिले नाहीत';
+
+  @override
+  String get billResume => 'पुन्हा सुरू करा';
+
+  @override
   String get billInvoices => 'इनव्हॉइस';
 
   @override
@@ -907,10 +922,64 @@ class AppLocalizationsMr extends AppLocalizations {
   String get reptTotalSales => 'एकूण विक्री';
 
   @override
+  String get reptCogs => 'सीओजीएस (विकलेल्या मालाची किंमत)';
+
+  @override
+  String get reptGrossMargin => 'एकूण मार्जिन';
+
+  @override
+  String get reptGrossProfit => 'एकूण नफा';
+
+  @override
+  String get reptGstBreakup => 'जीएसटी दर विभाजन';
+
+  @override
+  String get reptNetMargin => 'निव्वळ मार्जिन';
+
+  @override
+  String get reptNetProfit => 'निव्वळ नफा';
+
+  @override
+  String get reptNoData => 'या कालावधीसाठी डेटा नाही';
+
+  @override
+  String get reptRate => 'दर';
+
+  @override
+  String get reptRealPnl => 'नफा-तोटा (वास्तविक)';
+
+  @override
+  String get reptRevenue => 'महसूल';
+
+  @override
+  String get reptTax => 'कर';
+
+  @override
+  String get reptTaxable => 'करपात्र';
+
+  @override
   String get required => 'आवश्यक';
 
   @override
   String get retry => 'पुन्हा प्रयत्न करा';
+
+  @override
+  String get referTitle => 'रेफर करा आणि कमवा';
+
+  @override
+  String get referYourCode => 'तुमचा रेफरल कोड';
+
+  @override
+  String get referCopy => 'कोड कॉपी करा';
+
+  @override
+  String get referCopied => 'रेफरल कोड कॉपी झाला';
+
+  @override
+  String get referOnlyOwner => 'फक्त दुकानाचा मालक रेफरल पाहू शकतो';
+
+  @override
+  String get referReferred => 'रेफर केलेली दुकाने';
 
   @override
   String get save => 'जतन करा';
@@ -1139,6 +1208,21 @@ class AppLocalizationsMr extends AppLocalizations {
   }
 
   @override
+  String get suppViewDetails => 'तपशील पहा';
+
+  @override
+  String get suppPayments => 'देयके';
+
+  @override
+  String get suppPurchaseOrders => 'खरेदी ऑर्डर';
+
+  @override
+  String get suppNoPayments => 'कोणतेही देयके नोंदवलेले नाही';
+
+  @override
+  String get suppNoPOs => 'कोणतेही खरेदी ऑर्डर नाही';
+
+  @override
   String get tabCustomers => 'ग्राहक';
 
   @override
@@ -1267,13 +1351,20 @@ class AppLocalizationsMr extends AppLocalizations {
   String get userEmailOptional => 'ईमेल (ऐच्छिक)';
 
   @override
+  String get userEmailRequired => 'ईमेल';
+
+  @override
   String get userFullName => 'पूर्ण नाव';
 
   @override
   String get userInvite => 'आमंत्रित करा';
 
   @override
-  String get userInviteHint => 'त्यांना या भूमिकेसह लॉगिन लिंक मिळेल.';
+  String get userInviteHint =>
+      'टीममध्ये सामील होण्यासाठी ही आमंत्रण लिंक त्यांच्यासोबत शेअर करा.';
+
+  @override
+  String get copyInviteLink => 'लिंक कॉपी करा';
 
   @override
   String get userInviteMember => 'सदस्याला आमंत्रित करा';

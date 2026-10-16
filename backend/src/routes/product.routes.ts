@@ -18,7 +18,7 @@ import { ApiError } from "../lib/api-error.js";
 import { parse, paginationSchema } from "../lib/validate.js";
 import { buildUpdate } from "../lib/db.js";
 import {
-  authenticate, requireStore, requireRole, getAuth, type AuthenticatedRequest,
+  authenticate, requireStore, requireRole, requirePermission, getAuth, type AuthenticatedRequest,
 } from "../middlewares/auth.js";
 import { ROLES } from "../middlewares/auth.types.js";
 import { createStockMovement, mapLow } from "../services/stock.service.js";
@@ -35,6 +35,8 @@ import {
 // ---------------------------------------------------------------------------
 // Schemas
 // ---------------------------------------------------------------------------
+
+const idParamSchema = z.object({ id: z.string().uuid() });
 
 const productSchema = z.object({
   name: z.string().min(1).max(150),
@@ -76,12 +78,13 @@ async function findDuplicate(
       orParams.push(input.sku);
       orClauses.push(`sku = $${orParams.length + 2}`);
     }
-    if (!input.sku && !input.barcode) {
-      orParams.push(normalizeName(input.name));
-      orClauses.push(
-        `sku IS NULL AND barcode IS NULL AND lower(trim(regexp_replace(name, '\\s+', ' ', 'g'))) = $${orParams.length + 2}`,
-      );
-    }
+    // Name is always a conflict trigger (case/whitespace-insensitive), matching
+    // the documented "same name → conflict" rule, regardless of whether the
+    // new or existing row carries a SKU/barcode.
+    orParams.push(normalizeName(input.name));
+    orClauses.push(
+      `lower(trim(regexp_replace(name, '\\s+', ' ', 'g'))) = $${orParams.length + 2}`,
+    );
     if (orClauses.length === 0) return null;
     const params: unknown[] = [storeId, archived, ...orParams];
     const excludeSql = excludeId ? ` AND id <> $${params.length + 1}` : "";
@@ -168,7 +171,7 @@ export async function productRoutes(app: FastifyInstance) {
   // Add product (+ optional opening stock movement)
   app.post(
     "/",
-    { preHandler: [authenticate, requireRole(ROLES.OWNER, ROLES.MANAGER, ROLES.STOCK_MANAGER, ROLES.CASHIER)] },
+    { preHandler: [authenticate, requireRole(ROLES.OWNER, ROLES.MANAGER, ROLES.STOCK_MANAGER), requirePermission("can_manage_products")] },
     async (request: AuthenticatedRequest, reply) => {
       const storeId = requireStore(request);
        const body = parse(productSchema, request.body);
@@ -232,7 +235,7 @@ export async function productRoutes(app: FastifyInstance) {
   // Single product + recent movements
   app.get("/:id", { preHandler: authenticate }, async (request: AuthenticatedRequest) => {
     const storeId = requireStore(request);
-    const { id } = request.params as { id: string };
+    const { id } = parse(idParamSchema, request.params);
     const product = await qOne<Row>(`SELECT p.*, u.name AS archived_by_name
       FROM products p LEFT JOIN users u ON u.id = p.archived_by_id
       WHERE p.id = $1 AND p.store_id = $2`, [id, storeId]);
@@ -255,10 +258,10 @@ export async function productRoutes(app: FastifyInstance) {
   // Update product
   app.put(
     "/:id",
-    { preHandler: [authenticate, requireRole(ROLES.OWNER, ROLES.MANAGER, ROLES.STOCK_MANAGER)] },
+    { preHandler: [authenticate, requireRole(ROLES.OWNER, ROLES.MANAGER, ROLES.STOCK_MANAGER), requirePermission("can_manage_products")] },
     async (request: AuthenticatedRequest) => {
       const storeId = requireStore(request);
-      const { id } = request.params as { id: string };
+      const { id } = parse(idParamSchema, request.params);
       const body = parse(productSchema.omit({ openingStock: true, imageUrl: true }).partial(), request.body);
 
       const existing = await qOne<Row>(`SELECT * FROM products WHERE id = $1 AND store_id = $2`, [id, storeId]);
@@ -306,10 +309,10 @@ export async function productRoutes(app: FastifyInstance) {
   // Archive / unarchive (soft delete with metadata)
   app.patch(
     "/:id/archive",
-    { preHandler: [authenticate, requireRole(ROLES.OWNER, ROLES.MANAGER)] },
+    { preHandler: [authenticate, requireRole(ROLES.OWNER, ROLES.MANAGER), requirePermission("can_manage_products")] },
     async (request: AuthenticatedRequest) => {
       const storeId = requireStore(request);
-      const { id } = request.params as { id: string };
+      const { id } = parse(idParamSchema, request.params);
       const body = (request.body ?? {}) as { archived?: boolean };
       const toArchive = body.archived ?? true;
       const user = getAuth(request);
@@ -330,10 +333,10 @@ export async function productRoutes(app: FastifyInstance) {
   // Restore archived product (with duplicate-conflict check)
   app.post(
     "/:id/restore",
-    { preHandler: [authenticate, managerOnly] },
+    { preHandler: [authenticate, managerOnly, requirePermission("can_manage_products")] },
     async (request: AuthenticatedRequest) => {
       const storeId = requireStore(request);
-      const { id } = request.params as { id: string };
+      const { id } = parse(idParamSchema, request.params);
       const product = await qOne<Row>(`SELECT * FROM products WHERE id = $1 AND store_id = $2`, [id, storeId]);
       if (!product) throw ApiError.notFound("Product not found");
       if (!product.isArchived) {
@@ -368,7 +371,7 @@ export async function productRoutes(app: FastifyInstance) {
     { preHandler: [authenticate, requireRole(ROLES.OWNER)] },
     async (request: AuthenticatedRequest) => {
       const storeId = requireStore(request);
-      const { id } = request.params as { id: string };
+      const { id } = parse(idParamSchema, request.params);
       const product = await qOne<Row>(`SELECT id, is_archived FROM products WHERE id = $1 AND store_id = $2`, [id, storeId]);
       if (!product) throw ApiError.notFound("Product not found");
       if (!product.isArchived) {
@@ -383,10 +386,10 @@ export async function productRoutes(app: FastifyInstance) {
   // Stock adjustment (ADJUSTMENT movement)
   app.post(
     "/:id/adjust",
-    { preHandler: [authenticate, requireRole(ROLES.OWNER, ROLES.MANAGER, ROLES.STOCK_MANAGER)] },
+    { preHandler: [authenticate, requireRole(ROLES.OWNER, ROLES.MANAGER, ROLES.STOCK_MANAGER), requirePermission("can_manage_products")] },
     async (request: AuthenticatedRequest) => {
       const storeId = requireStore(request);
-      const { id } = request.params as { id: string };
+      const { id } = parse(idParamSchema, request.params);
       const body = parse(
         z.object({ qty: z.coerce.number(), reason: z.string().max(300).optional().default("Manual adjustment") }),
         request.body,

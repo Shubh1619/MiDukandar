@@ -106,6 +106,11 @@ const en: Record<string, string> = {
   downloadPdf: "Download PDF",
   noInvoices: "No invoices yet",
   createFirstInvoice: "Create your first invoice",
+  holdBill: "Hold Bill",
+  heldBills: "Held Bills",
+  resumeBill: "Resume",
+  noHeldBills: "No held bills",
+  heldBillSaved: "Bill held",
   totalInvoices: "Total Invoices",
   totalRevenue: "Total Revenue",
   pendingAmount: "Pending Amount",
@@ -354,6 +359,20 @@ const en: Record<string, string> = {
   receiveLineItemsNote: "Quantities for all line items will be added to your inventory.",
   cancelPoConfirm: "Are you sure you want to cancel order {{po}}?",
   exceedsOutstanding: "Amount exceeds outstanding balance",
+
+  // Invite acceptance
+  inviteAcceptTitle: "Accept your invitation",
+  inviteAcceptSubtitle: "Set up your account to join the team.",
+  inviteAcceptName: "Your name",
+  inviteAcceptPassword: "Create a password",
+  inviteAcceptConfirmPassword: "Confirm password",
+  inviteAcceptSubmit: "Accept invitation",
+  inviteAccepting: "Accepting...",
+  inviteAcceptSuccess: "Invitation accepted. You can now sign in.",
+  inviteAcceptMissingToken: "This invitation link is invalid or incomplete.",
+  inviteAcceptPasswordMismatch: "Passwords do not match.",
+  inviteAcceptPasswordTooShort: "Password must be at least 6 characters.",
+  inviteAcceptGoToLogin: "Go to sign in",
 };
 
 export default en;

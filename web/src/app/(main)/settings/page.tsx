@@ -58,8 +58,30 @@ export default function SettingsPage() {
   const [editOpen, setEditOpen] = useState(false);
   const [edit, setEdit] = useState<EditForm | null>(null);
   const [busy, setBusy] = useState(false);
+  const [referral, setReferral] = useState<{
+    code: string;
+    shareUrl: string;
+    referredCount: number;
+    referrals: { storeName: string; createdAt: string }[];
+  } | null>(null);
+  const [refApplyCode, setRefApplyCode] = useState("");
+  const [refBusy, setRefBusy] = useState(false);
 
   const staff = useMemo(() => users.filter((u) => u.role !== "OWNER"), [users]);
+
+  const loadReferral = async () => {
+    try {
+      const data = await apiFetch<{
+        code: string;
+        shareUrl: string;
+        referredCount: number;
+        referrals: { storeName: string; createdAt: string }[];
+      }>("/api/referral");
+      setReferral(data);
+    } catch {
+      // Non-owner staff cannot view referrals; ignore.
+    }
+  };
 
   const loadUsers = async () => {
     const data = await apiFetch<{ users: AppUser[]; invites: UserInvite[] }>("/api/users");
@@ -71,6 +93,7 @@ export default function SettingsPage() {
     void (async () => {
       try {
         const [storeData] = await Promise.all([apiFetch<{ store: Store }>("/api/store"), loadUsers()]);
+        void loadReferral();
         const s = storeData.store;
         setStoreState(s);
         setForm({
@@ -136,17 +159,34 @@ export default function SettingsPage() {
   };
 
   const inviteStaff = async () => {
-    if (!invite.name.trim() || (!invite.email.trim() && !invite.phone.trim())) return;
+    if (!invite.name.trim() || !invite.email.trim()) return;
     setBusy(true);
     try {
-      await apiFetch("/api/users/invite", {
+      const created = await apiFetch<{ inviteLink?: string }>("/api/users/invite", {
         method: "POST",
         body: { name: invite.name.trim(), email: invite.email.trim(), phone: invite.phone.trim(), role: invite.role },
       });
       await loadUsers();
       setInviteOpen(false);
       setInvite(blankInvite);
-      toast.success("Invite created");
+      if (created.inviteLink) {
+        const absolute = created.inviteLink.startsWith("http")
+          ? created.inviteLink
+          : `${window.location.origin}${created.inviteLink}`;
+        toast.success("Invite created", {
+          action: {
+            label: "Copy link",
+            onClick: () => {
+              void navigator.clipboard.writeText(absolute).then(
+                () => toast.success("Invite link copied"),
+                () => toast.error("Could not copy the invite link"),
+              );
+            },
+          },
+        });
+      } else {
+        toast.success("Invite created");
+      }
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : "Failed to invite staff");
     } finally {
@@ -225,6 +265,7 @@ export default function SettingsPage() {
           <TabsTrigger value="staff">{t("staff")}</TabsTrigger>
           <TabsTrigger value="language">{t("language")}</TabsTrigger>
           <TabsTrigger value="legal">Legal</TabsTrigger>
+          <TabsTrigger value="referral">Refer</TabsTrigger>
         </TabsList>
 
         <TabsContent value="store">
@@ -438,6 +479,108 @@ export default function SettingsPage() {
             </div>
           </div>
         </TabsContent>
+
+        <TabsContent value="referral">
+          <div className="max-w-2xl space-y-4">
+            <div className="rounded-lg border bg-card p-5">
+              <div className="flex items-start gap-3">
+                <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-navy-50 text-royal-600">
+                  <UserPlus className="size-5" aria-hidden />
+                </span>
+                <div>
+                  <h2 className="font-display text-base font-bold">Refer a friend</h2>
+                  <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+                    Share your code. When a shop signs up with it, they are linked to your account.
+                  </p>
+                </div>
+              </div>
+              {referral ? (
+                <div className="mt-5 space-y-4">
+                  <div className="space-y-1.5">
+                    <Label>Your referral code</Label>
+                    <div className="flex gap-2">
+                      <Input readOnly value={referral.code} className="font-display text-lg font-bold tracking-widest" />
+                      <Button
+                        variant="outline"
+                        onClick={() => {
+                          void navigator.clipboard.writeText(referral.code);
+                          toast.success("Referral code copied");
+                        }}
+                      >
+                        Copy
+                      </Button>
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Share link</Label>
+                    <div className="flex gap-2">
+                      <Input readOnly value={referral.shareUrl} />
+                      <Button
+                        variant="outline"
+                        onClick={() => {
+                          void navigator.clipboard.writeText(referral.shareUrl);
+                          toast.success("Referral link copied");
+                        }}
+                      >
+                        Copy
+                      </Button>
+                    </div>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    {referral.referredCount} shop{referral.referredCount === 1 ? "" : "s"} referred
+                  </p>
+                  {referral.referrals.length > 0 && (
+                    <ul className="divide-y rounded-lg border">
+                      {referral.referrals.map((r, i) => (
+                        <li key={i} className="flex items-center justify-between gap-3 px-3 py-2 text-sm">
+                          <span className="truncate font-medium">{r.storeName}</span>
+                          <span className="shrink-0 text-xs text-muted-foreground">{formatDateTime(r.createdAt)}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              ) : (
+                <p className="mt-4 text-sm text-muted-foreground">
+                  Only the shop owner can view the referral program.
+                </p>
+              )}
+            </div>
+
+            <div className="rounded-lg border bg-card p-5">
+              <h2 className="font-display text-base font-bold">Have a code?</h2>
+              <p className="mt-1 text-sm text-muted-foreground">Enter a friend's referral code to link your shop.</p>
+              <div className="mt-3 flex gap-2">
+                <Input
+                  placeholder="e.g. A1B2C3D4"
+                  value={refApplyCode}
+                  onChange={(e) => setRefApplyCode(e.target.value.toUpperCase())}
+                />
+                <Button
+                  disabled={refBusy || refApplyCode.trim().length < 4}
+                  onClick={async () => {
+                    setRefBusy(true);
+                    try {
+                      await apiFetch("/api/referral/apply", {
+                        method: "POST",
+                        body: { code: refApplyCode.trim() },
+                      });
+                      toast.success("Referral code applied");
+                      setRefApplyCode("");
+                      void loadReferral();
+                    } catch (err) {
+                      toast.error(err instanceof ApiError ? err.message : "Could not apply code");
+                    } finally {
+                      setRefBusy(false);
+                    }
+                  }}
+                >
+                  {refBusy ? <Loader2 className="size-4 animate-spin" /> : "Apply"}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </TabsContent>
       </Tabs>
 
       <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
@@ -453,7 +596,7 @@ export default function SettingsPage() {
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="space-y-1.5">
-                <Label>Email</Label>
+                <Label>Email *</Label>
                 <Input type="email" value={invite.email} onChange={(e) => setInvite((v) => ({ ...v, email: e.target.value }))} />
               </div>
               <div className="space-y-1.5">
@@ -475,7 +618,7 @@ export default function SettingsPage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setInviteOpen(false)}>{t("cancel")}</Button>
-            <Button onClick={() => void inviteStaff()} disabled={busy || !invite.name.trim() || (!invite.email.trim() && !invite.phone.trim())}>
+            <Button onClick={() => void inviteStaff()} disabled={busy || !invite.name.trim() || !invite.email.trim()}>
               {busy ? <Loader2 className="size-4 animate-spin" /> : <MailPlus className="size-4" />} Invite
             </Button>
           </DialogFooter>

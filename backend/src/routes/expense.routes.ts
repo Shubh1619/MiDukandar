@@ -76,60 +76,6 @@ export async function expenseRoutes(app: FastifyInstance) {
     },
   );
 
-  // --- RECURRING EXPENSES ---
-  app.get("/recurring", { preHandler: authenticate }, async (request: AuthenticatedRequest) => {
-    const storeId = requireStore(request);
-    // Automatically process due items when loading recurring expenses
-    await processDueRecurringExpenses(qClient(), storeId);
-    const recurring = await listRecurringExpenses(qClient(), storeId);
-    return { recurring };
-  });
-
-  app.post(
-    "/recurring",
-    { preHandler: [authenticate, requireRole(ROLES.OWNER, ROLES.MANAGER)] },
-    async (request: AuthenticatedRequest, reply) => {
-      const storeId = requireStore(request);
-      const auth = getAuth(request);
-      const body = parse(createRecurringSchema, request.body);
-      const recurring = await createRecurringExpense(qClient(), storeId, auth.id, body);
-      return reply.status(201).send({ recurring });
-    },
-  );
-
-  app.patch(
-    "/recurring/:id",
-    { preHandler: [authenticate, requireRole(ROLES.OWNER, ROLES.MANAGER)] },
-    async (request: AuthenticatedRequest) => {
-      const storeId = requireStore(request);
-      const { id } = request.params as { id: string };
-      const body = parse(createRecurringSchema.partial().extend({ isActive: z.boolean().optional() }), request.body);
-      const recurring = await updateRecurringExpense(qClient(), storeId, id, body);
-      return { recurring };
-    },
-  );
-
-  app.delete(
-    "/recurring/:id",
-    { preHandler: [authenticate, requireRole(ROLES.OWNER, ROLES.MANAGER)] },
-    async (request: AuthenticatedRequest, reply) => {
-      const storeId = requireStore(request);
-      const { id } = request.params as { id: string };
-      await deleteRecurringExpense(qClient(), storeId, id);
-      return reply.send({ ok: true });
-    },
-  );
-
-  app.post(
-    "/recurring/process-due",
-    { preHandler: [authenticate, requireRole(ROLES.OWNER, ROLES.MANAGER)] },
-    async (request: AuthenticatedRequest) => {
-      const storeId = requireStore(request);
-      const res = await processDueRecurringExpenses(qClient(), storeId);
-      return res;
-    },
-  );
-
   // --- EXPENSES SUMMARY ---
   app.get("/summary", { preHandler: authenticate }, async (request: AuthenticatedRequest) => {
     const storeId = requireStore(request);
@@ -226,13 +172,18 @@ export async function expenseRoutes(app: FastifyInstance) {
  * table so the `/recurring-expenses` contract matches its name.
  */
 export async function recurringExpenseRoutes(app: FastifyInstance) {
-  // List recurring expenses (also materialises any due items)
-  app.get("/recurring", { preHandler: authenticate }, async (request: AuthenticatedRequest) => {
+  // List recurring expenses (also materialises any due items). The collection
+  // is exposed both at the resource root and at the legacy `/recurring` path so
+  // existing clients keep working.
+  const listRecurring = async (request: AuthenticatedRequest) => {
     const storeId = requireStore(request);
     await processDueRecurringExpenses(qClient(), storeId);
     const recurring = await listRecurringExpenses(qClient(), storeId);
     return { recurring };
-  });
+  };
+
+  app.get("/", { preHandler: authenticate }, listRecurring);
+  app.get("/recurring", { preHandler: authenticate }, listRecurring);
 
   // Create recurring expense
   app.post(

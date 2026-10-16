@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import {
   Eye,
+  History,
   Loader2,
   Lock,
   MessageCircle,
@@ -77,7 +78,8 @@ import { TableSkeleton } from "@/components/shared/table-skeleton";
 import { EmptyState } from "@/components/shared/empty-state";
 import { Pager } from "@/components/shared/pager";
 import { InvoiceSummaryBar } from "@/components/invoices/invoice-summary";
-import { InvoiceFormDialog } from "@/components/invoices/invoice-form-dialog";
+import { InvoiceFormDialog, type HeldPayload } from "@/components/invoices/invoice-form-dialog";
+import { HeldBillsDialog } from "@/components/invoices/held-bills-dialog";
 import { InvoicePreview } from "@/components/invoices/invoice-preview";
 
 type PaymentFilter = "all" | "paid" | "udhaar";
@@ -131,6 +133,12 @@ export default function InvoicesPage() {
 
   const [editing, setEditing] =
     useState<SaleDetail | null>(null);
+
+  const [heldOpen, setHeldOpen] =
+    useState(false);
+
+  const [heldDraft, setHeldDraft] =
+    useState<{ id: string; payload: HeldPayload } | null>(null);
 
   const [busyEditId, setBusyEditId] =
     useState<string | null>(null);
@@ -475,10 +483,16 @@ export default function InvoicesPage() {
           </p>
         </div>
 
-        <Button onClick={openCreate}>
-          <Plus className="size-4" />
-          {t("newInvoice")}
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={() => setHeldOpen(true)}>
+            <History className="size-4" />
+            {t("heldBills")}
+          </Button>
+          <Button onClick={openCreate}>
+            <Plus className="size-4" />
+            {t("newInvoice")}
+          </Button>
+        </div>
       </div>
 
       {/* SUMMARY */}
@@ -1033,9 +1047,24 @@ export default function InvoicesPage() {
           onClose={() => {
             setFormOpen(false);
             setEditing(null);
+            setHeldDraft(null);
           }}
           onSaved={() => void load()}
           editing={editing}
+          held={heldDraft}
+        />
+      )}
+
+      {/* HELD BILLS */}
+      {heldOpen && (
+        <HeldBillsDialog
+          onClose={() => setHeldOpen(false)}
+          onResume={({ id, payload }) => {
+            setHeldOpen(false);
+            setEditing(null);
+            setHeldDraft({ id, payload });
+            setFormOpen(true);
+          }}
         />
       )}
 

@@ -1,0 +1,20 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /dashboard
+Disallow: /products
+Disallow: /customers
+Disallow: /suppliers
+Disallow: /invoices
+Disallow: /inventory
+Disallow: /payments
+Disallow: /expenses
+Disallow: /reports
+Disallow: /settings
+Disallow: /users
+Disallow: /udhaari
+Disallow: /purchases
+Disallow: /superadmin
+Disallow: /impersonate
+
+Sitemap: /sitemap.xml

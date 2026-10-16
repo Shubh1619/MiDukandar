@@ -762,25 +762,28 @@ class _AppShellState extends State<AppShell> {
     }
   }
 
-  Future<void> _handleInviteUser({
+  Future<String?> _handleInviteUser({
     required String name,
     String? email,
     String? phone,
     required String role,
   }) async {
     try {
-      await widget.apiService.inviteUser(
+      final data = await widget.apiService.inviteUser(
         name: name,
         email: email,
         phone: phone,
         role: role,
       );
+      final link = data['inviteLink']?.toString();
+      return (link == null || link.isEmpty) ? null : link;
     } catch (error) {
-      if (!mounted) return;
+      if (!mounted) return null;
       AppDialogs.showError(
         context,
         AppLocalizations.of(context)!.errInviteUser(error.toString()),
       );
+      return null;
     }
   }
 

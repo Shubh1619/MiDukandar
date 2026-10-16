@@ -370,6 +370,36 @@ abstract class AppLocalizations {
   /// **'Generic item'**
   String get billGenericItem;
 
+  /// No description provided for @billHeldBills.
+  ///
+  /// In en, this message translates to:
+  /// **'Held bills'**
+  String get billHeldBills;
+
+  /// No description provided for @billHeldSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Bill held'**
+  String get billHeldSaved;
+
+  /// No description provided for @billHold.
+  ///
+  /// In en, this message translates to:
+  /// **'Hold'**
+  String get billHold;
+
+  /// No description provided for @billNoHeldBills.
+  ///
+  /// In en, this message translates to:
+  /// **'No held bills'**
+  String get billNoHeldBills;
+
+  /// No description provided for @billResume.
+  ///
+  /// In en, this message translates to:
+  /// **'Resume'**
+  String get billResume;
+
   /// No description provided for @billInvoices.
   ///
   /// In en, this message translates to:
@@ -1708,6 +1738,78 @@ abstract class AppLocalizations {
   /// **'Total Sales'**
   String get reptTotalSales;
 
+  /// No description provided for @reptCogs.
+  ///
+  /// In en, this message translates to:
+  /// **'COGS (cost of goods sold)'**
+  String get reptCogs;
+
+  /// No description provided for @reptGrossMargin.
+  ///
+  /// In en, this message translates to:
+  /// **'Gross Margin'**
+  String get reptGrossMargin;
+
+  /// No description provided for @reptGrossProfit.
+  ///
+  /// In en, this message translates to:
+  /// **'Gross Profit'**
+  String get reptGrossProfit;
+
+  /// No description provided for @reptGstBreakup.
+  ///
+  /// In en, this message translates to:
+  /// **'GST Rate Breakup'**
+  String get reptGstBreakup;
+
+  /// No description provided for @reptNetMargin.
+  ///
+  /// In en, this message translates to:
+  /// **'Net Margin'**
+  String get reptNetMargin;
+
+  /// No description provided for @reptNetProfit.
+  ///
+  /// In en, this message translates to:
+  /// **'Net Profit'**
+  String get reptNetProfit;
+
+  /// No description provided for @reptNoData.
+  ///
+  /// In en, this message translates to:
+  /// **'No data for this period'**
+  String get reptNoData;
+
+  /// No description provided for @reptRate.
+  ///
+  /// In en, this message translates to:
+  /// **'Rate'**
+  String get reptRate;
+
+  /// No description provided for @reptRealPnl.
+  ///
+  /// In en, this message translates to:
+  /// **'Profit & Loss (actual)'**
+  String get reptRealPnl;
+
+  /// No description provided for @reptRevenue.
+  ///
+  /// In en, this message translates to:
+  /// **'Revenue'**
+  String get reptRevenue;
+
+  /// No description provided for @reptTax.
+  ///
+  /// In en, this message translates to:
+  /// **'Tax'**
+  String get reptTax;
+
+  /// No description provided for @reptTaxable.
+  ///
+  /// In en, this message translates to:
+  /// **'Taxable'**
+  String get reptTaxable;
+
   /// No description provided for @required.
   ///
   /// In en, this message translates to:
@@ -1719,6 +1821,42 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Try again'**
   String get retry;
+
+  /// No description provided for @referTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Refer & Earn'**
+  String get referTitle;
+
+  /// No description provided for @referYourCode.
+  ///
+  /// In en, this message translates to:
+  /// **'Your referral code'**
+  String get referYourCode;
+
+  /// No description provided for @referCopy.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy code'**
+  String get referCopy;
+
+  /// No description provided for @referCopied.
+  ///
+  /// In en, this message translates to:
+  /// **'Referral code copied'**
+  String get referCopied;
+
+  /// No description provided for @referOnlyOwner.
+  ///
+  /// In en, this message translates to:
+  /// **'Only the shop owner can view referrals'**
+  String get referOnlyOwner;
+
+  /// No description provided for @referReferred.
+  ///
+  /// In en, this message translates to:
+  /// **'Referred shops'**
+  String get referReferred;
 
   /// No description provided for @save.
   ///
@@ -2134,6 +2272,36 @@ abstract class AppLocalizations {
   /// **'{count} settled'**
   String suppXSettled(String count);
 
+  /// No description provided for @suppViewDetails.
+  ///
+  /// In en, this message translates to:
+  /// **'View details'**
+  String get suppViewDetails;
+
+  /// No description provided for @suppPayments.
+  ///
+  /// In en, this message translates to:
+  /// **'Payments'**
+  String get suppPayments;
+
+  /// No description provided for @suppPurchaseOrders.
+  ///
+  /// In en, this message translates to:
+  /// **'Purchase Orders'**
+  String get suppPurchaseOrders;
+
+  /// No description provided for @suppNoPayments.
+  ///
+  /// In en, this message translates to:
+  /// **'No payments recorded'**
+  String get suppNoPayments;
+
+  /// No description provided for @suppNoPOs.
+  ///
+  /// In en, this message translates to:
+  /// **'No purchase orders'**
+  String get suppNoPOs;
+
   /// No description provided for @tabCustomers.
   ///
   /// In en, this message translates to:
@@ -2350,6 +2518,12 @@ abstract class AppLocalizations {
   /// **'Email (optional)'**
   String get userEmailOptional;
 
+  /// No description provided for @userEmailRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Email'**
+  String get userEmailRequired;
+
   /// No description provided for @userFullName.
   ///
   /// In en, this message translates to:
@@ -2365,8 +2539,14 @@ abstract class AppLocalizations {
   /// No description provided for @userInviteHint.
   ///
   /// In en, this message translates to:
-  /// **'They will receive a login link with this role.'**
+  /// **'Share this invite link with them so they can join the team.'**
   String get userInviteHint;
+
+  /// No description provided for @copyInviteLink.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy link'**
+  String get copyInviteLink;
 
   /// No description provided for @userInviteMember.
   ///

@@ -1,0 +1,163 @@
+file,registered,export,method,path,raw,auth,validation,plan_module
+auth.routes.ts,yes,authRoutes,POST,"/api/auth/login-kind","/login-kind","PUBLIC",zod,
+auth.routes.ts,yes,authRoutes,POST,"/api/auth/logout","/logout","PUBLIC",NONE-DETECTED,
+auth.routes.ts,yes,authRoutes,GET,"/api/auth/me","/me","authenticate",NONE-DETECTED,
+auth.routes.ts,yes,authRoutes,POST,"/api/auth/otp/request","/otp/request","PUBLIC",zod,
+auth.routes.ts,yes,authRoutes,POST,"/api/auth/otp/verify","/otp/verify","PUBLIC",zod,
+recovery.routes.ts,yes,recoveryRoutes,POST,"/api/auth/recovery/initiate","/initiate","PUBLIC",zod,
+recovery.routes.ts,yes,recoveryRoutes,POST,"/api/auth/recovery/reset-pin","/reset-pin","PUBLIC",zod,
+recovery.routes.ts,yes,recoveryRoutes,POST,"/api/auth/recovery/verify-otp","/verify-otp","PUBLIC",zod,
+auth.routes.ts,yes,authRoutes,POST,"/api/auth/refresh","/refresh","PUBLIC",zod,
+auth.routes.ts,yes,authRoutes,POST,"/api/auth/register","/register","PUBLIC",zod,
+customer.routes.ts,yes,customerRoutes,GET,"/api/customers","/","authenticate+requireStore",zod,CUSTOMERS_UDHAARI
+customer.routes.ts,yes,customerRoutes,POST,"/api/customers","/","authenticate+requireStore",zod,CUSTOMERS_UDHAARI
+customer.routes.ts,yes,customerRoutes,DELETE,"/api/customers/:id","/:id","authenticate+requireStore",NONE-DETECTED,CUSTOMERS_UDHAARI
+customer.routes.ts,yes,customerRoutes,GET,"/api/customers/:id","/:id","authenticate+requireStore",NONE-DETECTED,CUSTOMERS_UDHAARI
+customer.routes.ts,yes,customerRoutes,PUT,"/api/customers/:id","/:id","authenticate+requireStore",zod,CUSTOMERS_UDHAARI
+expense.routes.ts,yes,expenseRoutes,GET,"/api/expense-categories","/","authenticate+requireStore",zod,EXPENSES
+expense.routes.ts,yes,expenseRoutes,POST,"/api/expense-categories","/","authenticate+requireRole(ROLES.OWNER,ROLES.MANAGER,ROLES.CASHIER)+requireStore",zod,EXPENSES
+expense.routes.ts,yes,expenseRoutes,DELETE,"/api/expense-categories/:id","/:id","authenticate+requireRole(ROLES.OWNER,ROLES.MANAGER)+requireStore",NONE-DETECTED,EXPENSES
+expense.routes.ts,yes,expenseRoutes,GET,"/api/expense-categories/:id","/:id","authenticate+requireStore",NONE-DETECTED,EXPENSES
+expense.routes.ts,yes,expenseRoutes,PATCH,"/api/expense-categories/:id","/:id","authenticate+requireRole(ROLES.OWNER,ROLES.MANAGER)+requireStore",zod,EXPENSES
+expense.routes.ts,yes,expenseRoutes,GET,"/api/expense-categories/categories","/categories","authenticate+requireStore",NONE-DETECTED,EXPENSES
+expense.routes.ts,yes,expenseRoutes,POST,"/api/expense-categories/categories","/categories","authenticate+requireRole(ROLES.OWNER,ROLES.MANAGER)+requireStore",zod,EXPENSES
+expense.routes.ts,yes,expenseRoutes,DELETE,"/api/expense-categories/categories/:id","/categories/:id","authenticate+requireRole(ROLES.OWNER,ROLES.MANAGER)+requireStore",NONE-DETECTED,EXPENSES
+expense.routes.ts,yes,expenseRoutes,GET,"/api/expense-categories/recurring","/recurring","authenticate+requireStore",NONE-DETECTED,EXPENSES
+expense.routes.ts,yes,expenseRoutes,POST,"/api/expense-categories/recurring","/recurring","authenticate+requireRole(ROLES.OWNER,ROLES.MANAGER)+requireStore",zod,EXPENSES
+expense.routes.ts,yes,expenseRoutes,DELETE,"/api/expense-categories/recurring/:id","/recurring/:id","authenticate+requireRole(ROLES.OWNER,ROLES.MANAGER)+requireStore",NONE-DETECTED,EXPENSES
+expense.routes.ts,yes,expenseRoutes,PATCH,"/api/expense-categories/recurring/:id","/recurring/:id","authenticate+requireRole(ROLES.OWNER,ROLES.MANAGER)+requireStore",zod,EXPENSES
+expense.routes.ts,yes,expenseRoutes,POST,"/api/expense-categories/recurring/process-due","/recurring/process-due","authenticate+requireRole(ROLES.OWNER,ROLES.MANAGER)+requireStore",NONE-DETECTED,EXPENSES
+expense.routes.ts,yes,expenseRoutes,GET,"/api/expense-categories/summary","/summary","authenticate+requireStore",NONE-DETECTED,EXPENSES
+expense.routes.ts,yes,expenseRoutes,GET,"/api/expenses","/","authenticate+requireStore",zod,EXPENSES
+expense.routes.ts,yes,expenseRoutes,POST,"/api/expenses","/","authenticate+requireRole(ROLES.OWNER,ROLES.MANAGER,ROLES.CASHIER)+requireStore",zod,EXPENSES
+expense.routes.ts,yes,expenseRoutes,DELETE,"/api/expenses/:id","/:id","authenticate+requireRole(ROLES.OWNER,ROLES.MANAGER)+requireStore",NONE-DETECTED,EXPENSES
+expense.routes.ts,yes,expenseRoutes,GET,"/api/expenses/:id","/:id","authenticate+requireStore",NONE-DETECTED,EXPENSES
+expense.routes.ts,yes,expenseRoutes,PATCH,"/api/expenses/:id","/:id","authenticate+requireRole(ROLES.OWNER,ROLES.MANAGER)+requireStore",zod,EXPENSES
+expense.routes.ts,yes,expenseRoutes,GET,"/api/expenses/categories","/categories","authenticate+requireStore",NONE-DETECTED,EXPENSES
+expense.routes.ts,yes,expenseRoutes,POST,"/api/expenses/categories","/categories","authenticate+requireRole(ROLES.OWNER,ROLES.MANAGER)+requireStore",zod,EXPENSES
+expense.routes.ts,yes,expenseRoutes,DELETE,"/api/expenses/categories/:id","/categories/:id","authenticate+requireRole(ROLES.OWNER,ROLES.MANAGER)+requireStore",NONE-DETECTED,EXPENSES
+expense.routes.ts,yes,expenseRoutes,GET,"/api/expenses/recurring","/recurring","authenticate+requireStore",NONE-DETECTED,EXPENSES
+expense.routes.ts,yes,expenseRoutes,POST,"/api/expenses/recurring","/recurring","authenticate+requireRole(ROLES.OWNER,ROLES.MANAGER)+requireStore",zod,EXPENSES
+expense.routes.ts,yes,expenseRoutes,DELETE,"/api/expenses/recurring/:id","/recurring/:id","authenticate+requireRole(ROLES.OWNER,ROLES.MANAGER)+requireStore",NONE-DETECTED,EXPENSES
+expense.routes.ts,yes,expenseRoutes,PATCH,"/api/expenses/recurring/:id","/recurring/:id","authenticate+requireRole(ROLES.OWNER,ROLES.MANAGER)+requireStore",zod,EXPENSES
+expense.routes.ts,yes,expenseRoutes,POST,"/api/expenses/recurring/process-due","/recurring/process-due","authenticate+requireRole(ROLES.OWNER,ROLES.MANAGER)+requireStore",NONE-DETECTED,EXPENSES
+expense.routes.ts,yes,expenseRoutes,GET,"/api/expenses/summary","/summary","authenticate+requireStore",NONE-DETECTED,EXPENSES
+health.routes.ts,yes,healthRoutes,GET,"/api/health","/","PUBLIC",NONE-DETECTED,
+health.routes.ts,yes,healthRoutes,GET,"/api/health/ready","/ready","PUBLIC",NONE-DETECTED,
+inventory.routes.ts,yes,inventoryRoutes,GET,"/api/inventory/movements","/movements","authenticate+requireStore",zod,INVENTORY
+inventory.routes.ts,yes,inventoryRoutes,GET,"/api/inventory/stock/current","/stock/current","authenticate+requireStore",zod,INVENTORY
+inventory.routes.ts,yes,inventoryRoutes,GET,"/api/inventory/stock/low","/stock/low","authenticate+requireStore",NONE-DETECTED,INVENTORY
+recovery.routes.ts,yes,merchantVerifyRoutes,GET,"/api/merchant/verify-context","/verify-context","PUBLIC",zod,
+payment.routes.ts,yes,paymentRoutes,GET,"/api/payments","/","authenticate+requireStore",zod,BILLING
+payment.routes.ts,yes,paymentRoutes,POST,"/api/payments/receive","/receive","authenticate+requireStore",zod,BILLING
+plan.routes.ts,yes,planRoutes,GET,"/api/plans","/","PUBLIC",NONE-DETECTED,
+product.routes.ts,yes,productRoutes,GET,"/api/products","/","authenticate+requireStore",zod,PRODUCTS
+product.routes.ts,yes,productRoutes,POST,"/api/products","/","authenticate+requireRole(ROLES.OWNER,ROLES.MANAGER,ROLES.STOCK_MANAGER,ROLES.CASHIER)+requireStore",zod,PRODUCTS
+product.routes.ts,yes,productRoutes,DELETE,"/api/products/:id","/:id","authenticate+requireRole(ROLES.OWNER)+requireStore",NONE-DETECTED,PRODUCTS
+product.routes.ts,yes,productRoutes,GET,"/api/products/:id","/:id","authenticate+requireStore",NONE-DETECTED,PRODUCTS
+product.routes.ts,yes,productRoutes,PUT,"/api/products/:id","/:id","authenticate+requireRole(ROLES.OWNER,ROLES.MANAGER,ROLES.STOCK_MANAGER)+requireStore",zod,PRODUCTS
+product.routes.ts,yes,productRoutes,POST,"/api/products/:id/adjust","/:id/adjust","authenticate+requireRole(ROLES.OWNER,ROLES.MANAGER,ROLES.STOCK_MANAGER)+requireStore",zod,PRODUCTS
+product.routes.ts,yes,productRoutes,PATCH,"/api/products/:id/archive","/:id/archive","authenticate+requireRole(ROLES.OWNER,ROLES.MANAGER)+requireStore",NONE-DETECTED,PRODUCTS
+product.routes.ts,yes,productRoutes,POST,"/api/products/:id/restore","/:id/restore","authenticate+requireStore",NONE-DETECTED,PRODUCTS
+product.routes.ts,yes,productRoutes,GET,"/api/products/categories","/categories","authenticate+requireStore",NONE-DETECTED,PRODUCTS
+product-export.routes.ts,yes,productExportRoutes,GET,"/api/products/export/pdf","/export/pdf","authenticate",NONE-DETECTED,PRODUCTS
+product-export.routes.ts,yes,productExportRoutes,GET,"/api/products/export/xlsx","/export/xlsx","authenticate",NONE-DETECTED,PRODUCTS
+product-import.routes.ts,yes,productImportRoutes,POST,"/api/products/import","/import","authenticate+requireStore",zod,PRODUCTS
+product-import.routes.ts,yes,productImportRoutes,POST,"/api/products/import/pdf","/import/pdf","authenticate",NONE-DETECTED,PRODUCTS
+product-import.routes.ts,yes,productImportRoutes,POST,"/api/products/import/preview","/import/preview","authenticate+requireStore",zod,PRODUCTS
+product-import.routes.ts,yes,productImportRoutes,POST,"/api/products/import/sheets","/import/sheets","authenticate",zod,PRODUCTS
+product.routes.ts,yes,productRoutes,GET,"/api/products/summary","/summary","authenticate+requireStore",NONE-DETECTED,PRODUCTS
+product-export.routes.ts,yes,productExportRoutes,GET,"/api/products/template","/template","authenticate",NONE-DETECTED,PRODUCTS
+product-export.routes.ts,yes,productExportRoutes,GET,"/api/products/template.csv","/template.csv","authenticate",NONE-DETECTED,PRODUCTS
+product-export.routes.ts,yes,productExportRoutes,GET,"/api/products/template.xlsx","/template.xlsx","authenticate+requireStore",zod,PRODUCTS
+purchase-order.routes.ts,yes,purchaseOrderRoutes,GET,"/api/purchase-orders","/","authenticate+requireStore",zod,PURCHASES
+purchase-order.routes.ts,yes,purchaseOrderRoutes,POST,"/api/purchase-orders","/","authenticate+requireRole(ROLES.OWNER,ROLES.MANAGER)+requireStore",zod,PURCHASES
+purchase-order.routes.ts,yes,purchaseOrderRoutes,DELETE,"/api/purchase-orders/:id","/:id","authenticate+requireRole(ROLES.OWNER,ROLES.MANAGER)+requireStore",NONE-DETECTED,PURCHASES
+purchase-order.routes.ts,yes,purchaseOrderRoutes,GET,"/api/purchase-orders/:id","/:id","authenticate+requireStore",NONE-DETECTED,PURCHASES
+purchase-order.routes.ts,yes,purchaseOrderRoutes,PATCH,"/api/purchase-orders/:id","/:id","authenticate+requireRole(ROLES.OWNER,ROLES.MANAGER)+requireStore",zod,PURCHASES
+purchase-order.routes.ts,yes,purchaseOrderRoutes,PATCH,"/api/purchase-orders/:id/status","/:id/status","authenticate+requireRole(ROLES.OWNER,ROLES.MANAGER)+requireStore",zod,PURCHASES
+purchase.routes.ts,yes,purchaseRoutes,GET,"/api/purchases","/","authenticate+requireStore",zod,PURCHASES
+purchase.routes.ts,yes,purchaseRoutes,POST,"/api/purchases","/","authenticate+requireRole(ROLES.OWNER,ROLES.MANAGER)+requireStore",zod,PURCHASES
+purchase.routes.ts,yes,purchaseRoutes,GET,"/api/purchases/:id","/:id","authenticate+requireStore",NONE-DETECTED,PURCHASES
+purchase.routes.ts,yes,purchaseRoutes,POST,"/api/purchases/:id/payment","/:id/payment","authenticate+requireRole(ROLES.OWNER,ROLES.MANAGER,ROLES.CASHIER)+requireStore",zod,PURCHASES
+expense.routes.ts,yes,recurringExpenseRoutes,POST,"/api/recurring-expenses","/","authenticate+requireRole(ROLES.OWNER,ROLES.MANAGER)+requireStore",zod,EXPENSES
+expense.routes.ts,yes,recurringExpenseRoutes,DELETE,"/api/recurring-expenses/:id","/:id","authenticate+requireRole(ROLES.OWNER,ROLES.MANAGER)+requireStore",NONE-DETECTED,EXPENSES
+expense.routes.ts,yes,recurringExpenseRoutes,PATCH,"/api/recurring-expenses/:id","/:id","authenticate+requireRole(ROLES.OWNER,ROLES.MANAGER)+requireStore",zod,EXPENSES
+expense.routes.ts,yes,recurringExpenseRoutes,GET,"/api/recurring-expenses/recurring","/recurring","authenticate+requireStore",NONE-DETECTED,EXPENSES
+expense.routes.ts,yes,recurringExpenseRoutes,POST,"/api/recurring-expenses/recurring/process-due","/recurring/process-due","authenticate+requireRole(ROLES.OWNER,ROLES.MANAGER)+requireStore",NONE-DETECTED,EXPENSES
+report.routes.ts,yes,reportRoutes,GET,"/api/reports/dashboard","/dashboard","authenticate+requireStore",zod,DASHBOARD
+report.routes.ts,yes,reportRoutes,GET,"/api/reports/gst","/gst","authenticate+requireStore",zod,GST_REPORTS
+report.routes.ts,yes,reportRoutes,GET,"/api/reports/pnl","/pnl","authenticate+requireStore",zod,GST_REPORTS
+report.routes.ts,yes,reportRoutes,GET,"/api/reports/purchases","/purchases","authenticate+requireStore",zod,GST_REPORTS
+report.routes.ts,yes,reportRoutes,GET,"/api/reports/sales","/sales","authenticate+requireStore",zod,GST_REPORTS
+report.routes.ts,yes,reportRoutes,GET,"/api/reports/stock/current","/stock/current","authenticate+requireStore",zod,GST_REPORTS
+report.routes.ts,yes,reportRoutes,GET,"/api/reports/stock/movements","/stock/movements","authenticate+requireStore",zod,GST_REPORTS
+role.routes.ts,yes,roleRoutes,GET,"/api/roles","/","authenticate+requireStore",NONE-DETECTED,USERS_ROLES
+role.routes.ts,yes,roleRoutes,PATCH,"/api/roles/:role","/:role","authenticate+requireRole(ROLES.OWNER)+requireStore",zod,USERS_ROLES
+sale.routes.ts,yes,saleRoutes,GET,"/api/sales","/","authenticate+requireStore",zod,SALES_INVOICES
+sale.routes.ts,yes,saleRoutes,POST,"/api/sales","/","authenticate+requireRole(ROLES.OWNER,ROLES.CASHIER)+requireStore",zod,SALES_INVOICES
+sale.routes.ts,yes,saleRoutes,GET,"/api/sales/:id","/:id","authenticate+requireStore",NONE-DETECTED,SALES_INVOICES
+sale.routes.ts,yes,saleRoutes,PUT,"/api/sales/:id","/:id","authenticate+requireRole(ROLES.OWNER,ROLES.CASHIER)+requireStore",zod,SALES_INVOICES
+sale.routes.ts,yes,saleRoutes,GET,"/api/sales/:id/invoice","/:id/invoice","authenticate+requireStore",NONE-DETECTED,SALES_INVOICES
+sale.routes.ts,yes,saleRoutes,GET,"/api/sales/:id/invoice/pdf","/:id/invoice/pdf","authenticate+requireStore",NONE-DETECTED,SALES_INVOICES
+sale.routes.ts,yes,saleRoutes,POST,"/api/sales/:id/pay","/:id/pay","authenticate+requireRole(ROLES.OWNER,ROLES.CASHIER,ROLES.MANAGER)+requireStore",zod,SALES_INVOICES
+sale.routes.ts,yes,saleRoutes,POST,"/api/sales/:id/reverse","/:id/reverse","authenticate+requireRole(ROLES.OWNER,ROLES.MANAGER)+requireStore",zod,SALES_INVOICES
+sale.routes.ts,yes,saleRoutes,DELETE,"/api/sales/held/:id","/held/:id","authenticate+requireStore",NONE-DETECTED,SALES_INVOICES
+sale.routes.ts,yes,saleRoutes,GET,"/api/sales/held/:id","/held/:id","authenticate+requireStore",NONE-DETECTED,SALES_INVOICES
+sale.routes.ts,yes,saleRoutes,GET,"/api/sales/held/list","/held/list","authenticate+requireStore",NONE-DETECTED,SALES_INVOICES
+sale.routes.ts,yes,saleRoutes,POST,"/api/sales/hold","/hold","authenticate+requireRole(ROLES.OWNER,ROLES.CASHIER)+requireStore",zod,SALES_INVOICES
+settings.routes.ts,yes,settingsRoutes,PATCH,"/api/settings/language","/language","authenticate+requireRole(ROLES.OWNER,ROLES.MANAGER)+requireStore",zod,
+store.routes.ts,yes,storeRoutes,GET,"/api/store","/","authenticate+requireStore",NONE-DETECTED,
+store.routes.ts,yes,storeRoutes,PUT,"/api/store","/","authenticate+requireRole(ROLES.OWNER,ROLES.MANAGER)+requireStore",zod,
+store.routes.ts,yes,storeRoutes,POST,"/api/store/setup","/setup","authenticate+requireRole(ROLES.OWNER,ROLES.CASHIER)",zod,
+store.routes.ts,yes,storeRoutes,GET,"/api/store/staff","/staff","authenticate+requireRole(ROLES.OWNER)+requireStore",NONE-DETECTED,USERS_ROLES
+store.routes.ts,yes,storeRoutes,POST,"/api/store/staff","/staff","authenticate+requireRole(ROLES.OWNER)+requireStore",zod,USERS_ROLES
+store.routes.ts,yes,storeRoutes,PATCH,"/api/store/staff/:id","/staff/:id","authenticate+requireRole(ROLES.OWNER)+requireStore",NONE-DETECTED,USERS_ROLES
+superadmin-auth.routes.ts,yes,superadminAuthRoutes,POST,"/api/superadmin/auth/login","/login","PUBLIC",zod,
+superadmin-auth.routes.ts,yes,superadminAuthRoutes,POST,"/api/superadmin/auth/logout","/logout","PUBLIC",NONE-DETECTED,
+superadmin-auth.routes.ts,yes,superadminAuthRoutes,GET,"/api/superadmin/auth/me","/me","requireSuperAdmin",NONE-DETECTED,
+superadmin.routes.ts,yes,superadminRoutes,GET,"/api/superadmin/billing","/billing","requireSuperAdmin(plugin hook)",zod,
+superadmin.routes.ts,yes,superadminRoutes,GET,"/api/superadmin/logs","/logs","requireSuperAdmin(plugin hook)",zod,
+superadmin-plans.routes.ts,yes,superadminPlanRoutes,GET,"/api/superadmin/plans","/plans","requireSuperAdmin(plugin hook)",zod,
+superadmin-plans.routes.ts,yes,superadminPlanRoutes,POST,"/api/superadmin/plans","/plans","requireSuperAdmin(plugin hook)",zod,
+superadmin-plans.routes.ts,yes,superadminPlanRoutes,DELETE,"/api/superadmin/plans/:id","/plans/:id","requireSuperAdmin(plugin hook)",zod,
+superadmin-plans.routes.ts,yes,superadminPlanRoutes,GET,"/api/superadmin/plans/:id","/plans/:id","requireSuperAdmin(plugin hook)",zod,
+superadmin-plans.routes.ts,yes,superadminPlanRoutes,PATCH,"/api/superadmin/plans/:id","/plans/:id","requireSuperAdmin(plugin hook)",zod,
+superadmin-plans.routes.ts,yes,superadminPlanRoutes,POST,"/api/superadmin/plans/:id/duplicate","/plans/:id/duplicate","requireSuperAdmin(plugin hook)",zod,
+superadmin-plans.routes.ts,yes,superadminPlanRoutes,PATCH,"/api/superadmin/plans/:id/status","/plans/:id/status","requireSuperAdmin(plugin hook)",zod,
+superadmin.routes.ts,yes,superadminRoutes,GET,"/api/superadmin/settings","/settings","requireSuperAdmin(plugin hook)",zod,
+superadmin.routes.ts,yes,superadminRoutes,PATCH,"/api/superadmin/settings","/settings","requireSuperAdmin(plugin hook)",zod,
+superadmin.routes.ts,yes,superadminRoutes,GET,"/api/superadmin/tenants","/tenants","requireSuperAdmin(plugin hook)",zod,
+superadmin.routes.ts,yes,superadminRoutes,GET,"/api/superadmin/tenants/:id","/tenants/:id","requireSuperAdmin(plugin hook)",zod,
+superadmin.routes.ts,yes,superadminRoutes,POST,"/api/superadmin/tenants/:id/impersonate","/tenants/:id/impersonate","requireSuperAdmin(plugin hook)",zod,
+superadmin-plans.routes.ts,yes,superadminPlanRoutes,PATCH,"/api/superadmin/tenants/:id/plan","/tenants/:id/plan","requireSuperAdmin(plugin hook)",zod,
+superadmin.routes.ts,yes,superadminRoutes,PATCH,"/api/superadmin/tenants/:id/status","/tenants/:id/status","requireSuperAdmin(plugin hook)",zod,
+superadmin.routes.ts,yes,superadminRoutes,GET,"/api/superadmin/tenants/:id/users","/tenants/:id/users","requireSuperAdmin(plugin hook)",zod,
+supplier.routes.ts,yes,supplierRoutes,GET,"/api/suppliers","/","authenticate+requireStore",zod,SUPPLIERS
+supplier.routes.ts,yes,supplierRoutes,POST,"/api/suppliers","/","authenticate+requireRole(ROLES.OWNER,ROLES.MANAGER)+requireStore",zod,SUPPLIERS
+supplier.routes.ts,yes,supplierRoutes,DELETE,"/api/suppliers/:id","/:id","authenticate+requireRole(ROLES.OWNER,ROLES.MANAGER)+requireStore",NONE-DETECTED,SUPPLIERS
+supplier.routes.ts,yes,supplierRoutes,GET,"/api/suppliers/:id","/:id","authenticate+requireStore",NONE-DETECTED,SUPPLIERS
+supplier.routes.ts,yes,supplierRoutes,PATCH,"/api/suppliers/:id","/:id","authenticate+requireRole(ROLES.OWNER,ROLES.MANAGER)+requireStore",zod,SUPPLIERS
+supplier.routes.ts,yes,supplierRoutes,POST,"/api/suppliers/:id/invoice","/:id/invoice","authenticate+requireRole(ROLES.OWNER,ROLES.MANAGER)+requireStore",NONE-DETECTED,SUPPLIERS
+supplier.routes.ts,yes,supplierRoutes,GET,"/api/suppliers/:id/payments","/:id/payments","authenticate+requireStore",NONE-DETECTED,SUPPLIERS
+supplier.routes.ts,yes,supplierRoutes,POST,"/api/suppliers/:id/payments","/:id/payments","authenticate+requireRole(ROLES.OWNER,ROLES.MANAGER,ROLES.CASHIER)+requireStore",zod,SUPPLIERS
+supplier.routes.ts,yes,supplierRoutes,GET,"/api/suppliers/:id/reorder-message","/:id/reorder-message","authenticate+requireStore",NONE-DETECTED,SUPPLIERS
+supplier.routes.ts,yes,supplierRoutes,GET,"/api/suppliers/summary","/summary","authenticate+requireStore",NONE-DETECTED,SUPPLIERS
+udhaari.routes.ts,yes,udhaariRoutes,GET,"/api/udhaari","/","authenticate+requireStore",zod,CUSTOMERS_UDHAARI
+udhaari.routes.ts,yes,udhaariRoutes,POST,"/api/udhaari","/","authenticate+requireStore",zod,CUSTOMERS_UDHAARI
+udhaari.routes.ts,yes,udhaariRoutes,GET,"/api/udhaari/:customerId","/:customerId","authenticate+requireStore",NONE-DETECTED,CUSTOMERS_UDHAARI
+udhaari.routes.ts,yes,udhaariRoutes,POST,"/api/udhaari/:id/pay","/:id/pay","authenticate+requireStore",zod,CUSTOMERS_UDHAARI
+udhaari.routes.ts,yes,udhaariRoutes,GET,"/api/udhaari/reminders","/reminders","authenticate+requireStore",zod,CUSTOMERS_UDHAARI
+upload.routes.ts,yes,uploadRoutes,POST,"/api/uploads/image","/image","authenticate+requireStore",zod,
+user.routes.ts,yes,userRoutes,GET,"/api/users","/","authenticate+requireRole(ROLES.OWNER,ROLES.MANAGER)+requireStore",NONE-DETECTED,USERS_ROLES
+user.routes.ts,yes,userRoutes,DELETE,"/api/users/:id","/:id","authenticate+requireRole(ROLES.OWNER)+requireStore",NONE-DETECTED,USERS_ROLES
+user.routes.ts,yes,userRoutes,PATCH,"/api/users/:id","/:id","authenticate+requireRole(ROLES.OWNER)+requireStore",zod,USERS_ROLES
+user.routes.ts,yes,userRoutes,PATCH,"/api/users/:id/status","/:id/status","authenticate+requireRole(ROLES.OWNER)+requireStore",zod,USERS_ROLES
+user.routes.ts,yes,userRoutes,POST,"/api/users/invite","/invite","authenticate+requireRole(ROLES.OWNER)+requireStore",zod,USERS_ROLES
+user.routes.ts,yes,userRoutes,DELETE,"/api/users/invite/:id","/invite/:id","authenticate+requireRole(ROLES.OWNER)+requireStore",NONE-DETECTED,USERS_ROLES
+user.routes.ts,yes,userRoutes,POST,"/api/users/invite/:id/resend","/invite/:id/resend","authenticate+requireRole(ROLES.OWNER)+requireStore",NONE-DETECTED,USERS_ROLES
+user.routes.ts,yes,userRoutes,POST,"/api/users/invite/accept","/invite/accept","authenticate",zod,USERS_ROLES
+webhook.routes.ts,yes,webhookRoutes,POST,"/api/webhooks/razorpay","/razorpay","PUBLIC",NONE-DETECTED,
+webhook.routes.ts,yes,webhookRoutes,POST,"/api/webhooks/razorpay/validate","/razorpay/validate","PUBLIC",NONE-DETECTED,
+health.routes.ts,yes,healthRoutes,GET,"/health","/","PUBLIC",NONE-DETECTED,
+health.routes.ts,yes,healthRoutes,GET,"/health/ready","/ready","PUBLIC",NONE-DETECTED,

@@ -25,6 +25,8 @@ class _ReportScreenState extends State<ReportScreen> {
   List<ReportPurchaseRow> _purchaseRows = const [];
   List<ProductSummary> _summaries = [];
   final Map<String, InventoryStock> _lowStock = {};
+  Map<String, dynamic> _pnl = const {};
+  Map<String, dynamic> _gst = const {};
   bool _loading = true;
   String? _error;
 
@@ -45,6 +47,8 @@ class _ReportScreenState extends State<ReportScreen> {
         widget.apiService.getPurchaseReport(),
         widget.apiService.getProductSummary(),
         widget.apiService.getInventoryStock(lowOnly: true).catchError((_) => <InventoryStock>[]),
+        widget.apiService.getPnlReport().catchError((_) => <String, dynamic>{}),
+        widget.apiService.getGstReport().catchError((_) => <String, dynamic>{}),
       ]);
       if (!mounted) return;
       setState(() {
@@ -54,6 +58,8 @@ class _ReportScreenState extends State<ReportScreen> {
         for (final item in results[3] as List<InventoryStock>) {
           _lowStock[item.name] = item;
         }
+        _pnl = results[4] as Map<String, dynamic>;
+        _gst = results[5] as Map<String, dynamic>;
         _loading = false;
       });
     } catch (e) {
@@ -99,6 +105,16 @@ class _ReportScreenState extends State<ReportScreen> {
     final totalInvoices = _salesRows.fold<num>(0, (sum, r) => sum + r.invoiceCount);
     final estimatedProfit = widget.stats.todayProfit + (totalSales - totalPurchases);
     final inventoryValue = _summaries.isNotEmpty ? _summaries.first.value : 0;
+
+    final hasPnl = _pnl.isNotEmpty;
+    final pnlRevenue = _numOf(_pnl['revenue']);
+    final pnlCogs = _numOf(_pnl['cogs']);
+    final pnlGross = _numOf(_pnl['grossProfit']);
+    final pnlGrossPct = _numOf(_pnl['grossMarginPct']);
+    final pnlExpenses = _numOf(_pnl['expenses']);
+    final pnlNet = _numOf(_pnl['netProfit']);
+    final pnlNetPct = _numOf(_pnl['netMarginPct']);
+    final rateBreakup = (_gst['rateBreakup'] as List?) ?? const [];
 
     final chartData = _buildChartData(_salesRows, _purchaseRows);
     final maxChartValue = chartData.fold<num>(0, (max, d) => d.sales > max ? d.sales : max).toDouble();
@@ -186,20 +202,70 @@ class _ReportScreenState extends State<ReportScreen> {
               ),
             ),
             const SizedBox(height: 20),
-            Text(l.reptProfitLossPeriod, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+            Text(hasPnl ? l.reptRealPnl : l.reptProfitLossPeriod, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
             const SizedBox(height: 8),
-            MdCard(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                children: [
-                  _row(context, l.reptTotalSales, formatCurrency.format(totalSales)),
-                  _row(context, l.reptLessTotalPurchases, formatCurrency.format(totalPurchases)),
-                  _row(context, l.reptEstimatedProfit, formatCurrency.format(estimatedProfit), emphasize: true, green: true),
-                  const Divider(height: 20),
-                  _row(context, l.reptInventoryValue, formatCurrency.format(inventoryValue)),
-                ],
+            if (hasPnl)
+              MdCard(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  children: [
+                    _row(context, l.reptRevenue, formatCurrency.format(pnlRevenue)),
+                    _row(context, l.reptCogs, formatCurrency.format(pnlCogs)),
+                    _row(context, l.reptGrossProfit, '${formatCurrency.format(pnlGross)}  (${pnlGrossPct.toStringAsFixed(1)}%)', emphasize: true, green: true),
+                    _row(context, l.sectionExpenses, formatCurrency.format(pnlExpenses)),
+                    const Divider(height: 20),
+                    _row(context, l.reptNetProfit, '${formatCurrency.format(pnlNet)}  (${pnlNetPct.toStringAsFixed(1)}%)', emphasize: true, green: pnlNet >= 0),
+                    const Divider(height: 20),
+                    _row(context, l.reptInventoryValue, formatCurrency.format(inventoryValue)),
+                  ],
+                ),
+              )
+            else
+              MdCard(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  children: [
+                    _row(context, l.reptTotalSales, formatCurrency.format(totalSales)),
+                    _row(context, l.reptLessTotalPurchases, formatCurrency.format(totalPurchases)),
+                    _row(context, l.reptEstimatedProfit, formatCurrency.format(estimatedProfit), emphasize: true, green: true),
+                    const Divider(height: 20),
+                    _row(context, l.reptInventoryValue, formatCurrency.format(inventoryValue)),
+                  ],
+                ),
               ),
-            ),
+            if (rateBreakup.isNotEmpty) ...[
+              const SizedBox(height: 20),
+              Text(l.reptGstBreakup, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+              const SizedBox(height: 8),
+              MdCard(
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(child: Text(l.reptRate, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12))),
+                        Expanded(child: Text(l.reptTaxable, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12), textAlign: TextAlign.right)),
+                        Expanded(child: Text(l.reptTax, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12), textAlign: TextAlign.right)),
+                      ],
+                    ),
+                    const Divider(height: 16),
+                    ...rateBreakup.map((raw) {
+                      final row = raw is Map ? raw : const {};
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Row(
+                          children: [
+                            Expanded(child: Text('${_numOf(row['rate']).toStringAsFixed(0)}%', style: const TextStyle(fontSize: 12))),
+                            Expanded(child: Text(formatCurrency.format(_numOf(row['taxableValue'])), style: const TextStyle(fontSize: 12), textAlign: TextAlign.right)),
+                            Expanded(child: Text(formatCurrency.format(_numOf(row['totalTax'])), style: const TextStyle(fontSize: 12), textAlign: TextAlign.right)),
+                          ],
+                        ),
+                      );
+                    }),
+                  ],
+                ),
+              ),
+            ],
             const SizedBox(height: 20),
             Text(l.reptSalesVsPurchasesPeriod, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
             const SizedBox(height: 12),
@@ -375,6 +441,12 @@ class _ReportScreenState extends State<ReportScreen> {
     final list = dateIndex.entries.map((e) => e.value).toList();
     list.sort((a, b) => a.label.compareTo(b.label));
     return list.take(14).toList();
+  }
+
+  num _numOf(dynamic value) {
+    if (value is num) return value;
+    if (value == null) return 0;
+    return num.tryParse(value.toString()) ?? 0;
   }
 
   String _shortLabel(String raw) {

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../l10n/generated/app_localizations.dart';
 import '../l10n/locale_controller.dart';
@@ -113,6 +114,60 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
+  Future<void> _showReferral() async {
+    final l = AppLocalizations.of(context)!;
+    AppDialogs.showLoading(context);
+    Map<String, dynamic> data;
+    try {
+      data = await widget.apiService.getReferral();
+    } catch (_) {
+      if (mounted) {
+        AppDialogs.hideLoading(context);
+        AppDialogs.showError(context, l.referOnlyOwner);
+      }
+      return;
+    }
+    if (!mounted) return;
+    AppDialogs.hideLoading(context);
+    final code = data['code']?.toString() ?? '';
+    final count = data['referredCount']?.toString() ?? '0';
+    await AppDialogs.showFormSheet<void>(
+      context,
+      title: l.referTitle,
+      builder: (sheetContext) => Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(l.referYourCode, style: TextStyle(color: Colors.grey.shade600, fontSize: 13)),
+          const SizedBox(height: 6),
+          Text(
+            code,
+            style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, letterSpacing: 3),
+          ),
+          const SizedBox(height: 16),
+          FilledButton.icon(
+            onPressed: () async {
+              await Clipboard.setData(ClipboardData(text: code));
+              if (mounted) AppDialogs.showSuccess(context, l.referCopied);
+            },
+            icon: const Icon(Icons.copy_all_outlined, size: 18),
+            label: Text(l.referCopy),
+          ),
+          const SizedBox(height: 16),
+          Text('${l.referReferred}: $count', style: const TextStyle(fontWeight: FontWeight.w600)),
+          const SizedBox(height: 8),
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton(
+              onPressed: () => Navigator.pop(sheetContext),
+              child: Text(l.close),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
@@ -187,6 +242,26 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 },
               ),
             ),
+            const SizedBox(height: 20),
+            _SectionTitle(l.referTitle, Icons.card_giftcard_outlined),
+            const SizedBox(height: 12),
+            MdCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    l.referOnlyOwner,
+                    style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+                  ),
+                  const SizedBox(height: 12),
+                  OutlinedButton.icon(
+                    onPressed: _showReferral,
+                    icon: const Icon(Icons.share_outlined, size: 18),
+                    label: Text(l.referTitle),
+                  ),
+                ],
+              ),
+            ),
             const SizedBox(height: 24),
             SizedBox(
               width: double.infinity,
@@ -196,7 +271,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 label: Text(AppLocalizations.of(context)!.settingsSave),
               ),
             ),
-            const SizedBox(height: 16),
           ],
         ),
       ),

@@ -163,6 +163,21 @@ class AppLocalizationsEn extends AppLocalizations {
   String get billGenericItem => 'Generic item';
 
   @override
+  String get billHeldBills => 'Held bills';
+
+  @override
+  String get billHeldSaved => 'Bill held';
+
+  @override
+  String get billHold => 'Hold';
+
+  @override
+  String get billNoHeldBills => 'No held bills';
+
+  @override
+  String get billResume => 'Resume';
+
+  @override
   String get billInvoices => 'Invoices';
 
   @override
@@ -905,10 +920,64 @@ class AppLocalizationsEn extends AppLocalizations {
   String get reptTotalSales => 'Total Sales';
 
   @override
+  String get reptCogs => 'COGS (cost of goods sold)';
+
+  @override
+  String get reptGrossMargin => 'Gross Margin';
+
+  @override
+  String get reptGrossProfit => 'Gross Profit';
+
+  @override
+  String get reptGstBreakup => 'GST Rate Breakup';
+
+  @override
+  String get reptNetMargin => 'Net Margin';
+
+  @override
+  String get reptNetProfit => 'Net Profit';
+
+  @override
+  String get reptNoData => 'No data for this period';
+
+  @override
+  String get reptRate => 'Rate';
+
+  @override
+  String get reptRealPnl => 'Profit & Loss (actual)';
+
+  @override
+  String get reptRevenue => 'Revenue';
+
+  @override
+  String get reptTax => 'Tax';
+
+  @override
+  String get reptTaxable => 'Taxable';
+
+  @override
   String get required => 'Required';
 
   @override
   String get retry => 'Try again';
+
+  @override
+  String get referTitle => 'Refer & Earn';
+
+  @override
+  String get referYourCode => 'Your referral code';
+
+  @override
+  String get referCopy => 'Copy code';
+
+  @override
+  String get referCopied => 'Referral code copied';
+
+  @override
+  String get referOnlyOwner => 'Only the shop owner can view referrals';
+
+  @override
+  String get referReferred => 'Referred shops';
 
   @override
   String get save => 'Save';
@@ -1137,6 +1206,21 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get suppViewDetails => 'View details';
+
+  @override
+  String get suppPayments => 'Payments';
+
+  @override
+  String get suppPurchaseOrders => 'Purchase Orders';
+
+  @override
+  String get suppNoPayments => 'No payments recorded';
+
+  @override
+  String get suppNoPOs => 'No purchase orders';
+
+  @override
   String get tabCustomers => 'Customers';
 
   @override
@@ -1265,13 +1349,20 @@ class AppLocalizationsEn extends AppLocalizations {
   String get userEmailOptional => 'Email (optional)';
 
   @override
+  String get userEmailRequired => 'Email';
+
+  @override
   String get userFullName => 'Full name';
 
   @override
   String get userInvite => 'Invite';
 
   @override
-  String get userInviteHint => 'They will receive a login link with this role.';
+  String get userInviteHint =>
+      'Share this invite link with them so they can join the team.';
+
+  @override
+  String get copyInviteLink => 'Copy link';
 
   @override
   String get userInviteMember => 'Invite member';

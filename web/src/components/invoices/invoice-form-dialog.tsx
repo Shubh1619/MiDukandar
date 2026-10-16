@@ -72,10 +72,33 @@ interface Props {
   onClose: () => void;
   onSaved: () => void;
   editing: SaleDetail | null;
+  held?: { id: string; payload: HeldPayload } | null;
 }
 
-export function InvoiceFormDialog({ onClose, onSaved, editing }: Props) {
+export type HeldPayload = {
+  lines?: {
+    productId?: string;
+    productName?: string;
+    qty?: number;
+    unitPrice?: number;
+    discount?: number;
+    gstPercent?: number;
+  }[];
+  customerId?: string;
+  customer?: { name: string; mobile?: string; address?: string };
+  paymentKind?: "paid" | "udhaar";
+  payMode?: Exclude<PaymentMode, "CREDIT">;
+  discount?: number;
+  discountType?: "FLAT" | "PERCENT";
+  paidAmount?: number;
+  udhaarDueDate?: string;
+  udhaarReminderDate?: string;
+  notes?: string;
+};
+
+export function InvoiceFormDialog({ onClose, onSaved, editing, held }: Props) {
   const { t } = useI18n();
+  const hp = held?.payload;
   const [lines, setLines] = useState<LineDraft[]>(() =>
     editing
       ? editing.items.map((it) => ({
@@ -95,7 +118,25 @@ export function InvoiceFormDialog({ onClose, onSaved, editing }: Props) {
           discount: String(Number(it.discount) || 0),
           gst: String(Number(it.gstPercent) || 0),
         }))
-      : [newLine()],
+      : hp?.lines && hp.lines.length > 0
+        ? hp.lines.map((l) => ({
+            key: Math.random().toString(36).slice(2),
+            product: l.productId
+              ? {
+                  id: l.productId,
+                  name: l.productName ?? "",
+                  barcode: null,
+                  stock: 0,
+                  sellingPrice: Number(l.unitPrice) || 0,
+                  gstPercent: Number(l.gstPercent) || 0,
+                }
+              : null,
+            qty: String(Number(l.qty) || 1),
+            unitPrice: String(Number(l.unitPrice) || 0),
+            discount: String(Number(l.discount) || 0),
+            gst: String(Number(l.gstPercent) || 0),
+          }))
+        : [newLine()],
   );
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(() =>
     editing?.customer
@@ -112,21 +153,37 @@ export function InvoiceFormDialog({ onClose, onSaved, editing }: Props) {
           outstanding: 0,
           createdAt: "",
         }
-      : null,
+      : hp?.customerId
+        ? {
+            id: hp.customerId,
+            name: hp.customer?.name ?? "",
+            mobile: hp.customer?.mobile ?? null,
+            address: hp.customer?.address ?? null,
+            city: null,
+            state: null,
+            pincode: null,
+            creditLimit: 0,
+            openingBalance: 0,
+            outstanding: 0,
+            createdAt: "",
+          }
+        : null,
   );
-  const [customerName, setCustomerName] = useState(editing?.customer?.name ?? "");
-  const [customerMobile, setCustomerMobile] = useState(editing?.customer?.mobile ?? "");
-  const [customerAddress, setCustomerAddress] = useState(editing?.customer?.address ?? "");
-  const [paymentKind, setPaymentKind] = useState<"paid" | "udhaar">(editing?.paymentMode === "CREDIT" ? "udhaar" : "paid");
+  const [customerName, setCustomerName] = useState(editing?.customer?.name ?? hp?.customer?.name ?? "");
+  const [customerMobile, setCustomerMobile] = useState(editing?.customer?.mobile ?? hp?.customer?.mobile ?? "");
+  const [customerAddress, setCustomerAddress] = useState(editing?.customer?.address ?? hp?.customer?.address ?? "");
+  const [paymentKind, setPaymentKind] = useState<"paid" | "udhaar">(
+    hp?.paymentKind ?? (editing?.paymentMode === "CREDIT" ? "udhaar" : "paid"),
+  );
   const [payMode, setPayMode] = useState<Exclude<PaymentMode, "CREDIT">>(
-    editing?.paymentMode && editing.paymentMode !== "CREDIT" ? editing.paymentMode : "CASH",
+    hp?.payMode ?? (editing?.paymentMode && editing.paymentMode !== "CREDIT" ? editing.paymentMode : "CASH"),
   );
-  const [udhaarDueDate, setUdhaarDueDate] = useState("");
-  const [udhaarReminderDate, setUdhaarReminderDate] = useState("");
-  const [discountType, setDiscountType] = useState<"FLAT" | "PERCENT">(editing?.discountType ?? "FLAT");
-  const [billDiscount, setBillDiscount] = useState(editing ? String(Number(editing.discount) || 0) : "0");
-  const [paidAmount, setPaidAmount] = useState(editing ? String(Number(editing.paidAmount) || 0) : "");
-  const [notes, setNotes] = useState(editing?.notes ?? "");
+  const [udhaarDueDate, setUdhaarDueDate] = useState(hp?.udhaarDueDate ?? "");
+  const [udhaarReminderDate, setUdhaarReminderDate] = useState(hp?.udhaarReminderDate ?? "");
+  const [discountType, setDiscountType] = useState<"FLAT" | "PERCENT">(hp?.discountType ?? editing?.discountType ?? "FLAT");
+  const [billDiscount, setBillDiscount] = useState(hp?.discount != null ? String(hp.discount) : editing ? String(Number(editing.discount) || 0) : "0");
+  const [paidAmount, setPaidAmount] = useState(hp?.paidAmount != null ? String(hp.paidAmount) : editing ? String(Number(editing.paidAmount) || 0) : "");
+  const [notes, setNotes] = useState(hp?.notes ?? editing?.notes ?? "");
   const [busy, setBusy] = useState(false);
 
   const paymentMode: PaymentMode = paymentKind === "udhaar" ? "CREDIT" : payMode;
@@ -223,8 +280,55 @@ export function InvoiceFormDialog({ onClose, onSaved, editing }: Props) {
       } else {
         await apiFetch(`/api/sales`, { method: "POST", body });
       }
+      if (held) {
+        try {
+          await apiFetch(`/api/sales/held/${held.id}`, { method: "DELETE" });
+        } catch {
+          // held bill already gone; ignore
+        }
+      }
       toast.success(t("success"));
       onSaved();
+      onClose();
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : t("error"));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const hold = async () => {
+    const valid = lines.filter((l) => l.product && Number(l.qty) > 0);
+    if (valid.length === 0) {
+      toast.error(t("items"));
+      return;
+    }
+    setBusy(true);
+    try {
+      const payload: HeldPayload = {
+        lines: valid.map((l) => ({
+          productId: l.product!.id,
+          productName: l.product!.name,
+          qty: Number(l.qty),
+          unitPrice: Number(l.unitPrice) || 0,
+          discount: Number(l.discount) || 0,
+          gstPercent: Number(l.gst) || undefined,
+        })),
+        customerId: selectedCustomer?.id,
+        customer: customerName.trim()
+          ? { name: customerName.trim(), mobile: customerMobile.trim() || undefined, address: customerAddress.trim() || undefined }
+          : undefined,
+        paymentKind,
+        payMode,
+        discount: Number(billDiscount) || 0,
+        discountType,
+        paidAmount: Number(paidAmount) || 0,
+        udhaarDueDate: udhaarDueDate || undefined,
+        udhaarReminderDate: udhaarReminderDate || undefined,
+        notes: notes.trim() || undefined,
+      };
+      await apiFetch(`/api/sales/hold`, { method: "POST", body: { label: customerName.trim() || undefined, payload } });
+      toast.success(t("heldBillSaved"));
       onClose();
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : t("error"));
@@ -444,6 +548,11 @@ export function InvoiceFormDialog({ onClose, onSaved, editing }: Props) {
 
         <DialogFooter>
           <Button variant="outline" onClick={onClose} disabled={busy}>{t("cancel")}</Button>
+          {!editing && (
+            <Button variant="outline" onClick={hold} disabled={busy || pricing.lineCount === 0}>
+              {t("holdBill")}
+            </Button>
+          )}
           <Button onClick={() => void save()} disabled={busy || pricing.lineCount === 0} className="min-w-32">
             {busy ? <Loader2 className="size-4 animate-spin" /> : editing ? t("updateInvoice") : t("newInvoice")}
           </Button>

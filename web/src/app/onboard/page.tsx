@@ -123,6 +123,12 @@ export default function OnboardPage() {
   const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
   const isRegistration = !user;
+  const [referralCode, setReferralCode] = useState("");
+
+  useEffect(() => {
+    const ref = new URLSearchParams(window.location.search).get("ref");
+    if (ref) setReferralCode(ref.trim().toUpperCase());
+  }, []);
 
   const submit = async () => {
     if (isRegistration) {
@@ -165,6 +171,7 @@ export default function OnboardPage() {
             currency: form.currency,
             language: form.language,
             invoicePrefix: form.invoicePrefix.trim() || "INV",
+            ...(referralCode ? { referralCode } : {}),
           },
         });
         toast.success("Account created - sign in to continue");

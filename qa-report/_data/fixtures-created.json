@@ -1,0 +1,19 @@
+{
+  "tag": "QA-256408",
+  "created": {
+    "productId": "de6130bc-7ad2-493c-b37e-6c449e9b1728",
+    "productName": "QA-256408 Rice 25kg",
+    "customerId": "d93c3e9a-0f50-4a74-ae7a-75e562c0d1f0",
+    "saleId": "6a3b96ae-1573-4e62-9f24-ed7fc9e23ac9",
+    "invoiceNumber": "INV-20261016-0011",
+    "creditSaleId": "3283c6aa-985b-4004-b103-ad06a2d6a11c",
+    "heldId": "3bf7b0fb-cdca-4e96-ab17-e2c4a0c99513",
+    "held2": "686e5b9f-d7be-4e9b-b1de-620a626c42be",
+    "supplierId": "d96f0c1f-759a-4b77-aab4-06cae3e90815",
+    "poId": "a5a3fbf6-81b6-462f-b7bd-e3a41ea52fe1",
+    "catId": "d237db13-c734-40ad-878c-4a672e9dc571",
+    "expenseId": "4753c538-fc33-4281-8fa7-de58f63aeb2f",
+    "recurringId": "04b1be50-6f6e-4a5b-95e3-eb35485fc1d6",
+    "udhaariId": "0216edff-c295-411f-8aee-ffe37230c767"
+  }
+}

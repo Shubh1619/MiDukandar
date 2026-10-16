@@ -91,6 +91,11 @@
   downloadPdf: "PDF डाउनलोड करें",
   noInvoices: "अभी तक कोई इनवॉइस नहीं है",
   createFirstInvoice: "अपना पहला इनवॉइस बनाएं",
+  holdBill: "बिल होल्ड करें",
+  heldBills: "होल्ड बिल",
+  resumeBill: "फिर शुरू करें",
+  noHeldBills: "कोई होल्ड बिल नहीं",
+  heldBillSaved: "बिल होल्ड हो गया",
   totalInvoices: "कुल इनवॉइस",
   totalRevenue: "कुल राजस्व",
   pendingAmount: "लंबित राशि",
@@ -315,6 +320,20 @@
   receiveLineItemsNote: "सभी पंक्ति वस्तुओं की मात्राएँ आपकी इन्वेंटरी में जोड़ दी जाएँगी।",
   cancelPoConfirm: "क्या आप वाकई ऑर्डर {{po}} रद्द करना चाहते हैं?",
   exceedsOutstanding: "राशि बकाया से अधिक है",
+
+  // Invite acceptance
+  inviteAcceptTitle: "अपना निमंत्रण स्वीकार करें",
+  inviteAcceptSubtitle: "टीम में शामिल होने के लिए अपना खाता सेट करें।",
+  inviteAcceptName: "आपका नाम",
+  inviteAcceptPassword: "पासवर्ड बनाएं",
+  inviteAcceptConfirmPassword: "पासवर्ड की पुष्टि करें",
+  inviteAcceptSubmit: "निमंत्रण स्वीकार करें",
+  inviteAccepting: "स्वीकार किया जा रहा है...",
+  inviteAcceptSuccess: "निमंत्रण स्वीकार किया गया। अब आप साइन इन कर सकते हैं।",
+  inviteAcceptMissingToken: "यह निमंत्रण लिंक अमान्य या अधूरा है।",
+  inviteAcceptPasswordMismatch: "पासवर्ड मेल नहीं खाते।",
+  inviteAcceptPasswordTooShort: "पासवर्ड कम से कम 6 अक्षरों का होना चाहिए।",
+  inviteAcceptGoToLogin: "साइन इन पर जाएं",
 };
 
 export default hi;

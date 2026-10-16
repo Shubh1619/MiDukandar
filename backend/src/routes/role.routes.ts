@@ -5,78 +5,17 @@ import { ApiError } from "../lib/api-error.js";
 import { parse } from "../lib/validate.js";
 import { authenticate, requireStore, requireRole, type AuthenticatedRequest } from "../middlewares/auth.js";
 import { ROLES, type Role } from "../middlewares/auth.types.js";
+import {
+  DEFAULT_PERMISSIONS,
+  PERMISSION_FLAGS,
+  defaultPermissionsFor,
+  type PermissionFlag,
+} from "../lib/permissions.js";
 
-export const PERMISSION_FLAGS = [
-  "can_manage_invoices",
-  "can_manage_products",
-  "can_manage_customers",
-  "can_manage_udhaari",
-  "can_manage_suppliers",
-  "can_manage_expenses",
-  "can_view_reports",
-  "can_manage_settings",
-  "can_manage_users",
-] as const;
-
-export type PermissionFlag = (typeof PERMISSION_FLAGS)[number];
-
-const DEFAULT_PERMISSIONS: Record<"OWNER" | "MANAGER" | "CASHIER" | "STAFF", Record<PermissionFlag, boolean>> = {
-  OWNER: {
-    can_manage_invoices: true,
-    can_manage_products: true,
-    can_manage_customers: true,
-    can_manage_udhaari: true,
-    can_manage_suppliers: true,
-    can_manage_expenses: true,
-    can_view_reports: true,
-    can_manage_settings: true,
-    can_manage_users: true,
-  },
-  MANAGER: {
-    can_manage_invoices: true,
-    can_manage_products: true,
-    can_manage_customers: true,
-    can_manage_udhaari: true,
-    can_manage_suppliers: true,
-    can_manage_expenses: true,
-    can_view_reports: true,
-    can_manage_settings: false,
-    can_manage_users: false,
-  },
-  CASHIER: {
-    can_manage_invoices: true,
-    can_manage_products: false,
-    can_manage_customers: true,
-    can_manage_udhaari: true,
-    can_manage_suppliers: false,
-    can_manage_expenses: false,
-    can_view_reports: false,
-    can_manage_settings: false,
-    can_manage_users: false,
-  },
-  STAFF: {
-    can_manage_invoices: false,
-    can_manage_products: true,
-    can_manage_customers: false,
-    can_manage_udhaari: false,
-    can_manage_suppliers: false,
-    can_manage_expenses: false,
-    can_view_reports: false,
-    can_manage_settings: false,
-    can_manage_users: false,
-  },
-};
+export { PERMISSION_FLAGS, DEFAULT_PERMISSIONS, defaultPermissionsFor };
+export type { PermissionFlag };
 
 export const MANAGED_ROLES = ["OWNER", "MANAGER", "CASHIER", "STAFF"] as const;
-type ManagedRole = (typeof MANAGED_ROLES)[number];
-
-function isManagedRole(role: string): role is ManagedRole {
-  return (MANAGED_ROLES as readonly string[]).includes(role);
-}
-
-export function defaultPermissionsFor(role: string): Record<PermissionFlag, boolean> {
-  return isManagedRole(role) ? { ...DEFAULT_PERMISSIONS[role] } : { ...DEFAULT_PERMISSIONS.STAFF };
-}
 
 function normalizePermissions(role: string, input: unknown): Record<PermissionFlag, boolean> {
   const base = defaultPermissionsFor(role);

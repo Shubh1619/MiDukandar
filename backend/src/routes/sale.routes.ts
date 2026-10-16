@@ -334,9 +334,10 @@ export async function saleRoutes(app: FastifyInstance) {
     async (request: AuthenticatedRequest, reply) => {
       const storeId = requireStore(request);
       const body = parse(heldBillSchema, request.body);
+      const billNumber = body.label?.trim() ? body.label.trim() : `HLD-${Date.now()}`;
       const [held] = await q<Row>(
         `INSERT INTO held_bills (store_id, bill_number, payload, created_by_id) VALUES ($1, $2, $3, $4) RETURNING *`,
-        [storeId, `HLD-${Date.now()}`, JSON.stringify(body.payload), getAuth(request).id],
+        [storeId, billNumber, JSON.stringify(body.payload), getAuth(request).id],
       );
       return reply.status(201).send({ heldBill: held });
     },

@@ -37,6 +37,7 @@ import { purchaseOrderRoutes } from "./routes/purchase-order.routes.js";
 import { expenseRoutes, recurringExpenseRoutes } from "./routes/expense.routes.js";
 import { userRoutes } from "./routes/user.routes.js";
 import { roleRoutes } from "./routes/role.routes.js";
+import { referralRoutes } from "./routes/referral.routes.js";
 import { settingsRoutes } from "./routes/settings.routes.js";
 import { authenticate, requireModuleAccess } from "./middlewares/auth.js";
 
@@ -65,6 +66,14 @@ const PLAN_ROUTE_MODULES: Array<[string, string]> = [
 function planModuleForPath(path: string): string | null {
   if (path === "/api/users/invite/accept") return null;
   return PLAN_ROUTE_MODULES.find(([prefix]) => path === prefix || path.startsWith(`${prefix}/`))?.[1] ?? null;
+}
+
+// App-level error codes are UPPER_SNAKE (BAD_REQUEST, OTP_EXPIRED, FST_*...).
+// Postgres/SQLSTATE codes start with a digit, so this both keeps our own codes
+// and rejects driver codes that would leak schema details via the API.
+function appSafeCode(code: unknown, status: number): string {
+  if (typeof code === "string" && /^[A-Z][A-Z0-9_]*$/.test(code)) return code;
+  return status >= 500 ? "INTERNAL_ERROR" : "BAD_REQUEST";
 }
 
 export function buildApp(opts: { logger?: boolean } = {}): FastifyInstance {
@@ -184,6 +193,16 @@ export function buildApp(opts: { logger?: boolean } = {}): FastifyInstance {
     routeOptions.preHandler = existing;
   });
 
+  // Baseline security headers for every API response. Today this is
+  // content-type sniffing protection; browsers must not guess a response body's
+  // type from its bytes.
+  app.addHook("onSend", async (_request, reply, payload) => {
+    if (!reply.hasHeader("x-content-type-options")) {
+      reply.header("X-Content-Type-Options", "nosniff");
+    }
+    return payload;
+  });
+
   // Central error handler → structured JSON errors + Sentry capture
   app.setErrorHandler((error, request, reply) => {
     if (error instanceof ApiError) {
@@ -234,7 +253,10 @@ export function buildApp(opts: { logger?: boolean } = {}): FastifyInstance {
     }
     void reply.status(status).send({
       error: status === 500 ? "Internal server error" : error.message,
-      code: error.code ?? "UNKNOWN",
+      // Only expose application-style codes (UPPER_SNAKE / FST_*). Raw driver
+      // codes from Postgres (e.g. 22P02, 42P01) would leak schema details, so
+      // anything that is not an app-style code is replaced with a generic one.
+      code: appSafeCode(error.code, status),
     });
   });
 
@@ -277,6 +299,7 @@ function registerRoutes(app: FastifyInstance) {
   app.register(reportRoutes, { prefix: "/api/reports" });
   app.register(userRoutes, { prefix: "/api/users" });
   app.register(roleRoutes, { prefix: "/api/roles" });
+  app.register(referralRoutes, { prefix: "/api/referral" });
   app.register(settingsRoutes, { prefix: "/api/settings" });
   app.register(webhookRoutes, { prefix: "/api/webhooks" });
   app.register(uploadRoutes, { prefix: "/api/uploads" });

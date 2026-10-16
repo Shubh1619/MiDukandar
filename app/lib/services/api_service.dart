@@ -788,6 +788,42 @@ class ApiService {
     return data;
   }
 
+  // ---------------- HELD BILLS ----------------
+
+  Future<Map<String, dynamic>> holdSale(
+    Map<String, dynamic> payload, {
+    String? label,
+  }) async {
+    final data = await _request(
+      '/api/sales/hold',
+      method: 'POST',
+      body: {'label': label, 'payload': payload},
+    );
+    final held = data['heldBill'];
+    if (held is Map<String, dynamic>) return held;
+    if (held is Map) return Map<String, dynamic>.from(held);
+    return data;
+  }
+
+  Future<List<Map<String, dynamic>>> listHeldBills() async {
+    final data = await _request('/api/sales/held/list');
+    final items = data['heldBills'] is List ? data['heldBills'] as List : const [];
+    return items
+        .whereType<Map>()
+        .map((e) => Map<String, dynamic>.from(e))
+        .toList();
+  }
+
+  Future<void> deleteHeldBill(String id) async {
+    await _request('/api/sales/held/$id', method: 'DELETE');
+  }
+
+  // ---------------- REFERRAL ----------------
+
+  Future<Map<String, dynamic>> getReferral() async {
+    return _request('/api/referral');
+  }
+
   // ---------------- PURCHASES ----------------
 
   Future<Map<String, dynamic>> createPurchase(
@@ -841,6 +877,10 @@ class ApiService {
     return items
         .map((json) => Supplier.fromJson(json as Map<String, dynamic>))
         .toList();
+  }
+
+  Future<Map<String, dynamic>> getSupplierDetail(String id) async {
+    return _request('/api/suppliers/$id');
   }
 
   Future<Map<String, dynamic>> createSupplier(

@@ -53,14 +53,15 @@ const securityHeaders = [
     key: "Permissions-Policy",
     value: "camera=(), microphone=(), geolocation=(), payment=(), interest-cohort=()",
   },
-  ...(tlsExpected
-    ? [
-        {
-          key: "Strict-Transport-Security",
-          value: "max-age=63072000; includeSubDomains; preload",
-        },
-      ]
-    : []),
+  // HSTS is always sent. It is a no-op when the app is served over plain HTTP
+  // (browsers only honour it on https), so sending it on a local/HTTP
+  // deployment is harmless, while omitting it meant TLS-terminated deployments
+  // that forgot APP_URL shipped without HSTS. The genuinely unsafe directive —
+  // CSP `upgrade-insecure-requests` — stays gated on tlsExpected below.
+  {
+    key: "Strict-Transport-Security",
+    value: "max-age=63072000; includeSubDomains; preload",
+  },
 ];
 
 const nextConfig: NextConfig = {
