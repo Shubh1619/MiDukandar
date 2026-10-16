@@ -1,4 +1,4 @@
-import 'package:app/core/config/api_config.dart';
+import 'package:app/core/config/app_config.dart';
 import 'package:app/l10n/generated/app_localizations.dart';
 import 'package:app/main.dart';
 import 'package:app/models/app_models.dart';
@@ -55,7 +55,7 @@ Widget _buildShell({
 }) {
   return _testApp(
     AppShell(
-      apiService: ApiService(baseUrl: ApiConfig.testBaseUrl),
+      apiService: ApiService(baseUrl: AppConfig.localBaseUrl),
       user: _user,
       store: _store,
       stats: _stats,
@@ -65,11 +65,12 @@ Widget _buildShell({
 }
 
 void main() {
-  test('ApiConfig uses the verified production origin and normalizes URLs', () {
-    expect(ApiConfig.defaultBaseUrl, 'https://mazedukan.onrender.com');
-    expect(ApiConfig.baseUrl, 'https://mazedukan.onrender.com');
-    expect(ApiConfig.normalize('https://example.com///'), 'https://example.com');
-    expect(ApiConfig.normalize('  https://example.com/  '), 'https://example.com');
+  test('AppConfig defaults to the local API URL and normalizes URLs', () {
+    // No --dart-define=API_URL in tests, so the local default is used.
+    expect(AppConfig.baseUrl, AppConfig.localBaseUrl);
+    expect(AppConfig.localBaseUrl, 'http://localhost:4000');
+    expect(AppConfig.normalize('https://example.com///'), 'https://example.com');
+    expect(AppConfig.normalize('  https://example.com/  '), 'https://example.com');
   });
 
   testWidgets('login hides raw network exceptions and offers a retry', (
@@ -207,7 +208,7 @@ void main() {
       _testApp(
         Scaffold(
           body: ProductScreen(
-            apiService: ApiService(baseUrl: ApiConfig.testBaseUrl),
+            apiService: ApiService(baseUrl: AppConfig.localBaseUrl),
             onCreate: (_) async {},
             onUpdate: (_, _) async {},
             onArchive: (_) async {},
@@ -229,7 +230,7 @@ void main() {
       _testApp(
         Scaffold(
           body: CustomerScreen(
-            apiService: ApiService(baseUrl: ApiConfig.testBaseUrl),
+            apiService: ApiService(baseUrl: AppConfig.localBaseUrl),
             onCreate: (_) async {},
             onUpdate: (_, _) async {},
             onDelete: (_) async {},

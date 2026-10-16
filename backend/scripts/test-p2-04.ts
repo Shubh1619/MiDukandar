@@ -15,7 +15,7 @@
  *
  * Run:  npx tsx scripts/test-p2-04.ts     (exit 0 = PASS, 1 = FAIL)
  */
-import "dotenv/config";
+import "./load-env.js";
 import { pool } from "../src/db/pool.js";
 import { isProcessed, markProcessed } from "../src/routes/webhook.routes.js";
 

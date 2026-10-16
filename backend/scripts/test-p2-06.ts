@@ -1,22 +1,17 @@
 /**
- * Regression test — P2-06: R2 object key injection via `entity` + filename ext.
+ * Regression test — P2-06: storage object key injection via `entity` + filename ext.
  *
- * FAILS BEFORE the fix: `entity=a/../../../../x` is accepted by the route
- *   (reaches storage → 503) and the key extension is taken from the client
- *   filename.
+ * FAILS BEFORE the fix: `entity=a/../../../../x` is accepted by the route and
+ *   the key extension is taken from the client filename.
  * PASSES AFTER the fix: the route rejects an unsafe `entity` with 400, and
- *   buildR2Key() derives the extension from the content type and refuses any
+ *   buildStoreKey() derives the extension from the content type and refuses any
  *   entity that is not a single safe path segment.
- *
- * R2 is not configured in this environment, so a successful upload path ends
- * at 503 STORAGE_UNAVAILABLE; the key itself is verified via the extracted
- * pure helper buildR2Key().
  *
  * Run:  npx tsx scripts/test-p2-06.ts     (exit 0 = PASS, 1 = FAIL)
  */
 import { buildApp } from "../src/app.js";
 import { pool } from "../src/db/pool.js";
-import * as r2mod from "../src/lib/r2.js";
+import * as storageMod from "../src/lib/storage.js";
 
 const EMAIL = "owner@mazedukan.demo"; // tenant B (Pro); OTP rows cleared first
 const STORE = "e9f8f5c3-ba70-4e63-9d36-15da3ac41885";
@@ -28,7 +23,7 @@ function check(name: string, ok: boolean, detail = ""): void {
 }
 
 type KeyResult = { ok: true; key: string } | { ok: false; reason: string };
-const buildR2Key = (r2mod as unknown as Record<string, unknown>).buildR2Key as
+const buildStoreKey = (storageMod as unknown as Record<string, unknown>).buildStoreKey as
   | ((storeId: string, entity: string, contentType: string) => KeyResult)
   | undefined;
 
@@ -45,10 +40,10 @@ const PNG = Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a
 
 async function main(): Promise<void> {
   // ── Part A: pure key builder ──────────────────────────────────────────────
-  if (!buildR2Key) {
-    check("buildR2Key exported", false, "export missing (pre-fix code)");
+  if (!buildStoreKey) {
+    check("buildStoreKey exported", false, "export missing (pre-fix code)");
   } else {
-    const good = buildR2Key(STORE, "images", "image/png");
+    const good = buildStoreKey(STORE, "images", "image/png");
     check(
       "valid entity produces storeId/image/<name>.png key",
       good.ok && good.key.startsWith(`${STORE}/images/`) && good.key.endsWith(".png"),
@@ -56,14 +51,14 @@ async function main(): Promise<void> {
     );
 
     for (const bad of ["a/../../../../x", "..", "a\\b", "a\u0000b", "a/b", "with space"]) {
-      const r = buildR2Key(STORE, bad, "image/png");
+      const r = buildStoreKey(STORE, bad, "image/png");
       check(`unsafe entity rejected: ${JSON.stringify(bad)}`, !r.ok && r.reason === "unsafe_entity", JSON.stringify(r));
     }
 
-    const badType = buildR2Key(STORE, "images", "text/html");
+    const badType = buildStoreKey(STORE, "images", "text/html");
     check("unsupported content type rejected", !badType.ok && badType.reason === "unsupported_type", JSON.stringify(badType));
 
-    const jpg = buildR2Key(STORE, "images", "image/jpeg");
+    const jpg = buildStoreKey(STORE, "images", "image/jpeg");
     check(
       "extension follows content type, not filename",
       jpg.ok && jpg.key.endsWith(".jpg") && !jpg.key.includes(".."),

@@ -1,11 +1,11 @@
+import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
-import { qOne, withTx } from "../db/pool.js";
+import { q, qOne, withTx } from "../db/pool.js";
 import { config } from "../config.js";
 import { requestOtp, verifyOtp } from "../lib/otp.js";
 import { ApiError } from "../lib/api-error.js";
 import { parse } from "../lib/validate.js";
-import { ledgerBalanceExpr } from "../services/ledger.service.js";
 import { logger } from "../lib/logger.js";
 const RESET_TOKEN_TTL = "10m";
 const RESET_TOKEN_TTL_SECONDS = 10 * 60;
@@ -77,10 +77,6 @@ async function resolveTarget(input) {
 const isWeakPin = (pin) => /^(\d)\1{3,}$/.test(pin) ||
     /^(0123|1234|2345|3456|4567|5678|6789|9876|8765|7654|6543|5432|4321|3210)$/.test(pin) ||
     /^(19|20)\d{2}$/.test(pin);
-const initialsOf = (name, fallback = "M") => {
-    const parts = String(name ?? "").trim().split(/\s+/).filter(Boolean).slice(0, 2);
-    return parts.map((w) => w[0]?.toUpperCase() ?? "").join("") || fallback;
-};
 export async function recoveryRoutes(app) {
     app.post("/initiate", async (request) => {
         const body = parse(initiateSchema, request.body);
@@ -109,7 +105,15 @@ export async function recoveryRoutes(app) {
         if (!target.isActive)
             throw ApiError.forbidden("Account is inactive.");
         await verifyOtp(target.email, body.otp, "RECOVERY");
-        const resetToken = app.jwt.sign({ sub: target.userId, kind: "PIN_RESET", email: target.email }, { expiresIn: RESET_TOKEN_TTL });
+        // P2-10: single-use reset token. The jti is persisted now and consumed in
+        // the same transaction that writes the new PIN, so a captured token can
+        // reset the PIN exactly once. Expired rows for this account are dropped
+        // opportunistically so the table cannot grow without bound.
+        const jti = randomUUID();
+        await q(`DELETE FROM pin_reset_tokens WHERE user_id = $1 AND expires_at < now()`, [target.userId]);
+        await q(`INSERT INTO pin_reset_tokens (jti, user_id, expires_at)
+       VALUES ($1, $2, now() + ($3 * interval '1 second'))`, [jti, target.userId, RESET_TOKEN_TTL_SECONDS]);
+        const resetToken = app.jwt.sign({ sub: target.userId, kind: "PIN_RESET", email: target.email, jti }, { expiresIn: RESET_TOKEN_TTL });
         return { ok: true, resetToken, expiresInSeconds: RESET_TOKEN_TTL_SECONDS };
     });
     app.post("/reset-pin", async (request) => {
@@ -125,7 +129,9 @@ export async function recoveryRoutes(app) {
         catch {
             throw ApiError.badRequestCode("Invalid or expired reset token. Start over.", "RESET_TOKEN_INVALID");
         }
-        if (payload?.kind !== "PIN_RESET" || !payload.sub) {
+        // A token minted without a jti predates single-use tracking (P2-10) and is
+        // rejected rather than accepted with an unverifiable spend state.
+        if (payload?.kind !== "PIN_RESET" || !payload.sub || !payload.jti) {
             throw ApiError.badRequestCode("Invalid reset token.", "RESET_TOKEN_INVALID");
         }
         const user = await qOne(`SELECT id, store_id, is_active FROM users WHERE id = $1`, [payload.sub]);
@@ -135,6 +141,16 @@ export async function recoveryRoutes(app) {
             throw ApiError.forbidden("Account is inactive.");
         const pinHash = await bcrypt.hash(body.newPin, 10);
         const auditId = await withTx(async (db) => {
+            // P2-10: claim the token first, in the same transaction as the PIN
+            // write. `WHERE consumed_at IS NULL` makes the claim atomic, so two
+            // concurrent replays of one token cannot both succeed, and a rollback
+            // anywhere later in this transaction restores the token to unspent.
+            const claimed = await db.query(`UPDATE pin_reset_tokens SET consumed_at = now()
+         WHERE jti = $1 AND user_id = $2 AND consumed_at IS NULL AND expires_at > now()
+         RETURNING id`, [payload.jti, user.id]);
+            if (!claimed.rowCount) {
+                throw ApiError.badRequestCode("Invalid or expired reset token. Start over.", "RESET_TOKEN_INVALID");
+            }
             await db.query(`UPDATE users SET pin_hash = $1, updated_at = now() WHERE id = $2`, [pinHash, user.id]);
             await db.query(`UPDATE refresh_tokens SET revoked = TRUE WHERE user_id = $1 AND revoked = FALSE`, [user.id]);
             const [audit] = await db.q(`INSERT INTO audit_logs (user_id, store_id, action, detail, ip)
@@ -156,36 +172,15 @@ export async function recoveryRoutes(app) {
     });
 }
 export async function merchantVerifyRoutes(app) {
-    app.get("/verify-context", async (request) => {
+    // P2-08: this lookup runs pre-auth (the forgot-PIN flow), so it cannot be
+    // gated behind `authenticate`. It is therefore reduced to a single non-PII
+    // fact — does this number match a registered store? — with no store name,
+    // city, owner, GSTIN, terminal id or ledger/revenue counts. The route also
+    // carries its own per-IP budget so the boolean cannot be swept to map which
+    // phone numbers have an account.
+    app.get("/verify-context", { config: { rateLimit: { max: 30, timeWindow: 60_000 } } }, async (request) => {
         const { mobile } = parse(mobileQuerySchema, request.query);
         const store = await qOne(STORE_BY_PHONE, [onlyDigits(mobile)]);
-        if (!store)
-            return { ok: false, merchant: null };
-        const owner = await qOne(`SELECT name FROM users WHERE id = $1`, [store.ownerId]);
-        const [todayInvoices, receipts, pendingUdhaari] = await Promise.all([
-            qOne(`SELECT COUNT(*)::int AS c FROM sales WHERE store_id=$1 AND status='CONFIRMED' AND created_at::date = CURRENT_DATE`, [store.id]),
-            qOne(`SELECT COUNT(*)::int AS c FROM payments WHERE store_id=$1 AND type='RECEIVED' AND created_at::date = CURRENT_DATE`, [store.id]),
-            qOne(`SELECT COALESCE(SUM(bal), 0) AS total FROM (
-           SELECT ${ledgerBalanceExpr()} AS bal
-           FROM ledger_entries WHERE store_id=$1 GROUP BY customer_id
-         ) t WHERE t.bal > 0`, [store.id]),
-        ]);
-        const ownerName = String(owner?.name ?? "");
-        return {
-            ok: true,
-            merchant: {
-                merchantId: store.id,
-                storeName: String(store.name ?? ""),
-                city: String(store.city ?? ""),
-                ownerName,
-                ownerInitials: initialsOf(ownerName),
-                gstin: String(store.gst ?? ""),
-                terminalId: `${String(store.invoice_prefix ?? "INV")}-${String(store.id).slice(0, 8).toUpperCase()}`,
-                ledgerStatus: "Online",
-                todayInvoices: todayInvoices?.c ?? 0,
-                pendingUdhaari: pendingUdhaari?.total ?? 0,
-                receipts: receipts?.c ?? 0,
-            },
-        };
+        return { ok: true, matched: Boolean(store?.ownerId) };
     });
 }

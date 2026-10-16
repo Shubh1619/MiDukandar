@@ -301,7 +301,8 @@ Shared **paymentSchema**: `amount` (req, >0), `paymentDate?` (def today), `payme
 
 | Method | Path | Auth | Payload |
 |---|---|---|---|
-| POST | `/image` | JWT + store scope | Query: `entity?` (def `"images"`). `multipart/form-data`: 1 file (any field name), MIME ∈ `jpeg/png/webp/gif`, ≤5MB → 201 `{url}`; 503 if R2 unset |
+| POST | `/image` | JWT + store scope | Query: `entity?` (def `"images"`). `multipart/form-data`: 1 file (any field name), MIME ∈ `jpeg/png/webp/gif`, ≤5MB → 201 `{url}`. Stored on local disk, served at `GET /api/uploads/files/*` |
+| GET | `/files/*` | public | Serves stored uploads from `backend/uploads` (static, no auth) |
 
 ---
 

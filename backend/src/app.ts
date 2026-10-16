@@ -1,15 +1,18 @@
-import "dotenv/config";
+import "./lib/env.js";
 import { createRequire } from "node:module";
+import { mkdirSync } from "node:fs";
 import Fastify, { type FastifyInstance } from "fastify";
 import cors from "@fastify/cors";
 import jwt from "@fastify/jwt";
 import cookie from "@fastify/cookie";
 import rateLimit from "@fastify/rate-limit";
 import multipart from "@fastify/multipart";
+import fastifyStatic from "@fastify/static";
 import { config } from "./config.js";
 import { logger } from "./lib/logger.js";
 import { ApiError } from "./lib/api-error.js";
 import { rateLimitKey } from "./lib/rate-limit-key.js";
+import { STORAGE_URL_PREFIX } from "./lib/storage.js";
 
 import { authRoutes } from "./routes/auth.routes.js";
 import { storeRoutes } from "./routes/store.routes.js";
@@ -107,11 +110,15 @@ export function buildApp(opts: { logger?: boolean } = {}): FastifyInstance {
     origin: (origin, cb) => {
       // Allow requests with no origin (mobile native apps, curl, Postman).
       if (!origin) return cb(null, true);
-      if (config.corsOrigin.includes(origin)) return cb(null, true);
-      // Allow any localhost origin regardless of port and environment.
-      // Flutter web dev builds use a dynamic port each run (e.g. localhost:56224)
-      // and must talk to the hosted (production) API during development.
-      if (/^http:\/\/(localhost|127\.0\.0\.1):\d+$/.test(origin)) return cb(null, true);
+      // Explicit allow-list from CORS_ALLOWED_ORIGINS (production).
+      if (config.corsAllowedOrigins.includes(origin)) return cb(null, true);
+      // Non-production only: allow any localhost origin regardless of port.
+      // Flutter web dev builds use a dynamic port each run (e.g.
+      // localhost:56224), and Next.js dev may hop ports too. Production must
+      // rely solely on the explicit allow-list above.
+      if (!config.isProd && /^http:\/\/(localhost|127\.0\.0\.1):\d+$/.test(origin)) {
+        return cb(null, true);
+      }
       return cb(new ApiError(403, "CORS_DENIED", "Origin not allowed"), false);
     },
     credentials: true,
@@ -153,6 +160,16 @@ export function buildApp(opts: { logger?: boolean } = {}): FastifyInstance {
     },
   });
   app.register(multipart, { limits: { fileSize: 5 * 1024 * 1024, files: 1 } });
+
+  // Serve stored uploads from the local uploads directory. Registered before
+  // the plan-module onRoute hook below so these public asset GETs stay
+  // unauthenticated. The directory is created on boot (a fresh checkout or
+  // container has no uploads/ yet) — @fastify/static throws on a missing root.
+  mkdirSync(config.uploadDir, { recursive: true });
+  app.register(fastifyStatic, {
+    root: config.uploadDir,
+    prefix: `${STORAGE_URL_PREFIX}/`,
+  });
 
   app.addHook("onRoute", (routeOptions) => {
     const moduleKey = planModuleForPath(routeOptions.url);

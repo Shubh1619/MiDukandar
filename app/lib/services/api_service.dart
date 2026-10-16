@@ -5,7 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 
-import '../core/config/api_config.dart';
+import '../core/config/app_config.dart';
 import '../models/app_models.dart';
 
 class TokenStorage {
@@ -98,8 +98,8 @@ String _extractRefreshTokenFromCookies(http.Response response) {
 
 class ApiService {
   ApiService({String? baseUrl, http.Client? client})
-    : _baseUrl = ApiConfig.normalize(
-        baseUrl == null || baseUrl.trim().isEmpty ? ApiConfig.baseUrl : baseUrl,
+    : _baseUrl = AppConfig.normalize(
+        baseUrl == null || baseUrl.trim().isEmpty ? AppConfig.baseUrl : baseUrl,
       ),
       _http = client ?? http.Client();
 
@@ -159,7 +159,7 @@ class ApiService {
     bool auth = true,
     bool allowRetry = true,
   }) async {
-    final uri = ApiConfig.uri(path, baseUrl: _baseUrl);
+    final uri = AppConfig.uri(path, baseUrl: _baseUrl);
     final requestHeaders = <String, String>{
       'Content-Type': 'application/json',
       'Accept': 'application/json',
@@ -275,7 +275,7 @@ class ApiService {
         if (_refreshToken != null && _refreshToken!.isNotEmpty) {
           body['refreshToken'] = _refreshToken;
         }
-        final uri = ApiConfig.uri('/api/auth/refresh', baseUrl: _baseUrl);
+        final uri = AppConfig.uri('/api/auth/refresh', baseUrl: _baseUrl);
         http.Response res;
         try {
           res = await _http
@@ -383,7 +383,7 @@ class ApiService {
     if (code.isEmpty) {
       throw const HttpException('OTP is required.', 400);
     }
-    final verifyUri = ApiConfig.uri('/api/auth/otp/verify', baseUrl: _baseUrl);
+    final verifyUri = AppConfig.uri('/api/auth/otp/verify', baseUrl: _baseUrl);
     final verifyBody = jsonEncode({
       'email': normalizedEmail,
       'otp': code,
@@ -484,7 +484,7 @@ class ApiService {
       'language': language,
       'invoicePrefix': invoicePrefix,
     });
-    final uri = ApiConfig.uri('/api/auth/register', baseUrl: _baseUrl);
+    final uri = AppConfig.uri('/api/auth/register', baseUrl: _baseUrl);
     http.Response response;
     try {
       response = await _http

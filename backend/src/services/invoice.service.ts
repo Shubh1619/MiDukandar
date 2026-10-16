@@ -9,6 +9,15 @@ type Tx = DbClient;
 
 const round2 = (n: number) => moneyNum(n);
 
+/** Normalizes a `date` column (pg returns a local Date) to `YYYY-MM-DD`. */
+function toYmd(v: Date | string | null): string | undefined {
+  if (!v) return undefined;
+  if (v instanceof Date) {
+    return `${v.getFullYear()}-${String(v.getMonth() + 1).padStart(2, "0")}-${String(v.getDate()).padStart(2, "0")}`;
+  }
+  return String(v).slice(0, 10);
+}
+
 type ProductRow = {
   id: string;
   name: string;
@@ -129,6 +138,15 @@ export interface SaleInput {
   createdById: string;
 }
 
+/**
+ * Edit payload. `lines` is optional: a partial edit (e.g. the mobile app only
+ * changes customer / paid amount / payment mode) omits it and the sale's stored
+ * lines, bill discount and credit due date are preserved.
+ */
+export interface SaleUpdateInput extends Omit<SaleInput, "lines"> {
+  lines?: SaleLineInput[];
+}
+
 export interface SaleRow {
   id: string;
   invoice_number: string;
@@ -163,7 +181,12 @@ async function getNextNumber(db: Tx, storeId: string, type: "INV" | "PUR"): Prom
  * free-entry `customer` object is auto-created as a new master record.
  * Returns `undefined` for anonymous walk-ins. Must run inside a transaction.
  */
-async function resolveCustomer(db: Tx, storeId: string, input: SaleInput, createdById: string): Promise<string | undefined> {
+async function resolveCustomer(
+  db: Tx,
+  storeId: string,
+  input: Pick<SaleInput, "customerId" | "customer">,
+  createdById: string,
+): Promise<string | undefined> {
   if (input.customerId) return input.customerId;
   const c = input.customer;
   if (!c || !c.name || !c.name.trim()) return undefined;
@@ -672,16 +695,14 @@ export async function updateSale(
   db: Tx,
   storeId: string,
   saleId: string,
-  input: SaleInput,
+  input: SaleUpdateInput,
 ): Promise<SaleRow> {
-  if (input.lines.length === 0) {
-    throw ApiError.badRequestCode("Sale must have at least one line item.", "EMPTY_SALE");
-  }
-
   // FOR UPDATE: the edit restocks the previous lines, deletes them and re-prices
   // from scratch, all gated on this row still being CONFIRMED. Locking it stops
   // a concurrent edit or reversal from interleaving and double-restocking.
-  const existing = await db.qOne<SaleRow & { customer_id: string | null; payment_mode: string; due_amount: number; total: number }>(
+  const existing = await db.qOne<
+    SaleRow & { customer_id: string | null; payment_mode: string; due_amount: number; discount_type: string; due_date: Date | string | null }
+  >(
     `SELECT * FROM sales WHERE id = $1 AND store_id = $2 FOR UPDATE`,
     [saleId, storeId],
   );
@@ -691,10 +712,40 @@ export async function updateSale(
   }
 
   // Restock the previous lines before replacing them.
-  const oldItems = await db.q<{ product_id: string | null; qty: number }>(
-    `SELECT product_id, qty FROM sale_items WHERE sale_id = $1`,
+  const oldItems = await db.q<{
+    product_id: string | null;
+    product_name: string;
+    qty: number;
+    unit_price: number;
+    discount: number;
+    gst_percent: number;
+  }>(
+    `SELECT product_id, product_name, qty, unit_price, discount, gst_percent FROM sale_items WHERE sale_id = $1`,
     [saleId],
   );
+
+  // A partial edit omits `lines`: reuse the stored lines (and the bill discount
+  // and credit due date) so callers can change just customer/paid/mode/notes.
+  const partial = input.lines === undefined;
+  const lines: SaleLineInput[] = partial
+    ? oldItems.map((it) => ({
+        productId: it.product_id,
+        productName: it.product_name,
+        qty: Number(it.qty),
+        unitPrice: Number(it.unit_price),
+        discount: Number(it.discount),
+        gstPercent: Number(it.gst_percent),
+      }))
+    : input.lines ?? [];
+  if (lines.length === 0) {
+    throw ApiError.badRequestCode("Sale must have at least one line item.", "EMPTY_SALE");
+  }
+  const discount = partial ? Number(existing.discount) : input.discount;
+  const discountType = partial ? (existing.discount_type as "FLAT" | "PERCENT") : input.discountType;
+  const udhaar = partial
+    ? { dueDate: toYmd(existing.due_date) }
+    : input.udhaar;
+
   for (const it of oldItems) {
     if (!it.product_id) continue;
     await createStockMovement(db, {
@@ -710,7 +761,7 @@ export async function updateSale(
   }
   await db.q(`DELETE FROM sale_items WHERE sale_id = $1`, [saleId]);
 
-  const catalogLines = input.lines.filter((l) => l.productId);
+  const catalogLines = lines.filter((l) => l.productId);
   const productIds = [...new Set(catalogLines.map((l) => l.productId as string))];
   const products = productIds.length > 0
     ? await db.q<ProductRow>(
@@ -727,10 +778,10 @@ export async function updateSale(
     }
   }
   const pMap = new Map(products.map((p) => [p.id, p]));
-  await assertStock(db, input.lines, pMap);
+  await assertStock(db, lines, pMap);
 
-  const { items, subtotal, taxTotal, lineDiscounts } = priceLines(input.lines, pMap);
-  const { billDiscount, grantTotal } = billTotals(subtotal, taxTotal, lineDiscounts, input.discount, input.discountType);
+  const { items, subtotal, taxTotal, lineDiscounts } = priceLines(lines, pMap);
+  const { billDiscount, grantTotal } = billTotals(subtotal, taxTotal, lineDiscounts, discount, discountType);
   const { paidAmount, dueAmount } = splitPayment(grantTotal, input.paymentMode, input.paidAmount);
   const customerId = await resolveCustomer(db, storeId, input, input.createdById);
 
@@ -745,13 +796,13 @@ export async function updateSale(
       customerId ?? null,
       subtotal,
       billDiscount,
-      input.discountType ?? "FLAT",
+      discountType ?? "FLAT",
       taxTotal,
       grantTotal,
       paidAmount,
       dueAmount,
       input.paymentMode,
-      input.paymentMode === "CREDIT" ? input.udhaar?.dueDate || null : null,
+      input.paymentMode === "CREDIT" ? udhaar?.dueDate || null : null,
       input.notes ?? null,
       saleId,
       storeId,
@@ -803,7 +854,7 @@ export async function updateSale(
       referenceId: saleId,
       note: `Credit sale ${existing.invoice_number}`,
     });
-    await linkUdhaariEntry(db, storeId, customerId, existing, dueAmount, input.udhaar, input.createdById);
+    await linkUdhaariEntry(db, storeId, customerId, existing, dueAmount, udhaar, input.createdById);
   }
 
   await db.q(`DELETE FROM payments WHERE sale_id = $1`, [saleId]);

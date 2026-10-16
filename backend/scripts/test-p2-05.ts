@@ -3,11 +3,10 @@
  * image and accepted junk.
  *
  * FAILS BEFORE the fix: real PNG/JPEG/GIF/WEBP → 400 INVALID_MAGIC_BYTES;
- *   junk `FF FF 00 00` declared image/png → passes validation (503, i.e. it
+ *   junk `FF FF 00 00` declared image/png → passes validation (i.e. it
  *   would have been stored).
  * PASSES AFTER the fix: each real format with a matching declared mimetype is
- *   accepted (reaches storage → 503 STORAGE_UNAVAILABLE because R2 is not
- *   configured in this env), while junk and content/mimetype mismatches are
+ *   accepted (stored locally), while junk and content/mimetype mismatches are
  *   rejected with 400 INVALID_MAGIC_BYTES.
  *
  * Run:  npx tsx scripts/test-p2-05.ts     (exit 0 = PASS, 1 = FAIL)

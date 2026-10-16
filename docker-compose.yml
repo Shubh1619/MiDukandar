@@ -41,10 +41,16 @@ services:
       PORT: 4000
       DATABASE_URL: ${DATABASE_URL:-postgres://postgres:${POSTGRES_PASSWORD:-1619}@db:5432/mazedukan}
       DIRECT_URL: ${DIRECT_URL:-}
+      # Allow a development NODE_ENV to point at a non-local DB (config.ts
+      # otherwise refuses to boot). Leave unset for the normal local stack.
+      ALLOW_REMOTE_DB_IN_DEV: ${ALLOW_REMOTE_DB_IN_DEV:-}
       JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-dev-access-secret-change-me-min-32-characters}
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-dev-refresh-secret-change-me-min-32-characters}
       JWT_ACCESS_EXPIRES_IN: 15m
       JWT_REFRESH_EXPIRES_IN: 30d
+      # `log` prints emails (incl. OTPs) to the console; `brevo` sends via the
+      # Brevo HTTP API. Render/production must set MAIL_MODE=brevo.
+      MAIL_MODE: ${MAIL_MODE:-log}
       BREVO_API_KEY: ${BREVO_API_KEY:-}
       BREVO_SENDER_EMAIL: ${BREVO_SENDER_EMAIL:-noreply@midukandar.com}
       BREVO_SENDER_NAME: ${BREVO_SENDER_NAME:-MiDukandar}
@@ -61,11 +67,9 @@ services:
       RAZORPAY_KEY_ID: ${RAZORPAY_KEY_ID:-}
       RAZORPAY_KEY_SECRET: ${RAZORPAY_KEY_SECRET:-}
       RAZORPAY_WEBHOOK_SECRET: ${RAZORPAY_WEBHOOK_SECRET:-}
-      R2_ENDPOINT: ${R2_ENDPOINT:-}
-      R2_ACCESS_KEY_ID: ${R2_ACCESS_KEY_ID:-}
-      R2_SECRET_ACCESS_KEY: ${R2_SECRET_ACCESS_KEY:-}
-      R2_BUCKET: midukandar
-      R2_PUBLIC_BASE_URL: ${R2_PUBLIC_BASE_URL:-}
+      # Uploaded files are stored on local disk (backend/uploads) and served at
+      # /api/uploads/files/*. Persisted via the `uploads` volume below so they
+      # survive container rebuilds/restarts.
       SENTRY_DSN: ${SENTRY_DSN:-}
       # Public origin. Used to derive the refresh-cookie Secure flag, and by
       # web/next.config.ts to decide whether Strict-Transport-Security and the
@@ -74,7 +78,9 @@ services:
       # for local use and for TLS terminated in front of this container.
       APP_URL: ${APP_URL:-http://localhost:3000}
       APP_NAME: MiDukandar
-      CORS_ORIGIN: http://localhost:3000,http://127.0.0.1:3000
+      # Comma-separated list of allowed browser origins. In non-production the
+      # API additionally allows any http://localhost:<port> origin.
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000}
       SUPERADMIN_JWT_SECRET: ${SUPERADMIN_JWT_SECRET:-dev-superadmin-secret-change-me-min-32-characters}
       SUPERADMIN_ACCESS_EXPIRES_IN: 15m
       SUPERADMIN_IMPERSONATION_MINUTES: 30
@@ -83,6 +89,8 @@ services:
       SUPERADMIN_PASSWORD: ${SUPERADMIN_PASSWORD}
     ports:
       - "4000:4000"
+    volumes:
+      - uploads:/app/backend/uploads
     depends_on:
       db:
         condition: service_healthy
@@ -107,3 +115,4 @@ services:
 
 volumes:
   pgdata:
+  uploads:

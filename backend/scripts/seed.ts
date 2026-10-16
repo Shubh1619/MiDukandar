@@ -1,6 +1,16 @@
-import "dotenv/config";
+import "./load-env.js";
 import pg from "pg";
 import crypto from "node:crypto";
+
+// Demo data must never be written to a production database. `seed:dev` is for
+// local/test use only; refuse outright when NODE_ENV=production.
+if (process.env.NODE_ENV === "production") {
+  console.error(
+    "Refusing to seed: NODE_ENV=production. Demo data must never be written to production. " +
+      "Run against a development/test database instead.",
+  );
+  process.exit(1);
+}
 
 const connectionString = process.env.DATABASE_URL as string;
 if (!connectionString) {

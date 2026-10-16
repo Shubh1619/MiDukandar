@@ -5,18 +5,44 @@ const BREVO_API = "https://api.brevo.com/v3";
 const dispatcher = process.env.HTTPS_PROXY || process.env.QUOTAGUARDSTATIC_URL
     ? new EnvHttpProxyAgent()
     : undefined;
+function normalizeRecipients(to) {
+    const list = Array.isArray(to) ? to : [to];
+    return list.map((r) => (typeof r === "string" ? { email: r } : r));
+}
 /**
- * Sends a transactional email via Brevo REST API. Falls back to a local
- * "no-op" in development when BREVO_API_KEY is not configured, so OTP flows
- * are still testable locally (OTP is logged + caller can capture it).
+ * Sends a transactional email.
+ *
+ * - `MAIL_MODE=log` (local development): never contacts Brevo. The whole
+ *   message — including any OTP — is written to the console so the flow is
+ *   fully testable offline.
+ * - `MAIL_MODE=brevo` (Render/production): posts to the Brevo transaction
+ *   REST API. Every failure is logged in full (status + response body) and
+ *   returned to the caller; errors are never swallowed silently.
+ *
+ * The mode and the Brevo credentials are validated at boot in config.ts, so
+ * this function can assume a valid configuration for the active mode.
  */
-export async function sendEmail(input) {
-    if (!config.brevoApiKey) {
-        logger.warn("brevo: BREVO_API_KEY not set - skipping email send", {
-            to: input.to.map((t) => t.email).join(","),
-            subject: input.subject,
-        });
-        return { ok: false, error: "BREVO_API_KEY_NOT_CONFIGURED" };
+export async function sendMail(input) {
+    const recipients = normalizeRecipients(input.to);
+    const toList = recipients.map((r) => r.email).join(", ");
+    if (config.mailMode === "log") {
+        const block = [
+            "",
+            "──────────────────────────────────────────────",
+            " MAIL (MAIL_MODE=log) — NOT SENT",
+            ` To:      ${toList}`,
+            ` Subject: ${input.subject}`,
+            input.text ? ` Text:    ${input.text}` : "",
+            " HTML:",
+            input.html,
+            "──────────────────────────────────────────────",
+            "",
+        ]
+            .filter((line) => line !== "")
+            .join("\n");
+        process.stdout.write(`${block}\n`);
+        logger.info("mail:log", { to: toList, subject: input.subject });
+        return { ok: true, mode: "log" };
     }
     try {
         const res = await fetch(`${BREVO_API}/smtp/email`, {
@@ -28,7 +54,7 @@ export async function sendEmail(input) {
             },
             body: JSON.stringify({
                 sender: { email: config.brevoSenderEmail, name: config.brevoSenderName },
-                to: input.to,
+                to: recipients,
                 subject: input.subject,
                 htmlContent: input.html,
                 ...(input.text ? { textContent: input.text } : {}),
@@ -37,15 +63,31 @@ export async function sendEmail(input) {
         });
         if (!res.ok) {
             const body = await res.text();
-            logger.error("brevo: failed to send email", { status: res.status, body });
-            return { ok: false, error: `BREVO_HTTP_${res.status}` };
+            logger.error("brevo: failed to send email", {
+                status: res.status,
+                body,
+                to: toList,
+                subject: input.subject,
+            });
+            return {
+                ok: false,
+                mode: "brevo",
+                error: `BREVO_HTTP_${res.status}`,
+                status: res.status,
+                body,
+            };
         }
         const json = (await res.json());
-        return { ok: true, messageId: json.messageId };
+        logger.info("brevo: email sent", { to: toList, subject: input.subject, messageId: json.messageId });
+        return { ok: true, mode: "brevo", messageId: json.messageId };
     }
     catch (err) {
-        logger.error("brevo: email send exception", { error: String(err) });
-        return { ok: false, error: "BREVO_NETWORK_ERROR" };
+        logger.error("brevo: email send exception", {
+            error: String(err),
+            to: toList,
+            subject: input.subject,
+        });
+        return { ok: false, mode: "brevo", error: "BREVO_NETWORK_ERROR" };
     }
 }
 export function renderOtpEmail(otp, appName, expiryMinutes) {

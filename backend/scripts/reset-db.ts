@@ -1,4 +1,4 @@
-import "dotenv/config";
+import "./load-env.js";
 import pg from "pg";
 
 const connectionString = process.env.DATABASE_URL as string;

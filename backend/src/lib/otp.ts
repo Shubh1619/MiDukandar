@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import { config } from "../config.js";
 import { q, qOne, qExec } from "../db/pool.js";
-import { sendEmail, renderOtpEmail } from "./mail.js";
+import { sendMail, renderOtpEmail } from "./mail.js";
 import { ApiError } from "./api-error.js";
 import { logger } from "./logger.js";
 
@@ -35,8 +35,8 @@ export async function requestOtp(email: string, purpose: OtpPurpose = "LOGIN") {
     [normalized, crypto.createHash("sha256").update(otp).digest("hex"), purpose, expiresAt],
   );
 
-  const result = await sendEmail({
-    to: [{ email: normalized }],
+  const result = await sendMail({
+    to: normalized,
     subject: `Your ${config.appName} login code`,
     html: renderOtpEmail(otp, config.appName, config.otpExpiryMinutes),
     text: `Your ${config.appName} OTP is ${otp}. It expires in ${config.otpExpiryMinutes} minutes.`,

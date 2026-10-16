@@ -4,6 +4,15 @@ import { getStockBalances, createStockMovement } from "./stock.service.js";
 import { createLedgerEntry } from "./ledger.service.js";
 import { insertPayment } from "./payment.service.js";
 const round2 = (n) => moneyNum(n);
+/** Normalizes a `date` column (pg returns a local Date) to `YYYY-MM-DD`. */
+function toYmd(v) {
+    if (!v)
+        return undefined;
+    if (v instanceof Date) {
+        return `${v.getFullYear()}-${String(v.getMonth() + 1).padStart(2, "0")}-${String(v.getDate()).padStart(2, "0")}`;
+    }
+    return String(v).slice(0, 10);
+}
 /** Prices line items and returns computed line rows plus running subtotal/tax/line-discounts. */
 function priceLines(lines, pMap) {
     let subtotal = dec(0);
@@ -457,9 +466,6 @@ export async function reverseSale(db, storeId, saleId, reason, userId) {
  * The invoice number is preserved.
  */
 export async function updateSale(db, storeId, saleId, input) {
-    if (input.lines.length === 0) {
-        throw ApiError.badRequestCode("Sale must have at least one line item.", "EMPTY_SALE");
-    }
     // FOR UPDATE: the edit restocks the previous lines, deletes them and re-prices
     // from scratch, all gated on this row still being CONFIRMED. Locking it stops
     // a concurrent edit or reversal from interleaving and double-restocking.
@@ -470,7 +476,28 @@ export async function updateSale(db, storeId, saleId, input) {
         throw ApiError.conflict("Only confirmed sales can be edited.");
     }
     // Restock the previous lines before replacing them.
-    const oldItems = await db.q(`SELECT product_id, qty FROM sale_items WHERE sale_id = $1`, [saleId]);
+    const oldItems = await db.q(`SELECT product_id, product_name, qty, unit_price, discount, gst_percent FROM sale_items WHERE sale_id = $1`, [saleId]);
+    // A partial edit omits `lines`: reuse the stored lines (and the bill discount
+    // and credit due date) so callers can change just customer/paid/mode/notes.
+    const partial = input.lines === undefined;
+    const lines = partial
+        ? oldItems.map((it) => ({
+            productId: it.product_id,
+            productName: it.product_name,
+            qty: Number(it.qty),
+            unitPrice: Number(it.unit_price),
+            discount: Number(it.discount),
+            gstPercent: Number(it.gst_percent),
+        }))
+        : input.lines ?? [];
+    if (lines.length === 0) {
+        throw ApiError.badRequestCode("Sale must have at least one line item.", "EMPTY_SALE");
+    }
+    const discount = partial ? Number(existing.discount) : input.discount;
+    const discountType = partial ? existing.discount_type : input.discountType;
+    const udhaar = partial
+        ? { dueDate: toYmd(existing.due_date) }
+        : input.udhaar;
     for (const it of oldItems) {
         if (!it.product_id)
             continue;
@@ -486,7 +513,7 @@ export async function updateSale(db, storeId, saleId, input) {
         });
     }
     await db.q(`DELETE FROM sale_items WHERE sale_id = $1`, [saleId]);
-    const catalogLines = input.lines.filter((l) => l.productId);
+    const catalogLines = lines.filter((l) => l.productId);
     const productIds = [...new Set(catalogLines.map((l) => l.productId))];
     const products = productIds.length > 0
         ? await db.q(`SELECT id, name, barcode, selling_price, gst_percent, store_id FROM products WHERE id = ANY($1::uuid[])`, [productIds])
@@ -500,9 +527,9 @@ export async function updateSale(db, storeId, saleId, input) {
         }
     }
     const pMap = new Map(products.map((p) => [p.id, p]));
-    await assertStock(db, input.lines, pMap);
-    const { items, subtotal, taxTotal, lineDiscounts } = priceLines(input.lines, pMap);
-    const { billDiscount, grantTotal } = billTotals(subtotal, taxTotal, lineDiscounts, input.discount, input.discountType);
+    await assertStock(db, lines, pMap);
+    const { items, subtotal, taxTotal, lineDiscounts } = priceLines(lines, pMap);
+    const { billDiscount, grantTotal } = billTotals(subtotal, taxTotal, lineDiscounts, discount, discountType);
     const { paidAmount, dueAmount } = splitPayment(grantTotal, input.paymentMode, input.paidAmount);
     const customerId = await resolveCustomer(db, storeId, input, input.createdById);
     const updated = await db.qOne(`UPDATE sales
@@ -514,13 +541,13 @@ export async function updateSale(db, storeId, saleId, input) {
         customerId ?? null,
         subtotal,
         billDiscount,
-        input.discountType ?? "FLAT",
+        discountType ?? "FLAT",
         taxTotal,
         grantTotal,
         paidAmount,
         dueAmount,
         input.paymentMode,
-        input.paymentMode === "CREDIT" ? input.udhaar?.dueDate || null : null,
+        input.paymentMode === "CREDIT" ? udhaar?.dueDate || null : null,
         input.notes ?? null,
         saleId,
         storeId,
@@ -568,7 +595,7 @@ export async function updateSale(db, storeId, saleId, input) {
             referenceId: saleId,
             note: `Credit sale ${existing.invoice_number}`,
         });
-        await linkUdhaariEntry(db, storeId, customerId, existing, dueAmount, input.udhaar, input.createdById);
+        await linkUdhaariEntry(db, storeId, customerId, existing, dueAmount, udhaar, input.createdById);
     }
     await db.q(`DELETE FROM payments WHERE sale_id = $1`, [saleId]);
     if (input.paymentMode !== "CREDIT" && paidAmount > 0) {

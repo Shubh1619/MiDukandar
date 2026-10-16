@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import { config } from "../config.js";
 import { qOne, qExec } from "../db/pool.js";
-import { sendEmail, renderOtpEmail } from "./mail.js";
+import { sendMail, renderOtpEmail } from "./mail.js";
 import { ApiError } from "./api-error.js";
 import { logger } from "./logger.js";
 function generateOtp() {
@@ -21,8 +21,8 @@ export async function requestOtp(email, purpose = "LOGIN") {
     const otp = generateOtp();
     const expiresAt = new Date(Date.now() + config.otpExpiryMinutes * 60 * 1000);
     await qExec(`INSERT INTO otps (email, otp_hash, purpose, expires_at) VALUES ($1, $2, $3, $4)`, [normalized, crypto.createHash("sha256").update(otp).digest("hex"), purpose, expiresAt]);
-    const result = await sendEmail({
-        to: [{ email: normalized }],
+    const result = await sendMail({
+        to: normalized,
         subject: `Your ${config.appName} login code`,
         html: renderOtpEmail(otp, config.appName, config.otpExpiryMinutes),
         text: `Your ${config.appName} OTP is ${otp}. It expires in ${config.otpExpiryMinutes} minutes.`,

@@ -74,8 +74,8 @@ export default function PurchaseOrdersPage() {
       if (supplierId !== "all") params.set("supplierId", supplierId);
       if (statusFilter !== "all") params.set("status", statusFilter);
 
-      const data = await apiFetch<{ orders: PurchaseOrder[]; total: number }>(`/api/purchase-orders?${params}`);
-      setOrders(data.orders);
+      const data = await apiFetch<{ purchaseOrders: PurchaseOrder[]; total: number }>(`/api/purchase-orders?${params}`);
+      setOrders(data.purchaseOrders ?? []);
       setTotal(data.total);
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : "Failed to load purchase orders");

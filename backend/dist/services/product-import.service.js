@@ -21,6 +21,7 @@ export function dupKeyOf(r) {
 }
 // Bundle/certificate blobs and binary junk routinely leak out of PDF text
 // extraction as "lines". Reject rows that are clearly not human-readable names.
+// eslint-disable-next-line no-control-regex -- intentional: detect binary/control junk from PDF text extraction
 const BINARY_CHARS = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F-\u009F]/;
 const HEADER_TERMS = new Set([
     "product", "item", "name", "particulars", "description", "rate", "qty", "quantity",
@@ -29,6 +30,7 @@ const HEADER_TERMS = new Set([
     "date", "invoice", "serial",
 ]);
 export function unreadableNameReason(name) {
+    // eslint-disable-next-line no-control-regex -- intentional: strip embedded NUL bytes
     const s = String(name ?? "").replace(/\u0000/g, "").trim();
     if (!s)
         return "Product name is required";
@@ -44,6 +46,7 @@ export function unreadableNameReason(name) {
     return null;
 }
 export function sanitizeExtractedLine(line) {
+    // eslint-disable-next-line no-control-regex -- intentional: strip embedded NUL bytes
     const s = String(line ?? "").replace(/\u0000/g, "").trim();
     if (!s)
         return null;

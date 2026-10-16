@@ -43,6 +43,17 @@ const saleSchema = z.object({
   notes: z.string().max(300).optional(),
 });
 
+/**
+ * Edit schema. A partial edit may omit `lines` (and discount / due date): the
+ * sale's stored values are then preserved. When `lines` *is* supplied the whole
+ * sale is re-priced, matching the create contract.
+ */
+const saleUpdateSchema = saleSchema.extend({
+  lines: z.array(saleLineSchema).min(1).optional(),
+  discount: z.coerce.number().min(0).optional(),
+  discountType: z.enum(["FLAT", "PERCENT"]).optional(),
+});
+
 /** Credit invoices outstanding longer than this many days count as overdue. */
 const OVERDUE_DAYS = 30;
 
@@ -147,14 +158,14 @@ export async function saleRoutes(app: FastifyInstance) {
     async (request: AuthenticatedRequest) => {
       const storeId = requireStore(request);
       const { id } = request.params as { id: string };
-      const body = parse(saleSchema, request.body);
+      const body = parse(saleUpdateSchema, request.body);
       const sale = await withTx(async (tx) =>
         updateSale(tx, storeId, id, {
           storeId,
           customerId: body.customerId,
           customer: body.customer,
           udhaar: body.udhaar,
-          lines: body.lines.map((l) => ({
+          lines: body.lines?.map((l) => ({
             productId: l.productId,
             productName: l.productName,
             qty: l.qty,

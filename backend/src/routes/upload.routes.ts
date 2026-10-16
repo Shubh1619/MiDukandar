@@ -1,7 +1,7 @@
 ﻿import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { authenticate, requireStore, type AuthenticatedRequest } from "../middlewares/auth.js";
-import { uploadToR2 } from "../lib/r2.js";
+import { saveUpload } from "../lib/storage.js";
 import { ApiError } from "../lib/api-error.js";
 import { logger } from "../lib/logger.js";
 
@@ -44,7 +44,7 @@ export async function uploadRoutes(app: FastifyInstance) {
     { preHandler: authenticate },
     async (request: AuthenticatedRequest, reply) => {
       const storeId = requireStore(request);
-      // `entity` becomes a path segment in the R2 object key, so it is
+      // `entity` becomes a path segment in the storage key, so it is
       // restricted to a single safe path segment (P2-06).
       const query = parse(
         z.object({ entity: z.string().regex(/^[a-z0-9_-]{1,32}$/).default("images") }),
@@ -80,14 +80,14 @@ export async function uploadRoutes(app: FastifyInstance) {
 
       const buffer = rawBuffer;
 
-      const url = await uploadToR2({
+      const url = await saveUpload({
         storeId,
         entity: query.entity,
         buffer,
         contentType: detected,
       });
       if (!url) {
-        logger.warn("upload: R2 unavailable", { storeId, entity: query.entity });
+        logger.warn("upload: storage refused write", { storeId, entity: query.entity });
         return reply.status(503).send({ error: "Storage not configured.", code: "STORAGE_UNAVAILABLE" });
       }
       logger.info("upload: image stored", { storeId, entity: query.entity, size: buffer.length });

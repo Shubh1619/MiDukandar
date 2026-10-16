@@ -4,6 +4,7 @@
 
 # Backend local env (never tracked)
 backend/.env
+backend/.env.local
 
 # === Node / Build artifacts (never track) ===
 /node_modules/
@@ -13,6 +14,8 @@ backend/.env
 # === IDE / runtime files ===
 /.idea/
 /.vscode/
+# Keep the shared launch configs (local/render API URLs) but ignore the rest.
+!/.vscode/launch.json
 /*.local/
 
 # === Package-lock and snapshot files ===

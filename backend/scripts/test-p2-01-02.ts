@@ -18,7 +18,7 @@
  *
  * Run:  npx tsx scripts/test-p2-01-02.ts     (exit 0 = PASS, 1 = FAIL)
  */
-import "dotenv/config";
+import "./load-env.js";
 import { buildApp } from "../src/app.js";
 import { pool } from "../src/db/pool.js";
 import type { FastifyInstance } from "fastify";

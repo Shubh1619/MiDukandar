@@ -38,6 +38,16 @@ const saleSchema = z.object({
     paidAmount: z.coerce.number().min(0).optional(),
     notes: z.string().max(300).optional(),
 });
+/**
+ * Edit schema. A partial edit may omit `lines` (and discount / due date): the
+ * sale's stored values are then preserved. When `lines` *is* supplied the whole
+ * sale is re-priced, matching the create contract.
+ */
+const saleUpdateSchema = saleSchema.extend({
+    lines: z.array(saleLineSchema).min(1).optional(),
+    discount: z.coerce.number().min(0).optional(),
+    discountType: z.enum(["FLAT", "PERCENT"]).optional(),
+});
 /** Credit invoices outstanding longer than this many days count as overdue. */
 const OVERDUE_DAYS = 30;
 /** pg returns `date` columns as JS Date; normalize to YYYY-MM-DD for payloads. */
@@ -121,13 +131,13 @@ export async function saleRoutes(app) {
     app.put("/:id", { preHandler: [authenticate, requireRole(ROLES.OWNER, ROLES.CASHIER)] }, async (request) => {
         const storeId = requireStore(request);
         const { id } = request.params;
-        const body = parse(saleSchema, request.body);
+        const body = parse(saleUpdateSchema, request.body);
         const sale = await withTx(async (tx) => updateSale(tx, storeId, id, {
             storeId,
             customerId: body.customerId,
             customer: body.customer,
             udhaar: body.udhaar,
-            lines: body.lines.map((l) => ({
+            lines: body.lines?.map((l) => ({
                 productId: l.productId,
                 productName: l.productName,
                 qty: l.qty,

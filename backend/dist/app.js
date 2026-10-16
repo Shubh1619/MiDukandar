@@ -1,15 +1,18 @@
-import "dotenv/config";
+import "./lib/env.js";
 import { createRequire } from "node:module";
+import { mkdirSync } from "node:fs";
 import Fastify from "fastify";
 import cors from "@fastify/cors";
 import jwt from "@fastify/jwt";
 import cookie from "@fastify/cookie";
 import rateLimit from "@fastify/rate-limit";
 import multipart from "@fastify/multipart";
+import fastifyStatic from "@fastify/static";
 import { config } from "./config.js";
 import { logger } from "./lib/logger.js";
 import { ApiError } from "./lib/api-error.js";
 import { rateLimitKey } from "./lib/rate-limit-key.js";
+import { STORAGE_URL_PREFIX } from "./lib/storage.js";
 import { authRoutes } from "./routes/auth.routes.js";
 import { storeRoutes } from "./routes/store.routes.js";
 import { productRoutes } from "./routes/product.routes.js";
@@ -30,7 +33,7 @@ import { superadminPlanRoutes } from "./routes/superadmin-plans.routes.js";
 import { planRoutes } from "./routes/plan.routes.js";
 import { supplierRoutes } from "./routes/supplier.routes.js";
 import { purchaseOrderRoutes } from "./routes/purchase-order.routes.js";
-import { expenseRoutes } from "./routes/expense.routes.js";
+import { expenseRoutes, recurringExpenseRoutes } from "./routes/expense.routes.js";
 import { userRoutes } from "./routes/user.routes.js";
 import { roleRoutes } from "./routes/role.routes.js";
 import { settingsRoutes } from "./routes/settings.routes.js";
@@ -73,7 +76,6 @@ export function buildApp(opts = {}) {
         ...opts,
     });
     if (config.sentryDsn) {
-        // eslint-disable-next-line @typescript-eslint/no-var-requires
         const Sentry = require("@sentry/node");
         Sentry.init({ dsn: config.sentryDsn, environment: config.nodeEnv, tracesSampleRate: 0.05 });
     }
@@ -103,13 +105,16 @@ export function buildApp(opts = {}) {
             // Allow requests with no origin (mobile native apps, curl, Postman).
             if (!origin)
                 return cb(null, true);
-            if (config.corsOrigin.includes(origin))
+            // Explicit allow-list from CORS_ALLOWED_ORIGINS (production).
+            if (config.corsAllowedOrigins.includes(origin))
                 return cb(null, true);
-            // Allow any localhost origin regardless of port and environment.
-            // Flutter web dev builds use a dynamic port each run (e.g. localhost:56224)
-            // and must talk to the hosted (production) API during development.
-            if (/^http:\/\/(localhost|127\.0\.0\.1):\d+$/.test(origin))
+            // Non-production only: allow any localhost origin regardless of port.
+            // Flutter web dev builds use a dynamic port each run (e.g.
+            // localhost:56224), and Next.js dev may hop ports too. Production must
+            // rely solely on the explicit allow-list above.
+            if (!config.isProd && /^http:\/\/(localhost|127\.0\.0\.1):\d+$/.test(origin)) {
                 return cb(null, true);
+            }
             return cb(new ApiError(403, "CORS_DENIED", "Origin not allowed"), false);
         },
         credentials: true,
@@ -134,11 +139,28 @@ export function buildApp(opts = {}) {
         // through a trusted proxy hop, so rotating the header no longer mints a
         // fresh bucket.
         keyGenerator: rateLimitKey,
+        // @fastify/rate-limit `throw`s whatever this builder returns, so it must be
+        // an Error carrying statusCode 429. Returning a bare object left the
+        // central handler with no statusCode: every rate-limit trip was reported as
+        // a 500 "Internal server error" (and sent to Sentry) instead of the 429 the
+        // error contract advertises, so clients could not back off correctly.
         errorResponseBuilder: () => {
-            return { error: "Too many requests. Please slow down.", code: "RATE_LIMITED" };
+            const err = new Error("Too many requests. Please slow down.");
+            err.statusCode = 429;
+            err.code = "RATE_LIMITED";
+            return err;
         },
     });
     app.register(multipart, { limits: { fileSize: 5 * 1024 * 1024, files: 1 } });
+    // Serve stored uploads from the local uploads directory. Registered before
+    // the plan-module onRoute hook below so these public asset GETs stay
+    // unauthenticated. The directory is created on boot (a fresh checkout or
+    // container has no uploads/ yet) — @fastify/static throws on a missing root.
+    mkdirSync(config.uploadDir, { recursive: true });
+    app.register(fastifyStatic, {
+        root: config.uploadDir,
+        prefix: `${STORAGE_URL_PREFIX}/`,
+    });
     app.addHook("onRoute", (routeOptions) => {
         const moduleKey = planModuleForPath(routeOptions.url);
         if (!moduleKey)
@@ -189,7 +211,6 @@ export function buildApp(opts = {}) {
                 path: request.url,
                 error: { name: error.name, message: error.message, stack: error.stack },
             });
-            // eslint-disable-next-line @typescript-eslint/no-var-requires
             if (config.sentryDsn)
                 require("@sentry/node").captureException(error);
         }
@@ -234,7 +255,7 @@ function registerRoutes(app) {
     app.register(purchaseOrderRoutes, { prefix: "/api/purchase-orders" });
     app.register(expenseRoutes, { prefix: "/api/expenses" });
     app.register(expenseRoutes, { prefix: "/api/expense-categories" });
-    app.register(expenseRoutes, { prefix: "/api/recurring-expenses" });
+    app.register(recurringExpenseRoutes, { prefix: "/api/recurring-expenses" });
     app.register(saleRoutes, { prefix: "/api/sales" });
     app.register(purchaseRoutes, { prefix: "/api/purchases" });
     app.register(inventoryRoutes, { prefix: "/api/inventory" });

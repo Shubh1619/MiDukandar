@@ -139,3 +139,52 @@ export async function expenseRoutes(app) {
         return reply.send({ ok: true });
     });
 }
+/**
+ * Dedicated router for the `/api/recurring-expenses` prefix.
+ *
+ * The generic `expenseRoutes` plugin is also mounted under `/api/expenses` and
+ * `/api/expense-categories`, but its bare `"/"` and `"/:id"` handlers operate on
+ * one-time expenses. Mounting that plugin under `/api/recurring-expenses` meant
+ * `POST /api/recurring-expenses` hit `createExpense` (Zod stripped
+ * `frequency`/`nextDueDate`), and `PATCH`/`DELETE /api/recurring-expenses/:id`
+ * acted on one-time rows. This router binds those bare paths to the recurring
+ * table so the `/recurring-expenses` contract matches its name.
+ */
+export async function recurringExpenseRoutes(app) {
+    // List recurring expenses (also materialises any due items)
+    app.get("/recurring", { preHandler: authenticate }, async (request) => {
+        const storeId = requireStore(request);
+        await processDueRecurringExpenses(qClient(), storeId);
+        const recurring = await listRecurringExpenses(qClient(), storeId);
+        return { recurring };
+    });
+    // Create recurring expense
+    app.post("/", { preHandler: [authenticate, requireRole(ROLES.OWNER, ROLES.MANAGER)] }, async (request, reply) => {
+        const storeId = requireStore(request);
+        const auth = getAuth(request);
+        const body = parse(createRecurringSchema, request.body);
+        const recurring = await createRecurringExpense(qClient(), storeId, auth.id, body);
+        return reply.status(201).send({ recurring });
+    });
+    // Update / toggle active recurring expense
+    app.patch("/:id", { preHandler: [authenticate, requireRole(ROLES.OWNER, ROLES.MANAGER)] }, async (request) => {
+        const storeId = requireStore(request);
+        const { id } = request.params;
+        const body = parse(createRecurringSchema.partial().extend({ isActive: z.boolean().optional() }), request.body);
+        const recurring = await updateRecurringExpense(qClient(), storeId, id, body);
+        return { recurring };
+    });
+    // Delete recurring expense
+    app.delete("/:id", { preHandler: [authenticate, requireRole(ROLES.OWNER, ROLES.MANAGER)] }, async (request, reply) => {
+        const storeId = requireStore(request);
+        const { id } = request.params;
+        await deleteRecurringExpense(qClient(), storeId, id);
+        return reply.send({ ok: true });
+    });
+    // Manually process due items
+    app.post("/recurring/process-due", { preHandler: [authenticate, requireRole(ROLES.OWNER, ROLES.MANAGER)] }, async (request) => {
+        const storeId = requireStore(request);
+        const res = await processDueRecurringExpenses(qClient(), storeId);
+        return res;
+    });
+}

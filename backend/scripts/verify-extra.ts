@@ -34,7 +34,7 @@ async function main() {
   console.log(`B) POST /api/suppliers/:id/invoice => ${b.statusCode} ${(b.json() as any).code ?? ""} (want 201)`);
 
   // (C) import Infinity row -> does it 500 or import?
-  const c = await inj({ method: "POST", url: "/api/products/import", headers: H(tokB), payload: JSON.stringify({ mode: "skip", rows: [{ name: "VERIFY_INF", purchasePrice: 1e999 }] }) });
+  const c = await inj({ method: "POST", url: "/api/products/import", headers: H(tokB), payload: JSON.stringify({ mode: "skip", rows: [{ name: "VERIFY_INF", purchasePrice: Number("1e999") }] }) });
   console.log(`C) import purchasePrice=1e999 => ${c.statusCode} ${JSON.stringify((c.json() as any)).slice(0, 160)}`);
 
   // (D) PUT /api/sales/:id with Flutter's partial payload (no lines) -> 400
