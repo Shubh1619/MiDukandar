@@ -1,0 +1,652 @@
+===============================================================
+MiDukandar WEB i18n AUDIT  -  STATUS AFTER FIXES (this session)
+===============================================================
+RESULT: en = hi = mr = 315 keys (full parity).
+        used literal keys = 252.
+        `npm run i18n:check` -> OK (see web/scripts/i18n-check.mjs).
+
+Root causes found and FIXED:
+ 1. Asymmetric dictionaries: en had 6 keys hi/mr lacked; code used 37 keys
+    none of the three had (e.g. cancelConfirm, lineTotal, markSent,
+    poDate, statusDraft, statusSent, supplierFormHint, rate, viewSupplier,
+    reorderNeedsPhone, cheque, neft, rupeeSymbol, ...).
+    -> Added to all three; dictionaries now identical key sets.
+ 2. Naive fallback in i18n-provider.tsx: `dict[key] ?? key` rendered the raw
+    camelCase key whenever a locale was missing a translation.
+    -> Provider now merges the English dictionary under the locale dictionary,
+       so a missing translation falls back to English, never a raw key.
+ 3. Mixed-language concatenation: `{t("supplier")}s` produced
+    "पुरवठादारs" (Marathi word + Latin "s"). Similarly
+    `{total} supplier(s)`, `{total} order(s)`, `{t("back")} to Suppliers`.
+    -> Replaced with proper keys (suppliers) and interpolated
+       plural strings (supplierCount / orderCount / customerCount /
+       backToSuppliers) + added a `}s` anti-pattern check to the guard.
+ 4. Hardcoded English in the supplier module (toasts, table headers, filter
+    options, status badge, empty states, field labels, confirm dialogs).
+    -> Localised; supplier module is now fully t()-driven.
+ 5. Dynamic t() keys verified: payment modes (cash/upi/card/cheque/neft) and
+    udhaari labelKey values all resolve.
+
+Guard: run `npm run i18n:check` (fails on missing/duplicate keys, a t() key
+absent from en, hi/mr parity gaps, or a `t("x")}s` suffix).
+
+== BELOW: pre-fix inventory (counts are historical) ==
+
+EN keys: 246  HI keys: 230  MR keys: 230
+Used literal keys: 221
+
+=== USED but MISSING in EN (36) ===
+actionCannotBeUndone
+cancelConfirm
+cancelPo
+categoryHint
+confirmDelete
+deletePo
+deletePoConfirm
+dueToSuppliers
+editPo
+error
+exceedsOutstanding
+language
+lastOrderDate
+lineTotal
+markSent
+newPo
+outstandingHeader
+outstandingPaying
+overdueBadgesHint
+paymentDate
+poDate
+productRequired
+rate
+receiveConfirm
+reorderNeedsPhone
+reorderWhatsapp
+reversed
+statusDraft
+statusSent
+success
+supplierFormHint
+suppliers
+suppliersWithPayable
+totalPurchases
+updatePo
+viewSupplier
+
+=== USED but MISSING in HI (49) ===
+addSupplier
+cancelConfirm
+cancelPo
+categoryHint
+confirmReceive
+deletePo
+deletePoConfirm
+deleteSupplier
+dueToSuppliers
+editPo
+editSupplier
+exceedsOutstanding
+expectedDate
+lastOrderDate
+lineTotal
+markReceived
+markSent
+newPo
+newPurchaseOrder
+orderDate
+outstandingHeader
+outstandingPaying
+overdueBadgesHint
+paymentDate
+paymentHistory
+poDate
+poNumber
+productRequired
+purchaseOrders
+rate
+receiveConfirm
+reorderNeedsPhone
+reorderWhatsApp
+reorderWhatsapp
+reversed
+settled
+statusDraft
+statusSent
+stockWillUpdate
+supplierCategory
+supplierFormHint
+supplierPhone
+suppliers
+suppliersWithPayable
+totalAmount
+totalPayable
+totalPurchases
+updatePo
+viewSupplier
+
+=== USED but MISSING in MR (49) ===
+addSupplier
+cancelConfirm
+cancelPo
+categoryHint
+confirmReceive
+deletePo
+deletePoConfirm
+deleteSupplier
+dueToSuppliers
+editPo
+editSupplier
+exceedsOutstanding
+expectedDate
+lastOrderDate
+lineTotal
+markReceived
+markSent
+newPo
+newPurchaseOrder
+orderDate
+outstandingHeader
+outstandingPaying
+overdueBadgesHint
+paymentDate
+paymentHistory
+poDate
+poNumber
+productRequired
+purchaseOrders
+rate
+receiveConfirm
+reorderNeedsPhone
+reorderWhatsApp
+reorderWhatsapp
+reversed
+settled
+statusDraft
+statusSent
+stockWillUpdate
+supplierCategory
+supplierFormHint
+supplierPhone
+suppliers
+suppliersWithPayable
+totalAmount
+totalPayable
+totalPurchases
+updatePo
+viewSupplier
+
+=== Keys in EN missing from HI (22) ===
+addSupplier
+cannotDeleteSupplier
+confirmReceive
+deleteSupplier
+editSupplier
+expectedDate
+markReceived
+newPurchaseOrder
+orderDate
+paymentHistory
+poNumber
+poStatus
+purchaseOrders
+reorderWhatsApp
+settled
+stockWillUpdate
+supplierAddress
+supplierCategory
+supplierPhone
+totalAmount
+totalPayable
+totalSuppliers
+
+=== Keys in EN missing from MR (22) ===
+addSupplier
+cannotDeleteSupplier
+confirmReceive
+deleteSupplier
+editSupplier
+expectedDate
+markReceived
+newPurchaseOrder
+orderDate
+paymentHistory
+poNumber
+poStatus
+purchaseOrders
+reorderWhatsApp
+settled
+stockWillUpdate
+supplierAddress
+supplierCategory
+supplierPhone
+totalAmount
+totalPayable
+totalSuppliers
+
+=== Keys in HI missing from EN (6) ===
+actionCannotBeUndone
+confirmDelete
+error
+language
+rupeeSymbol
+success
+
+=== Keys in MR missing from EN (6) ===
+actionCannotBeUndone
+confirmDelete
+error
+language
+rupeeSymbol
+success
+
+=== UNUSED in EN (61) ===
+add
+addProduct
+addStaff
+adjustStock
+appName
+barcode
+businessName
+businessSetup
+businessType
+cannotDeleteSupplier
+card
+cash
+credit
+creditLimit
+dateRange
+dueToday
+editProduct
+email
+enterEmail
+enterOtp
+export
+filter
+gstNumber
+initialPayment
+invalidOtp
+invoice
+loading
+login
+logout
+lowStockItems
+mrp
+navDashboard
+navProducts
+next
+no
+openingBalance
+otpSent
+outstandingReceivables
+partial
+pendingOnly
+pincode
+poStatus
+recentPayments
+recentSales
+requestOtp
+selectCustomer
+selectExistingCustomer
+setupComplete
+sku
+staffMembers
+supplierAddress
+todayPurchases
+todaySales
+totalSuppliers
+unit
+unpaid
+upcoming
+updateProfile
+upi
+verify
+yes
+
+=== UNUSED in HI (58) ===
+add
+addProduct
+addStaff
+adjustStock
+appName
+barcode
+businessName
+businessSetup
+businessType
+card
+cash
+credit
+creditLimit
+dateRange
+dueToday
+editProduct
+email
+enterEmail
+enterOtp
+export
+filter
+gstNumber
+initialPayment
+invalidOtp
+invoice
+loading
+login
+logout
+lowStockItems
+mrp
+navDashboard
+navProducts
+next
+no
+openingBalance
+otpSent
+outstandingReceivables
+partial
+pendingOnly
+pincode
+recentPayments
+recentSales
+requestOtp
+rupeeSymbol
+selectCustomer
+selectExistingCustomer
+setupComplete
+sku
+staffMembers
+todayPurchases
+todaySales
+unit
+unpaid
+upcoming
+updateProfile
+upi
+verify
+yes
+
+=== UNUSED in MR (58) ===
+add
+addProduct
+addStaff
+adjustStock
+appName
+barcode
+businessName
+businessSetup
+businessType
+card
+cash
+credit
+creditLimit
+dateRange
+dueToday
+editProduct
+email
+enterEmail
+enterOtp
+export
+filter
+gstNumber
+initialPayment
+invalidOtp
+invoice
+loading
+login
+logout
+lowStockItems
+mrp
+navDashboard
+navProducts
+next
+no
+openingBalance
+otpSent
+outstandingReceivables
+partial
+pendingOnly
+pincode
+recentPayments
+recentSales
+requestOtp
+rupeeSymbol
+selectCustomer
+selectExistingCustomer
+setupComplete
+sku
+staffMembers
+todayPurchases
+todaySales
+unit
+unpaid
+upcoming
+updateProfile
+upi
+verify
+yes
+
+=== DYNAMIC t(var) usages (4) ===
+C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\udhaari\page.tsx:422  t(s.labelKey)
+C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\udhaari\page.tsx:507  t(s.labelKey)
+C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\components\invoices\invoice-form-dialog.tsx:387  t(m.toLowerCase()
+C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\components\suppliers\payment-dialog.tsx:115  t(m.toLowerCase()
+
+=== ALL USED KEYS WITH FIRST LOCATION (221) ===
+actionCannotBeUndone	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\customers\page.tsx:345
+actions	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\customers\page.tsx:177
+addCustomer	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\customers\page.tsx:159
+addItem	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\components\invoices\invoice-form-dialog.tsx:335
+addPurchase	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\purchases\page.tsx:181
+addSupplier	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\suppliers\page.tsx:142
+addUdhaariEntry	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\udhaari\page.tsx:406
+address	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\customers\page.tsx:235
+all	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\invoices\page.tsx:431
+amount	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\customers\page.tsx:280
+amountReceived	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\udhaari\page.tsx:680
+apply	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\reports\page.tsx:305
+back	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\suppliers\[id]\page.tsx:88
+balanceAfter	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\customers\page.tsx:312
+cancel	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\customers\page.tsx:240
+cancelConfirm	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\components\suppliers\po-detail-dialog.tsx:231
+cancelPo	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\components\suppliers\po-detail-dialog.tsx:190
+category	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\inventory\page.tsx:156
+categoryHint	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\components\suppliers\supplier-form-dialog.tsx:106
+cgst	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\reports\page.tsx:724
+city	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\settings\page.tsx:265
+clear	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\udhaari\page.tsx:616
+clearFilters	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\invoices\page.tsx:453
+closingQty	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\reports\page.tsx:668
+cogs	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\reports\page.tsx:873
+confirm	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\suppliers\orders\page.tsx:342
+confirmDelete	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\customers\page.tsx:345
+confirmReceive	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\suppliers\orders\page.tsx:342
+createFirstInvoice	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\invoices\page.tsx:601
+currentStock	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\inventory\page.tsx:120
+customer	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\invoices\page.tsx:632
+customerName	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\customers\page.tsx:174
+customerRequired	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\udhaari\page.tsx:310
+dailyBreakdown	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\reports\page.tsx:926
+date	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\customers\page.tsx:279
+delete	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\customers\page.tsx:194
+deleteCustomer	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\customers\page.tsx:343
+deletePo	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\components\suppliers\po-detail-dialog.tsx:225
+deletePoConfirm	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\components\suppliers\po-detail-dialog.tsx:232
+deleteSupplier	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\suppliers\page.tsx:359
+discount	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\reports\page.tsx:373
+downloadPdf	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\invoices\page.tsx:782
+due	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\customers\page.tsx:281
+dueToSuppliers	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\components\suppliers\summary-bar.tsx:23
+edit	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\customers\page.tsx:191
+editCustomer	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\customers\page.tsx:218
+editInvoice	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\invoices\page.tsx:769
+editPo	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\components\suppliers\po-detail-dialog.tsx:181
+editSupplier	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\suppliers\[id]\page.tsx:107
+enterMobile	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\udhaari\page.tsx:631
+entryDate	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\udhaari\page.tsx:649
+error	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\invoices\page.tsx:209
+exceedsOutstanding	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\components\suppliers\payment-dialog.tsx:101
+expectedDate	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\suppliers\orders\page.tsx:199
+expectedPayDate	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\udhaari\page.tsx:534
+expenses	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\reports\page.tsx:885
+exportCsv	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\reports\page.tsx:358
+exportGstr1	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\reports\page.tsx:812
+from	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\invoices\page.tsx:404
+fromAdjustment	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\inventory\page.tsx:221
+fromPurchase	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\inventory\page.tsx:219
+fromReversal	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\inventory\page.tsx:222
+fromSale	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\inventory\page.tsx:220
+grossMargin	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\reports\page.tsx:880
+grossProfit	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\reports\page.tsx:878
+gstPercent	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\components\invoices\invoice-form-dialog.tsx:322
+gstRate	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\reports\page.tsx:743
+gstRateBreakup	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\reports\page.tsx:737
+gstSummary	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\reports\page.tsx:323
+gstin	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\customers\page.tsx:176
+gstr1Invoices	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\reports\page.tsx:775
+igst	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\reports\page.tsx:726
+inStock	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\inventory\page.tsx:157
+invoiceNumber	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\invoices\page.tsx:624
+invoicePrefix	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\settings\page.tsx:277
+invoices	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\invoices\page.tsx:470
+items	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\purchases\page.tsx:255
+language	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\settings\page.tsx:226
+lastOrderDate	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\suppliers\page.tsx:207
+lastTransaction	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\udhaari\page.tsx:448
+ledger	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\customers\page.tsx:304
+lineTotal	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\components\suppliers\po-detail-dialog.tsx:157
+lowStock	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\inventory\page.tsx:130
+markAsPaid	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\invoices\page.tsx:1055
+markPaidConfirm	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\invoices\page.tsx:1061
+markReceived	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\components\suppliers\po-detail-dialog.tsx:187
+markSent	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\components\suppliers\po-detail-dialog.tsx:184
+minStock	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\inventory\page.tsx:158
+mobile	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\customers\page.tsx:175
+mobileNumber	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\udhaari\page.tsx:627
+movements	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\inventory\page.tsx:121
+navCustomers	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\customers\page.tsx:155
+navInventory	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\inventory\page.tsx:112
+navPayments	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\payments\page.tsx:117
+navPurchases	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\purchases\page.tsx:177
+navReports	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\reports\page.tsx:263
+navSettings	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\settings\page.tsx:218
+navUdhaari	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\udhaari\page.tsx:382
+netMargin	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\reports\page.tsx:910
+netProfit	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\reports\page.tsx:898
+newCustomerHint	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\udhaari\page.tsx:621
+newInvoice	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\invoices\page.tsx:480
+newPo	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\components\suppliers\po-form-dialog.tsx:165
+newPurchaseOrder	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\suppliers\orders\page.tsx:142
+noData	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\customers\page.tsx:169
+noInvoices	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\invoices\page.tsx:595
+noReminders	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\udhaari\page.tsx:523
+noUdhaariEntries	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\udhaari\page.tsx:735
+notes	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\suppliers\[id]\page.tsx:229
+openingQty	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\reports\page.tsx:665
+openingStock	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\inventory\page.tsx:218
+orderDate	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\suppliers\orders\page.tsx:198
+outOfStock	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\components\invoices\invoice-form-dialog.tsx:531
+outstanding	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\suppliers\page.tsx:178
+outstandingHeader	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\components\suppliers\payment-dialog.tsx:86
+outstandingPaying	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\components\suppliers\summary-bar.tsx:28
+overdue	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\udhaari\page.tsx:567
+overdueBadgesHint	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\components\suppliers\summary-bar.tsx:36
+overdueCount	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\components\invoices\invoice-summary.tsx:50
+paid	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\invoices\page.tsx:435
+paidAmount	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\udhaari\page.tsx:725
+paidNow	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\components\invoices\invoice-form-dialog.tsx:407
+payReceive	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\payments\page.tsx:121
+paymentDate	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\components\suppliers\payment-dialog.tsx:106
+paymentHistory	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\suppliers\[id]\page.tsx:169
+paymentMode	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\invoices\page.tsx:640
+paymentPhone	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\settings\page.tsx:253
+paymentStatus	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\udhaari\page.tsx:664
+paymentType	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\components\invoices\invoice-form-dialog.tsx:354
+pendingAmount	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\components\invoices\invoice-summary.tsx:43
+phone	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\components\suppliers\supplier-form-dialog.tsx:93
+pnlSummary	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\reports\page.tsx:326
+poDate	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\components\suppliers\po-detail-dialog.tsx:145
+poNumber	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\suppliers\orders\page.tsx:196
+presetLastMonth	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\reports\page.tsx:254
+presetMonth	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\reports\page.tsx:253
+presetQuarter	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\reports\page.tsx:255
+presetToday	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\reports\page.tsx:251
+presetWeek	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\reports\page.tsx:252
+presetYear	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\reports\page.tsx:256
+printInvoice	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\invoices\page.tsx:1307
+productName	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\inventory\page.tsx:155
+productRequired	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\components\suppliers\po-form-dialog.tsx:128
+purchaseNumber	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\purchases\page.tsx:196
+purchaseOrders	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\suppliers\orders\page.tsx:137
+purchasePrice	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\inventory\page.tsx:159
+purchaseReport	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\reports\page.tsx:317
+qty	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\components\invoices\invoice-form-dialog.tsx:310
+rate	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\components\suppliers\po-detail-dialog.tsx:156
+reason	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\invoices\page.tsx:1124
+reasonRequired	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\invoices\page.tsx:339
+receiveConfirm	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\components\suppliers\po-detail-dialog.tsx:229
+recordPayment	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\suppliers\page.tsx:270
+recordedPayments	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\udhaari\page.tsx:772
+remaining	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\udhaari\page.tsx:533
+reminderDate	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\udhaari\page.tsx:659
+reminders	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\udhaari\page.tsx:399
+reorderNeedsPhone	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\components\suppliers\po-detail-dialog.tsx:117
+reorderWhatsApp	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\suppliers\page.tsx:280
+reorderWhatsapp	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\components\suppliers\po-detail-dialog.tsx:209
+revenue	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\reports\page.tsx:868
+reversed	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\invoices\page.tsx:699
+salesReport	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\reports\page.tsx:314
+save	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\customers\page.tsx:242
+search	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\reports\page.tsx:535
+searchCustomer	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\udhaari\page.tsx:143
+selectProduct	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\components\invoices\invoice-form-dialog.tsx:511
+sellingPrice	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\inventory\page.tsx:160
+settled	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\suppliers\page.tsx:187
+sgst	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\reports\page.tsx:725
+staff	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\settings\page.tsx:225
+state	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\settings\page.tsx:269
+status	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\invoices\page.tsx:644
+statusDraft	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\components\suppliers\po-form-dialog.tsx:184
+statusSent	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\components\suppliers\po-form-dialog.tsx:185
+stockIn	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\reports\page.tsx:666
+stockMovements	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\reports\page.tsx:526
+stockOut	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\reports\page.tsx:667
+stockReport	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\reports\page.tsx:320
+stockWillUpdate	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\suppliers\orders\page.tsx:326
+storeDetails	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\settings\page.tsx:224
+storeName	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\settings\page.tsx:238
+subtotal	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\purchases\page.tsx:350
+success	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\invoices\page.tsx:315
+supplier	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\suppliers\orders\page.tsx:149
+supplierCategory	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\suppliers\page.tsx:204
+supplierFormHint	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\components\suppliers\supplier-form-dialog.tsx:85
+supplierName	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\purchases\page.tsx:197
+supplierPhone	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\suppliers\page.tsx:203
+suppliers	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\components\suppliers\summary-bar.tsx:15
+suppliersWithPayable	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\components\suppliers\summary-bar.tsx:30
+tax	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\purchases\page.tsx:351
+taxAmount	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\reports\page.tsx:825
+taxableValue	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\reports\page.tsx:720
+to	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\invoices\page.tsx:414
+total	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\purchases\page.tsx:352
+totalAmount	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\suppliers\orders\page.tsx:201
+totalInvoices	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\components\invoices\invoice-summary.tsx:30
+totalPayable	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\suppliers\page.tsx:206
+totalPurchases	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\suppliers\page.tsx:205
+totalRevenue	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\components\invoices\invoice-summary.tsx:36
+totalTaxCollected	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\reports\page.tsx:728
+totalUdhaari	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\udhaari\page.tsx:447
+udhaar	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\invoices\page.tsx:439
+udhaarNeedsCustomer	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\components\invoices\invoice-form-dialog.tsx:188
+udhaariCreateHint	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\udhaari\page.tsx:440
+udhaariEntries	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\udhaari\page.tsx:392
+udhaariHistory	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\udhaari\page.tsx:703
+unitPrice	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\components\invoices\invoice-form-dialog.tsx:314
+updateInvoice	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\components\invoices\invoice-form-dialog.tsx:448
+updatePo	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\components\suppliers\po-form-dialog.tsx:258
+usingExistingCustomer	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\udhaari\page.tsx:610
+valuation	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\reports\page.tsx:670
+viewDetails	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\customers\page.tsx:188
+viewInvoice	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\invoices\page.tsx:748
+viewSupplier	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\components\suppliers\po-detail-dialog.tsx:213
+viewUdhaari	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\customers\page.tsx:197
+voidConfirm	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\invoices\page.tsx:1118
+voidInvoice	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\invoices\page.tsx:814
+walkIn	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\invoices\page.tsx:669
+whatsappShare	C:\Users\Shubham\Desktop\abc\MiDukandar\web\src\app\(main)\invoices\page.tsx:1279

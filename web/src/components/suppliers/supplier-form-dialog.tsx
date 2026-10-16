@@ -94,7 +94,7 @@ export function SupplierFormDialog({ open, onOpenChange, editing, onSaved }: Pro
             <Input value={form.phone} onChange={(e) => set("phone", e.target.value)} placeholder="+91 98XXXXXXXX" />
           </div>
           <div className="space-y-1.5">
-            <Label>Email</Label>
+            <Label>{t("email")}</Label>
             <Input type="email" value={form.email} onChange={(e) => set("email", e.target.value)} />
           </div>
           <div className="space-y-1.5">

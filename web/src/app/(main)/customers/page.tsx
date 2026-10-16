@@ -153,7 +153,7 @@ export default function CustomersPage() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="font-display text-xl font-bold">{t("navCustomers")}</h1>
-          <p className="text-xs text-muted-foreground">{total} customer(s)</p>
+          <p className="text-xs text-muted-foreground">{t("customerCount", { count: total })}</p>
         </div>
         <Button onClick={openAdd}>
           <Plus className="size-4" /> {t("addCustomer")}

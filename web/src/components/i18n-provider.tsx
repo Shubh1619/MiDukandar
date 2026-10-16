@@ -2,6 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { DEFAULT_LOCALE, getDictionary, type Dictionary, type Locale } from "@/lib/i18n";
+import enDictionary from "@/lib/i18n/dictionaries/en";
 
 type T = (key: string, vars?: Record<string, string | number>) => string;
 
@@ -25,7 +26,7 @@ function interpolate(template: string, vars?: Record<string, string | number>): 
 
 export function I18nProvider({ children }: { children: React.ReactNode }) {
   const [locale, setLocaleState] = useState<Locale>(DEFAULT_LOCALE);
-  const [dict, setDict] = useState<Dictionary>({});
+  const [localeDict, setLocaleDict] = useState<Dictionary>({});
 
   useEffect(() => {
     const saved = (localStorage.getItem(STORAGE_KEY) ?? DEFAULT_LOCALE) as Locale;
@@ -34,11 +35,18 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    getDictionary(locale).then(setDict);
+    getDictionary(locale).then(setLocaleDict);
     localStorage.setItem(STORAGE_KEY, locale);
   }, [locale]);
 
   const setLocale = useCallback((l: Locale) => setLocaleState(l), []);
+
+  // Merge the locale dictionary over the English dictionary so a key missing
+  // from a translation file falls back to English instead of rendering the raw key.
+  const dict = useMemo<Dictionary>(
+    () => ({ ...enDictionary, ...localeDict }),
+    [localeDict],
+  );
 
   const t = useCallback<T>(
     (key, vars) => interpolate(dict[key] ?? key, vars),

@@ -78,11 +78,11 @@ export default function PurchaseOrdersPage() {
       setOrders(data.purchaseOrders ?? []);
       setTotal(data.total);
     } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : "Failed to load purchase orders");
+      toast.error(err instanceof ApiError ? err.message : t("errorLoadPurchaseOrders"));
     } finally {
       setLoading(false);
     }
-  }, [supplierId, statusFilter, page]);
+  }, [supplierId, statusFilter, page, t]);
 
   useEffect(() => {
     void loadSuppliers();
@@ -97,7 +97,7 @@ export default function PurchaseOrdersPage() {
       const data = await apiFetch<{ purchaseOrder: PurchaseOrderDetail }>(`/api/purchase-orders/${po.id}`);
       setEditTarget(data.purchaseOrder);
     } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : "Failed to fetch purchase order details");
+      toast.error(err instanceof ApiError ? err.message : t("errorLoadPoDetails"));
     }
   };
 
@@ -111,13 +111,13 @@ export default function PurchaseOrdersPage() {
       });
       toast.success(
         statusTarget.nextStatus === "received"
-          ? "Purchase order marked as Received! Inventory stock updated."
-          : `Order status updated to ${statusTarget.nextStatus}`
+          ? t("poReceived")
+          : t("poStatusUpdated", { status: statusTarget.nextStatus })
       );
       setStatusTarget(null);
       void loadOrders();
     } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : "Failed to update status");
+      toast.error(err instanceof ApiError ? err.message : t("errorUpdateStatus"));
     } finally {
       setUpdatingStatus(false);
     }
@@ -135,7 +135,7 @@ export default function PurchaseOrdersPage() {
           </Button>
           <div>
             <h1 className="font-display text-xl font-bold">{t("purchaseOrders")}</h1>
-            <p className="text-xs text-muted-foreground">{total} order(s)</p>
+            <p className="text-xs text-muted-foreground">{t("orderCount", { count: total })}</p>
           </div>
         </div>
         <Button onClick={() => setCreateOpen(true)}>
@@ -155,7 +155,7 @@ export default function PurchaseOrdersPage() {
             }}
             className="h-8 rounded-md border bg-background px-2.5 text-xs focus:outline-none focus:ring-1 focus:ring-primary"
           >
-            <option value="all">All Suppliers</option>
+            <option value="all">{t("allSuppliers")}</option>
             {suppliers.map((s) => (
               <option key={s.id} value={s.id}>
                 {s.name}
@@ -174,11 +174,11 @@ export default function PurchaseOrdersPage() {
             }}
             className="h-8 rounded-md border bg-background px-2.5 text-xs focus:outline-none focus:ring-1 focus:ring-primary"
           >
-            <option value="all">All Statuses</option>
-            <option value="draft">Draft</option>
-            <option value="sent">Sent</option>
-            <option value="received">Received</option>
-            <option value="cancelled">Cancelled</option>
+            <option value="all">{t("allStatuses")}</option>
+            <option value="draft">{t("statusDraft")}</option>
+            <option value="sent">{t("statusSent")}</option>
+            <option value="received">{t("statusReceived")}</option>
+            <option value="cancelled">{t("statusCancelled")}</option>
           </select>
         </div>
       </div>
@@ -188,7 +188,7 @@ export default function PurchaseOrdersPage() {
         {loading ? (
           <TableSkeleton rows={6} />
         ) : orders.length === 0 ? (
-          <EmptyState message="No purchase orders found." />
+          <EmptyState message={t("noPurchaseOrders")} />
         ) : (
           <Table>
             <TableHeader>
@@ -255,8 +255,8 @@ export default function PurchaseOrdersPage() {
                             variant="ghost"
                             size="icon"
                             onClick={() => setStatusTarget({ po, nextStatus: "received" })}
-                            title="Mark Received (Updates Stock)"
-                            aria-label="Mark Received"
+                            title={t("markReceivedUpdatesStock")}
+                            aria-label={t("markReceived")}
                           >
                             <CheckCircle2 className="size-4 text-emerald-600" />
                           </Button>
@@ -264,8 +264,8 @@ export default function PurchaseOrdersPage() {
                             variant="ghost"
                             size="icon"
                             onClick={() => setStatusTarget({ po, nextStatus: "cancelled" })}
-                            title="Cancel Order"
-                            aria-label="Cancel Order"
+                            title={t("cancelPo")}
+                            aria-label={t("cancelPo")}
                           >
                             <XCircle className="size-4 text-destructive" />
                           </Button>
@@ -318,15 +318,15 @@ export default function PurchaseOrdersPage() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              {statusTarget?.nextStatus === "received" ? "Mark Purchase Order as Received?" : "Cancel Purchase Order?"}
+              {statusTarget?.nextStatus === "received" ? t("markPoReceivedTitle") : t("cancelPoTitle")}
             </DialogTitle>
             <DialogDescription>
               {statusTarget?.nextStatus === "received" ? (
                 <span className="text-amber-600 font-medium">
-                  {t("stockWillUpdate")} Quantities for all line items will be added to your inventory.
+                  {t("stockWillUpdate")} {t("receiveLineItemsNote")}
                 </span>
               ) : (
-                `Are you sure you want to cancel order ${statusTarget?.po.poNumber}?`
+                t("cancelPoConfirm", { po: statusTarget?.po.poNumber ?? "" })
               )}
             </DialogDescription>
           </DialogHeader>

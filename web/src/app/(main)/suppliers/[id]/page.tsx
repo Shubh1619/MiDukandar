@@ -46,11 +46,11 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ id: s
       const result = await apiFetch<SupplierDetail>(`/api/suppliers/${id}`);
       setData(result);
     } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : "Failed to load supplier details");
+      toast.error(err instanceof ApiError ? err.message : t("errorLoadSupplier"));
     } finally {
       setLoading(false);
     }
-  }, [id]);
+  }, [id, t]);
 
   useEffect(() => {
     void loadSupplier();
@@ -65,11 +65,11 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ id: s
       if (res.waLink) {
         window.open(res.waLink, "_blank", "noopener,noreferrer");
       } else {
-        toast.info("WhatsApp reorder message copied", { description: res.message });
+        toast.info(t("reorderCopied"), { description: res.message });
         await navigator.clipboard.writeText(res.message);
       }
     } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : "Failed to generate reorder message");
+      toast.error(err instanceof ApiError ? err.message : t("errorReorderMessage"));
     }
   };
 
@@ -101,7 +101,7 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ id: s
       {/* Navigation Header */}
       <div className="flex items-center justify-between">
         <Button variant="ghost" size="sm" onClick={() => router.push("/suppliers")}>
-          <ArrowLeft className="size-4" /> {t("back")} to Suppliers
+          <ArrowLeft className="size-4" /> {t("backToSuppliers")}
         </Button>
         <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
           <Pencil className="size-4" /> {t("editSupplier")}
@@ -121,9 +121,9 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ id: s
                 {supplier.category && <Badge variant="secondary">{supplier.category}</Badge>}
               </div>
               <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
-                {supplier.phone && <span>Phone: {supplier.phone}</span>}
-                {supplier.email && <span>Email: {supplier.email}</span>}
-                {supplier.gstin && <span>GSTIN: {supplier.gstin}</span>}
+                {supplier.phone && <span>{t("phone")}: {supplier.phone}</span>}
+                {supplier.email && <span>{t("email")}: {supplier.email}</span>}
+                {supplier.gstin && <span>{t("gstin")}: {supplier.gstin}</span>}
               </div>
               {supplier.address && <p className="text-xs text-muted-foreground mt-1">{supplier.address}</p>}
             </div>
@@ -135,7 +135,7 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ id: s
             <span className={`font-display text-2xl font-bold tabular-nums ${payable > 0 ? "text-red-600" : "text-emerald-600"}`}>
               {formatINR(payable)}
             </span>
-            <span className="text-[11px] text-muted-foreground">Purchases: {formatINR(totalPurchases)}</span>
+            <span className="text-[11px] text-muted-foreground">{t("purchasesLabel")}: {formatINR(totalPurchases)}</span>
           </div>
         </div>
 
@@ -174,7 +174,7 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ id: s
         <TabsContent value="orders" className="space-y-4">
           <div className="rounded-lg border bg-card">
             {purchaseOrders.length === 0 ? (
-              <EmptyState message="No purchase orders for this supplier." />
+              <EmptyState message={t("noSupplierPurchaseOrders")} />
             ) : (
               <Table>
                 <TableHeader>
@@ -203,7 +203,7 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ id: s
                       </TableCell>
                       <TableCell className="text-right">
                         <Button variant="ghost" size="sm" onClick={() => setSelectedPo(po)}>
-                          View
+                          {t("viewDetails")}
                         </Button>
                       </TableCell>
                     </TableRow>
@@ -218,7 +218,7 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ id: s
         <TabsContent value="payments" className="space-y-4">
           <div className="rounded-lg border bg-card">
             {payments.length === 0 ? (
-              <EmptyState message="No payment records for this supplier." />
+              <EmptyState message={t("noPaymentRecords")} />
             ) : (
               <Table>
                 <TableHeader>
@@ -237,7 +237,7 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ id: s
                       <TableCell>
                         <Badge variant="outline">{p.paymentMode}</Badge>
                       </TableCell>
-                      <TableCell className="text-muted-foreground">{p.poNumber || "General"}</TableCell>
+                      <TableCell className="text-muted-foreground">{p.poNumber || t("generalLabel")}</TableCell>
                       <TableCell className="text-muted-foreground max-w-xs truncate">{p.note || "-"}</TableCell>
                       <TableCell className="text-right font-semibold text-emerald-600 tabular-nums">
                         {formatINR(p.amount)}

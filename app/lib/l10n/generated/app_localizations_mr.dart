@@ -943,7 +943,7 @@ class AppLocalizationsMr extends AppLocalizations {
   String get sectionSuppliers => 'पुरवठादार';
 
   @override
-  String get sectionSupplierInvoices => 'Supplier Invoices';
+  String get sectionSupplierInvoices => 'पुरवठादार बीजक';
 
   @override
   String get sectionUdhaari => 'उधारी';

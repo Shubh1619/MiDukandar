@@ -266,10 +266,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
               if (!RegExp(r'^\d{10,12}$').hasMatch(v)) return AppLocalizations.of(context)!.validationMobileNumber;
               return null;
             },
-            decoration: const InputDecoration(
-              labelText: 'Mobile Number',
-              prefixIcon: Icon(Icons.phone_outlined, size: 20, color: MdColors.navy400),
-              border: OutlineInputBorder(),
+            decoration: InputDecoration(
+              labelText: AppLocalizations.of(context)!.regPhoneLabel,
+              prefixIcon: const Icon(Icons.phone_outlined, size: 20, color: MdColors.navy400),
+              border: const OutlineInputBorder(),
               counterText: '',
             ),
           ),

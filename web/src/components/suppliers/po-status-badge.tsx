@@ -2,6 +2,7 @@
 
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/components/i18n-provider";
 import type { PurchaseOrderStatus } from "@/lib/types";
 
 const STYLES: Record<PurchaseOrderStatus, string> = {
@@ -11,13 +12,15 @@ const STYLES: Record<PurchaseOrderStatus, string> = {
   cancelled: "bg-red-100 text-red-700",
 };
 
-const LABELS: Record<PurchaseOrderStatus, string> = {
-  draft: "Draft",
-  sent: "Sent",
-  received: "Received",
-  cancelled: "Cancelled",
+const LABEL_KEYS: Record<PurchaseOrderStatus, string> = {
+  draft: "statusDraft",
+  sent: "statusSent",
+  received: "statusReceived",
+  cancelled: "statusCancelled",
 };
 
 export function PoStatusBadge({ status }: { status: PurchaseOrderStatus }) {
-  return <Badge variant="outline" className={cn("border-transparent", STYLES[status] ?? "")}>{LABELS[status] ?? status}</Badge>;
+  const { t } = useI18n();
+  const key = LABEL_KEYS[status];
+  return <Badge variant="outline" className={cn("border-transparent", STYLES[status] ?? "")}>{key ? t(key) : status}</Badge>;
 }

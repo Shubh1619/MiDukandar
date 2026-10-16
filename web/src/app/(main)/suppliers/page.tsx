@@ -78,11 +78,11 @@ export default function SuppliersPage() {
       setSuppliers(data.suppliers);
       setTotal(data.total);
     } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : "Failed to load suppliers");
+      toast.error(err instanceof ApiError ? err.message : t("errorLoadSuppliers"));
     } finally {
       setLoading(false);
     }
-  }, [search, filter, page]);
+  }, [search, filter, page, t]);
 
   useEffect(() => {
     void loadSummary();
@@ -100,11 +100,11 @@ export default function SuppliersPage() {
       if (res.waLink) {
         window.open(res.waLink, "_blank", "noopener,noreferrer");
       } else {
-        toast.info("WhatsApp reorder message copied to clipboard", { description: res.message });
+        toast.info(t("reorderCopied"), { description: res.message });
         await navigator.clipboard.writeText(res.message);
       }
     } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : "Failed to generate reorder message");
+      toast.error(err instanceof ApiError ? err.message : t("errorReorderMessage"));
     }
   };
 
@@ -113,12 +113,12 @@ export default function SuppliersPage() {
     setDeleting(true);
     try {
       await apiFetch(`/api/suppliers/${deleteTarget.id}`, { method: "DELETE" });
-      toast.success("Supplier archived");
+      toast.success(t("supplierArchived"));
       setDeleteTarget(null);
       void loadSuppliers();
       void loadSummary();
     } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : "Failed to delete supplier");
+      toast.error(err instanceof ApiError ? err.message : t("errorDeleteSupplier"));
     } finally {
       setDeleting(false);
     }
@@ -131,8 +131,8 @@ export default function SuppliersPage() {
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="font-display text-xl font-bold">{t("supplier")}s</h1>
-          <p className="text-xs text-muted-foreground">{total} supplier(s)</p>
+          <h1 className="font-display text-xl font-bold">{t("suppliers")}</h1>
+          <p className="text-xs text-muted-foreground">{t("supplierCount", { count: total })}</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Button variant="outline" onClick={() => router.push("/suppliers/orders")}>
@@ -223,7 +223,7 @@ export default function SuppliersPage() {
                       >
                         {s.name}
                       </button>
-                      {s.gstin && <p className="text-[11px] text-muted-foreground">GST: {s.gstin}</p>}
+                      {s.gstin && <p className="text-[11px] text-muted-foreground">{t("gstLabel")}: {s.gstin}</p>}
                     </TableCell>
                     <TableCell className="text-muted-foreground">{s.phone || "-"}</TableCell>
                     <TableCell>
