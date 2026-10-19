@@ -4,14 +4,19 @@ import type { NextRequest } from "next/server";
 const BACKEND_URL = process.env.BACKEND_URL ?? "http://localhost:4000";
 const API_PORT = process.env.API_PORT ?? "5000";
 
-// httpOnly refresh cookie shared with the API (see backend config.ts). Its
-// presence is an optimistic signal that the user has a live session; the
-// absence of it means an unauthenticated visitor.
+// httpOnly session cookies, one per area (see backend config.ts). The tenant
+// refresh cookie is never issued to a superadmin and vice versa, so the two
+// areas must be guarded by their own cookie.
 const REFRESH_COOKIE = process.env.REFRESH_COOKIE_NAME ?? "mz_refresh";
+const SUPERADMIN_COOKIE = process.env.SUPERADMIN_COOKIE_NAME ?? "mz_sa";
 
-// Authenticated app screens. Hitting one without a session cookie is redirected
-// to /login at the edge, so unauthenticated users never receive the workspace
-// shell (the client-side AuthGate remains as a second line of defence).
+// The superadmin console is its own auth realm: signing in sets only the
+// superadmin cookie. Guarding it with the tenant refresh cookie bounced every
+// freshly-signed-in superadmin (login returned 200, then the dashboard
+// redirect went straight back to /login).
+const SUPERADMIN_PREFIXES = ["/superadmin"];
+
+// Tenant app screens.
 const PROTECTED_PREFIXES = [
   "/dashboard",
   "/products",
@@ -26,8 +31,11 @@ const PROTECTED_PREFIXES = [
   "/users",
   "/udhaari",
   "/purchases",
-  "/superadmin",
 ];
+
+function underPrefix(pathname: string, prefix: string): boolean {
+  return pathname === prefix || pathname.startsWith(`${prefix}/`);
+}
 
 // In the combined single-container image the Fastify API runs on loopback at
 // 127.0.0.1:API_PORT (see Dockerfile `production`). If BACKEND_URL is ever set
@@ -64,15 +72,29 @@ export function proxy(request: NextRequest) {
     return NextResponse.rewrite(target);
   }
 
-  // Optimistic server-side guard for authenticated screens.
-  const isProtected = PROTECTED_PREFIXES.some(
-    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
-  );
-  if (isProtected && !request.cookies.get(REFRESH_COOKIE)) {
+  // Optimistic server-side guard for authenticated screens: redirect to /login
+  // when the area's session cookie is absent. The real check still happens in
+  // the API and the client-side gate; this only avoids rendering a shell that
+  // cannot load any data.
+  const toLogin = () => {
     const loginUrl = request.nextUrl.clone();
     loginUrl.pathname = "/login";
     loginUrl.search = "";
     return NextResponse.redirect(loginUrl);
+  };
+
+  if (
+    SUPERADMIN_PREFIXES.some((p) => underPrefix(pathname, p)) &&
+    !request.cookies.get(SUPERADMIN_COOKIE)
+  ) {
+    return toLogin();
+  }
+
+  if (
+    PROTECTED_PREFIXES.some((p) => underPrefix(pathname, p)) &&
+    !request.cookies.get(REFRESH_COOKIE)
+  ) {
+    return toLogin();
   }
 
   return NextResponse.next();
