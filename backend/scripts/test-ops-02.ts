@@ -13,6 +13,7 @@
  *
  * Run:  npx tsx scripts/test-ops-02.ts     (exit 0 = PASS, 1 = FAIL)
  */
+export {};
 const captured: string[] = [];
 const origOut = process.stdout.write.bind(process.stdout);
 const origErr = process.stderr.write.bind(process.stderr);

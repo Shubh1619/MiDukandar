@@ -68,6 +68,16 @@ function planModuleForPath(path: string): string | null {
   return PLAN_ROUTE_MODULES.find(([prefix]) => path === prefix || path.startsWith(`${prefix}/`))?.[1] ?? null;
 }
 
+// Health probes are registered at both prefixes; their request logs are
+// skipped (see the onResponse hook). Matching is exact and query strings are
+// ignored, so only these paths — not unknown sub-paths — are silenced.
+const HEALTH_PATHS = new Set(["/health", "/api/health"]);
+function isHealthPath(url: string): boolean {
+  const queryStart = url.indexOf("?");
+  const pathname = queryStart === -1 ? url : url.slice(0, queryStart);
+  return HEALTH_PATHS.has(pathname);
+}
+
 // App-level error codes are UPPER_SNAKE (BAD_REQUEST, OTP_EXPIRED, FST_*...).
 // Postgres/SQLSTATE codes start with a digit, so this both keeps our own codes
 // and rejects driver codes that would leak schema details via the API.
@@ -281,7 +291,12 @@ export function buildApp(opts: { logger?: boolean } = {}): FastifyInstance {
 
   // request logging
   app.addHook("onResponse", (request, reply, done) => {
-    if (opts.logger) {
+    // Platform health probes hit the same two paths every few seconds and say
+    // nothing a human reads; at production cadence they drowned the traffic
+    // that matters. Only the exact health paths are skipped (query string
+    // ignored) — a request to an unknown sub-path still logs, so a typo'd
+    // probe URL stays visible. Error logging is a separate hook and unaffected.
+    if (opts.logger && !isHealthPath(request.url)) {
       logger.info("request", {
         reqId: request.id,
         method: request.method,
