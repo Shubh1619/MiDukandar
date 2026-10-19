@@ -15,13 +15,17 @@ async function main() {
     method: "POST", url: "/api/auth/otp/request",
     payload: { email: "owner@midukandar.demo" },
   });
-  const devOtp = (otpRes.json() as { devOtp?: string }).devOtp;
-  if (!devOtp) throw new Error("no devOtp returned");
+  // The response deliberately no longer echoes the code (it used to return
+  // `devOtp`, handing a valid login code to any caller); dev/test logins go
+  // through the master OTP, which the environment supplies.
+  if (otpRes.statusCode !== 200) throw new Error("otp request failed: " + otpRes.body);
+  const masterOtp = process.env.OTP_MASTER?.trim();
+  if (!masterOtp) throw new Error("OTP_MASTER must be set in the environment for smoke");
   log(`otp request ok (${otpRes.statusCode})`);
 
   const verifyRes = await app.inject({
     method: "POST", url: "/api/auth/otp/verify",
-    payload: { email: "owner@midukandar.demo", otp: devOtp },
+    payload: { email: "owner@midukandar.demo", otp: masterOtp },
   });
   const auth = verifyRes.json() as { accessToken?: string; user?: { role?: string; storeId?: string | null } };
   if (!auth.accessToken) throw new Error("verify failed: " + JSON.stringify(auth));
