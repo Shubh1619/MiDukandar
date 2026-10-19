@@ -108,7 +108,7 @@ export async function recoveryRoutes(app: FastifyInstance) {
     if (!target.isActive) throw ApiError.forbidden("Account is inactive.");
 
     const result = await requestOtp(target.email, "RECOVERY");
-    logger.info("recovery: OTP requested", { email: maskEmail(target.email), emailSent: result.emailSent });
+    logger.info("recovery: OTP requested", { email: maskEmail(target.email), emailAccepted: result.emailSent });
 
     return {
       ok: true,

@@ -88,7 +88,10 @@ export async function sendMail(input: SendMailInput): Promise<SendMailResult> {
       .filter((line) => line !== "")
       .join("\n");
     process.stdout.write(`${block}\n`);
-    logger.info("mail:log", { to: maskedToList, subject: input.subject });
+    // The block above is the message body itself (MAIL_MODE=log is a dev-only
+    // offline render). The structured log line must not carry the subject: for
+    // an OTP that subject is the code.
+    logger.info("mail:log", { to: maskedToList });
     return { ok: true, mode: "log" };
   }
 
@@ -134,7 +137,11 @@ export async function sendMail(input: SendMailInput): Promise<SendMailResult> {
     }
 
     const json = (await res.json()) as { messageId?: string };
-    logger.info("brevo: email sent", { to: maskedToList, subject: input.subject, messageId: json.messageId });
+    // "accepted": Brevo has queued the message, which is all this API can tell
+    // us — final delivery (or a bounce) is reported asynchronously to the
+    // Brevo webhook. `subject` is deliberately NOT logged: the OTP subject
+    // contains the code. `to` is the masked recipient.
+    logger.info("brevo: accepted", { to: maskedToList, messageId: json.messageId });
     return { ok: true, mode: "brevo", messageId: json.messageId };
   } catch (err) {
     // No recipient list or subject here either — same PII reason. The caller's

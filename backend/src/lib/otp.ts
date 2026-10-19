@@ -44,7 +44,7 @@ export async function requestOtp(email: string, purpose: OtpPurpose = "LOGIN") {
     tags: ["otp"],
   });
 
-  logger.info("otp: requested", { email: maskEmail(normalized), purpose, emailSent: result.ok });
+  logger.info("otp: requested", { email: maskEmail(normalized), purpose, emailAccepted: result.ok });
 
   if (!result.ok) {
     // Production: the code was stored but never left the building. Drop the
