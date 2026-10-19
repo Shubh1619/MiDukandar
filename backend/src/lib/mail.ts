@@ -19,6 +19,8 @@ export interface SendMailInput {
   subject: string;
   html: string;
   text?: string;
+  /** Brevo tags, for filtering in the transactional log (e.g. ["otp"]). */
+  tags?: string[];
 }
 
 export interface SendMailResult {
@@ -105,6 +107,9 @@ export async function sendMail(input: SendMailInput): Promise<SendMailResult> {
         subject: input.subject,
         htmlContent: input.html,
         ...(input.text ? { textContent: input.text } : {}),
+        // Transactional send: tagged so it is filterable in Brevo's log and
+        // never carries an unsubscribe header (it is not a campaign).
+        ...(input.tags?.length ? { tags: input.tags } : {}),
       }),
       ...(dispatcher ? { dispatcher } : {}),
     });
@@ -139,17 +144,36 @@ export async function sendMail(input: SendMailInput): Promise<SendMailResult> {
   }
 }
 
-export function renderOtpEmail(otp: string, appName: string, expiryMinutes: number): string {
-  return `
+export interface OtpEmail {
+  subject: string;
+  html: string;
+  text: string;
+}
+
+/**
+ * Builds the login-code email. Kept deliberately plain — no images, no links,
+ * no marketing copy — because a bare transactional message is filtered far
+ * less aggressively than one padded with remote assets and CTAs. The code
+ * appears exactly once in the body (and in the subject); HTML and plain-text
+ * parts are both supplied so a client that blocks HTML still shows the code.
+ */
+export function renderOtpEmail(otp: string, appName: string, expiryMinutes: number): OtpEmail {
+  const minutes = `${expiryMinutes} minute${expiryMinutes === 1 ? "" : "s"}`;
+  const subject = `${otp} is your ${appName} login code`;
+  const text =
+    `${appName} login code: ${otp}\n\n` +
+    `It expires in ${minutes}. If you didn't request this code, you can safely ignore this email.`;
+  const html = `
   <div style="font-family: -apple-system, 'Segoe UI', Roboto, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
     <div style="text-align: center; margin-bottom: 24px;">
       <span style="font-size: 28px; font-weight: 800; color: #16a34a;">${appName}</span>
     </div>
     <div style="background: #ffffff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 32px;">
-      <h2 style="margin-top: 0; color: #111827;">Your OTP code</h2>
-      <p style="color: #4b5563; font-size: 15px;">Use this one-time password to sign in to ${appName}. It expires in ${expiryMinutes} minutes.</p>
+      <h2 style="margin-top: 0; color: #111827;">Your login code</h2>
+      <p style="color: #4b5563; font-size: 15px;">Use this code to sign in to ${appName}. It expires in ${minutes}.</p>
       <div style="font-size: 32px; font-weight: 700; letter-spacing: 8px; color: #16a34a; background: #f0fdf4; border-radius: 8px; padding: 16px; text-align: center; margin: 16px 0;">${otp}</div>
-      <p style="color: #6b7280; font-size: 12px;">If you did not request this code, you can safely ignore this email.</p>
+      <p style="color: #6b7280; font-size: 12px;">If you didn't request this code, you can safely ignore this email.</p>
     </div>
   </div>`;
+  return { subject, html, text };
 }

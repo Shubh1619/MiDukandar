@@ -35,11 +35,13 @@ export async function requestOtp(email: string, purpose: OtpPurpose = "LOGIN") {
     [normalized, crypto.createHash("sha256").update(otp).digest("hex"), purpose, expiresAt],
   );
 
+  const otpEmail = renderOtpEmail(otp, config.appName, config.otpExpiryMinutes);
   const result = await sendMail({
     to: normalized,
-    subject: `Your ${config.appName} login code`,
-    html: renderOtpEmail(otp, config.appName, config.otpExpiryMinutes),
-    text: `Your ${config.appName} OTP is ${otp}. It expires in ${config.otpExpiryMinutes} minutes.`,
+    subject: otpEmail.subject,
+    html: otpEmail.html,
+    text: otpEmail.text,
+    tags: ["otp"],
   });
 
   logger.info("otp: requested", { email: maskEmail(normalized), purpose, emailSent: result.ok });
