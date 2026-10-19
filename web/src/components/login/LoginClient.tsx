@@ -137,7 +137,10 @@ export default function LoginClient() {
         } else if (err instanceof ApiError && err.status >= 500) {
           setNotice({
             kind: "api-error",
-            message: "Our servers hit a snag. Please try again in a moment.",
+            message:
+              err.code === "EMAIL_SEND_FAILED" && err.message
+                ? err.message
+                : "Our servers hit a snag. Please try again in a moment.",
           });
         } else {
           setNotice({

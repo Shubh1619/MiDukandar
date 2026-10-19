@@ -30,8 +30,8 @@ export async function requestOtp(email: string, purpose: OtpPurpose = "LOGIN") {
   const otp = generateOtp();
   const expiresAt = new Date(Date.now() + config.otpExpiryMinutes * 60 * 1000);
 
-  await qExec(
-    `INSERT INTO otps (email, otp_hash, purpose, expires_at) VALUES ($1, $2, $3, $4)`,
+  const [otpRow] = await q<{ id: string }>(
+    `INSERT INTO otps (email, otp_hash, purpose, expires_at) VALUES ($1, $2, $3, $4) RETURNING id`,
     [normalized, crypto.createHash("sha256").update(otp).digest("hex"), purpose, expiresAt],
   );
 
@@ -43,6 +43,28 @@ export async function requestOtp(email: string, purpose: OtpPurpose = "LOGIN") {
   });
 
   logger.info("otp: requested", { email: normalized, purpose, emailSent: result.ok });
+
+  if (!result.ok) {
+    // Production: the code was stored but never left the building. Drop the
+    // row so a delivery outage (provider rejecting the key, sender unverified,
+    // network) cannot burn the 5-per-10-minutes cap on retries, and fail
+    // loudly. Answering 200 with emailSent:false told clients the code was on
+    // its way while users waited for an email that was never dispatched, and
+    // left the unusable row in place so the retry hit OTP_RATE_LIMITED too.
+    // The body is a constant: it must not reveal whether the account exists
+    // (P2-09 — the 404 for unknown accounts stays the only distinction).
+    if (config.isProd) {
+      await qExec(`DELETE FROM otps WHERE id = $1`, [otpRow.id]);
+      throw ApiError.serviceUnavailableCode("Could not send code. Try again.", "EMAIL_SEND_FAILED");
+    }
+    // Dev/test: keep the row and answer 200 so the master-OTP / offline flow
+    // keeps working when a real provider is misconfigured locally.
+    logger.warn("otp: delivery failed (non-production, request still succeeds)", {
+      email: normalized,
+      purpose,
+      error: result.error,
+    });
+  }
 
   // Development convenience only: when a master OTP is configured in a
   // non-production environment, note in the LOGS (never the HTTP response)
