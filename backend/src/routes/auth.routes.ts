@@ -16,8 +16,8 @@ import { rateLimited } from "../lib/route-rate-limit.js";
 
 const REFRESH_DAYS_MS = config.refreshTokenDays * 24 * 60 * 60 * 1000;
 // Window during which a just-rotated (revoked) refresh token is still
-// accepted, so concurrent refreshes from multiple tabs — or a mobile retry
-// after a timed-out first attempt — rotate again instead of being rejected.
+// accepted, so concurrent refreshes from multiple tabs ï¿½ or a mobile retry
+// after a timed-out first attempt ï¿½ rotate again instead of being rejected.
 // Explicit logouts and the recovery/PIN-reset revocation do NOT set a grace
 // window, so they stay immediate.
 const REFRESH_GRACE_MS = 60_000;
@@ -221,7 +221,11 @@ export async function authRoutes(app: FastifyInstance) {
     const raw = bodyToken ?? cookieToken;
 
     if (!raw) {
-      logger.warn("auth: refresh rejected - no refresh token provided", { ip: request.ip });
+      // Not a warning: a first visit, a cleared cookie jar, a logged-out tab or
+      // any caller without a session hits this routinely, and at warn level it
+      // buried the rejections that do matter (token_not_found/revoked/expired,
+      // which stay at warn below).
+      logger.info("auth: refresh rejected - no refresh token provided", { ip: request.ip });
       throw ApiError.unauthorized("Session expired. Please sign in again.");
     }
 
