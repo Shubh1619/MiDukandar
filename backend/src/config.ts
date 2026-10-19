@@ -26,8 +26,9 @@ export interface Config {
   superAdminImpersonationMinutes: number;
   mailMode: MailMode;
   brevoApiKey: string;
-  brevoSenderEmail: string;
-  brevoSenderName: string;
+  mailFromEmail: string;
+  mailFromName: string;
+  mailReplyTo: string;
   otpExpiryMinutes: number;
   otpLength: number;
   masterOtp: string;
@@ -73,6 +74,9 @@ const EnvSchema = z.object({
   APP_NAME: z.string().optional(),
   MAIL_MODE: z.string().optional(),
   BREVO_API_KEY: z.string().optional(),
+  MAIL_FROM_EMAIL: z.string().optional(),
+  MAIL_FROM_NAME: z.string().optional(),
+  MAIL_REPLY_TO: z.string().optional(),
   BREVO_SENDER_EMAIL: z.string().optional(),
   BREVO_SENDER_NAME: z.string().optional(),
   JWT_ACCESS_SECRET: z.string().optional(),
@@ -180,6 +184,23 @@ const DEV_REFRESH_SECRET = "dev-refresh-secret-change-me-min-32-characters";
 const DEV_SUPERADMIN_SECRET = "dev-superadmin-secret-change-me-min-32-characters";
 const MIN_SECRET_LENGTH = 32;
 
+/**
+ * Free mailbox providers publish a DMARC policy that rejects (or heavily
+ * filters) mail claiming to come from them but relayed by a third party, and
+ * their SPF record does not authorise Brevo. A transactional sender on one of
+ * these domains therefore lands in spam or is dropped outright — Gmail, the
+ * largest recipient, refuses it. Refused at boot in production so a
+ * misconfigured MAIL_FROM_EMAIL cannot ship silently.
+ */
+const FREE_MAIL_DOMAINS = ["gmail.com", "yahoo.com", "outlook.com", "hotmail.com"];
+
+export function isFreeMailDomain(email: string): boolean {
+  const at = email.lastIndexOf("@");
+  if (at < 0) return false;
+  const domain = email.slice(at + 1).trim().toLowerCase();
+  return FREE_MAIL_DOMAINS.includes(domain);
+}
+
 const nodeEnv = env.NODE_ENV?.trim() || "development";
 const isProd = nodeEnv === "production";
 const appUrl = env.APP_URL?.trim() ?? "";
@@ -218,8 +239,12 @@ export const config: Config = {
   superAdminImpersonationMinutes: env.SUPERADMIN_IMPERSONATION_MINUTES,
   mailMode,
   brevoApiKey: env.BREVO_API_KEY?.trim() ?? "",
-  brevoSenderEmail: env.BREVO_SENDER_EMAIL?.trim() ?? "",
-  brevoSenderName: env.BREVO_SENDER_NAME?.trim() || "MiDukandar",
+  // The sender identity is read from MAIL_FROM_*; the older BREVO_SENDER_*
+  // names are still honoured as a fallback so an existing deployment keeps
+  // working until its environment is updated (see docs/EMAIL_SETUP.md).
+  mailFromEmail: env.MAIL_FROM_EMAIL?.trim() || env.BREVO_SENDER_EMAIL?.trim() || "",
+  mailFromName: env.MAIL_FROM_NAME?.trim() || env.BREVO_SENDER_NAME?.trim() || "MiDukandar",
+  mailReplyTo: env.MAIL_REPLY_TO?.trim() ?? "",
   otpExpiryMinutes: env.OTP_EXPIRY_MINUTES,
   otpLength: env.OTP_LENGTH,
   masterOtp: env.OTP_MASTER?.trim() ?? "",
@@ -263,7 +288,7 @@ function assertMailConfig(): void {
 
   const missing = [
     ["BREVO_API_KEY", config.brevoApiKey],
-    ["BREVO_SENDER_EMAIL", config.brevoSenderEmail],
+    ["MAIL_FROM_EMAIL", config.mailFromEmail],
   ]
     .filter(([, value]) => !value)
     .map(([name]) => name);
@@ -324,6 +349,15 @@ function assertProductionSecrets(): void {
     } else if (value.trim().length < MIN_SECRET_LENGTH) {
       problems.push(`${name} must be at least ${MIN_SECRET_LENGTH} characters`);
     }
+  }
+
+  // A free-mail sender cannot pass DMARC and is delivered to spam (or dropped)
+  // by Gmail and the other large providers. Fail the boot instead of shipping
+  // a login email nobody receives.
+  if (config.mailMode === "brevo" && isFreeMailDomain(config.mailFromEmail)) {
+    problems.push(
+      `MAIL_FROM_EMAIL must be an address on a domain you have authenticated in Brevo, not a free mailbox (${config.mailFromEmail})`,
+    );
   }
 
   if (config.masterOtp) {

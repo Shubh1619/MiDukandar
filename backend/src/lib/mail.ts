@@ -99,7 +99,8 @@ export async function sendMail(input: SendMailInput): Promise<SendMailResult> {
         accept: "application/json",
       },
       body: JSON.stringify({
-        sender: { email: config.brevoSenderEmail, name: config.brevoSenderName },
+        sender: { email: config.mailFromEmail, name: config.mailFromName },
+        ...(config.mailReplyTo ? { replyTo: { email: config.mailReplyTo } } : {}),
         to: recipients,
         subject: input.subject,
         htmlContent: input.html,
