@@ -27,12 +27,27 @@ export interface SendMailResult {
   messageId?: string;
   error?: string;
   status?: number;
-  body?: string;
 }
 
 function normalizeRecipients(to: SendMailInput["to"]): MailRecipient[] {
   const list = Array.isArray(to) ? to : [to];
   return list.map((r) => (typeof r === "string" ? { email: r } : r));
+}
+
+/**
+ * Pulls Brevo's error code out of a JSON error body and discards the body.
+ * The body is not logged: it echoes request data (including the recipient
+ * address) and dumping it put PII in the log stream. Falls back to the HTTP
+ * status when the body is not the JSON shape we expect.
+ */
+function brevoErrorCode(body: string, status: number): string {
+  try {
+    const parsed = JSON.parse(body) as { code?: unknown };
+    if (typeof parsed.code === "string" && parsed.code) return parsed.code;
+  } catch {
+    /* not JSON */
+  }
+  return `HTTP_${status}`;
 }
 
 /**
@@ -42,8 +57,9 @@ function normalizeRecipients(to: SendMailInput["to"]): MailRecipient[] {
  *   message — including any OTP — is written to the console so the flow is
  *   fully testable offline.
  * - `MAIL_MODE=brevo` (Render/production): posts to the Brevo transaction
- *   REST API. Every failure is logged in full (status + response body) and
- *   returned to the caller; errors are never swallowed silently.
+ *   REST API. A failure is logged as the HTTP status plus Brevo's error code
+ *   (never the response body, which can echo the recipient) and returned to
+ *   the caller; errors are never swallowed silently.
  *
  * The mode and the Brevo credentials are validated at boot in config.ts, so
  * this function can assume a valid configuration for the active mode.
@@ -93,19 +109,21 @@ export async function sendMail(input: SendMailInput): Promise<SendMailResult> {
     });
 
     if (!res.ok) {
-      const body = await res.text();
+      const rawBody = await res.text();
+      // Status + code only. The raw body — and the recipient list and subject
+      // this line used to carry — can contain the recipient address and other
+      // request data, which does not belong in the log stream. The status and
+      // Brevo's code are what an operator acts on (e.g. a 401/unauthorized
+      // caused by an unauthorised egress IP).
       logger.error("brevo: failed to send email", {
         status: res.status,
-        body,
-        to: maskedToList,
-        subject: input.subject,
+        code: brevoErrorCode(rawBody, res.status),
       });
       return {
         ok: false,
         mode: "brevo",
         error: `BREVO_HTTP_${res.status}`,
         status: res.status,
-        body,
       };
     }
 
@@ -113,11 +131,9 @@ export async function sendMail(input: SendMailInput): Promise<SendMailResult> {
     logger.info("brevo: email sent", { to: maskedToList, subject: input.subject, messageId: json.messageId });
     return { ok: true, mode: "brevo", messageId: json.messageId };
   } catch (err) {
-    logger.error("brevo: email send exception", {
-      error: String(err),
-      to: maskedToList,
-      subject: input.subject,
-    });
+    // No recipient list or subject here either — same PII reason. The caller's
+    // "otp: requested" line already records the (masked) address and failure.
+    logger.error("brevo: email send exception", { error: String(err) });
     return { ok: false, mode: "brevo", error: "BREVO_NETWORK_ERROR" };
   }
 }
