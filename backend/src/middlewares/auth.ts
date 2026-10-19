@@ -2,6 +2,7 @@ import type { FastifyRequest, FastifyReply } from "fastify";
 import { qOne, type Row } from "../db/pool.js";
 import { ApiError } from "../lib/api-error.js";
 import { hasModuleAccess } from "../lib/plans.js";
+import { getDisabledAccessKeys, isFlagDisabled, isModuleDisabled } from "../lib/pages.js";
 import { logger } from "../lib/logger.js";
 import { defaultPermissionsFor, permissionRoleKey, type PermissionFlag } from "../lib/permissions.js";
 import type { Role } from "./auth.types.js";
@@ -139,6 +140,19 @@ export function requireRole(...roles: Role[]) {
 export function requirePermission(flag: PermissionFlag) {
   return async (request: FastifyRequest) => {
     const user = getAuth(request);
+    if (user.storeId) {
+      const disabled = await getDisabledAccessKeys(user.storeId);
+      if (isFlagDisabled(disabled, flag)) {
+        logger.warn("authz: denied", {
+          path: request.url,
+          userId: user.id,
+          role: user.role,
+          flag,
+          reason: "blocked_by_store_access_override",
+        });
+        throw ApiError.forbidden("This feature has been disabled for this business.");
+      }
+    }
     if (user.role === "OWNER") return;
     const storeId = requireStore(request);
     const roleKey = permissionRoleKey(user.role);
@@ -168,6 +182,18 @@ export function checkPermission(module: string, action = "manage") {
 export function requireModuleAccess(moduleKey: string) {
   return async (request: FastifyRequest) => {
     const storeId = requireStore(request);
+    const disabled = await getDisabledAccessKeys(storeId);
+    if (isModuleDisabled(disabled, moduleKey)) {
+      const user = getAuth(request);
+      logger.warn("authz: denied", {
+        path: request.url,
+        userId: user.id,
+        role: user.role,
+        moduleKey,
+        reason: "blocked_by_store_access_override",
+      });
+      throw ApiError.forbidden("This module has been disabled for this business.");
+    }
     if (!(await hasModuleAccess(storeId, moduleKey))) {
       const user = getAuth(request);
       logger.warn("authz: denied", {

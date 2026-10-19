@@ -12,6 +12,8 @@ import { type DbUser, type Role } from "../middlewares/auth.types.js";
 import { defaultPermissionsFor } from "./role.routes.js";
 import { resolveReferralCode } from "./referral.routes.js";
 import { getPlanForBusiness } from "../lib/plans.js";
+import { PERMISSION_FLAGS } from "../lib/permissions.js";
+import { APP_PAGES, getDisabledAccessKeys } from "../lib/pages.js";
 import { rateLimited } from "../lib/route-rate-limit.js";
 
 const REFRESH_DAYS_MS = config.refreshTokenDays * 24 * 60 * 60 * 1000;
@@ -323,10 +325,15 @@ export async function authRoutes(app: FastifyInstance) {
       ? await qOne<Row>(`SELECT permissions FROM roles_permissions WHERE store_id = $1 AND role = $2`, [user.store_id, roleKey])
       : null;
     const plan = user.store_id ? await getPlanForBusiness(String(user.store_id)) : null;
+    const disabled = user.store_id ? await getDisabledAccessKeys(String(user.store_id)) : new Set<string>();
     return {
       user: {
         ...toUserJson(user),
         permissions: user.role === "OWNER" ? defaultPermissionsFor("OWNER") : rolePermissions?.permissions ?? defaultPermissionsFor(roleKey),
+        access: {
+          disabledPages: APP_PAGES.map((page) => page.key).filter((key) => disabled.has(key)),
+          disabledFeatures: PERMISSION_FLAGS.filter((flag) => disabled.has(flag)),
+        },
       },
       store: store && plan ? { ...store, planDetails: plan } : store,
       plan,

@@ -31,6 +31,7 @@ import { recoveryRoutes, merchantVerifyRoutes } from "./routes/recovery.routes.j
 import { superadminAuthRoutes } from "./routes/superadmin-auth.routes.js";
 import { superadminRoutes } from "./routes/superadmin.routes.js";
 import { superadminPlanRoutes } from "./routes/superadmin-plans.routes.js";
+import { superadminAccessRoutes } from "./routes/superadmin-access.routes.js";
 import { planRoutes } from "./routes/plan.routes.js";
 import { supplierRoutes } from "./routes/supplier.routes.js";
 import { purchaseOrderRoutes } from "./routes/purchase-order.routes.js";
@@ -341,5 +342,6 @@ function registerRoutes(app: FastifyInstance) {
   app.register(superadminAuthRoutes, { prefix: "/api/superadmin/auth" });
   app.register(superadminRoutes, { prefix: "/api/superadmin" });
   app.register(superadminPlanRoutes, { prefix: "/api/superadmin" });
+  app.register(superadminAccessRoutes, { prefix: "/api/superadmin" });
   app.register(planRoutes, { prefix: "/api/plans" });
 }
