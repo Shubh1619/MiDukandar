@@ -29,6 +29,7 @@ export interface Config {
   mailFromEmail: string;
   mailFromName: string;
   mailReplyTo: string;
+  brevoWebhookSecret: string;
   otpExpiryMinutes: number;
   otpLength: number;
   masterOtp: string;
@@ -79,6 +80,7 @@ const EnvSchema = z.object({
   MAIL_REPLY_TO: z.string().optional(),
   BREVO_SENDER_EMAIL: z.string().optional(),
   BREVO_SENDER_NAME: z.string().optional(),
+  BREVO_WEBHOOK_SECRET: z.string().optional(),
   JWT_ACCESS_SECRET: z.string().optional(),
   JWT_REFRESH_SECRET: z.string().optional(),
   JWT_ACCESS_EXPIRES_IN: z.string().optional(),
@@ -245,6 +247,10 @@ export const config: Config = {
   mailFromEmail: env.MAIL_FROM_EMAIL?.trim() || env.BREVO_SENDER_EMAIL?.trim() || "",
   mailFromName: env.MAIL_FROM_NAME?.trim() || env.BREVO_SENDER_NAME?.trim() || "MiDukandar",
   mailReplyTo: env.MAIL_REPLY_TO?.trim() ?? "",
+  // Shared secret for the Brevo delivery webhook (POST /api/webhooks/brevo).
+  // Empty means the endpoint rejects every request, so a missing value fails
+  // closed rather than accepting unauthenticated deliveries.
+  brevoWebhookSecret: env.BREVO_WEBHOOK_SECRET?.trim() ?? "",
   otpExpiryMinutes: env.OTP_EXPIRY_MINUTES,
   otpLength: env.OTP_LENGTH,
   masterOtp: env.OTP_MASTER?.trim() ?? "",

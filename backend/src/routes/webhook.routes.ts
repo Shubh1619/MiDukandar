@@ -1,10 +1,44 @@
+import crypto from "node:crypto";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { verifyRazorpayWebhookSignature, type RazorpayPayload } from "../lib/razorpay.js";
-import { logger } from "../lib/logger.js";
+import { logger, maskEmail } from "../lib/logger.js";
+import { config } from "../config.js";
 import { pool } from "../db/pool.js";
 
 function rawBody(request: FastifyRequest): string {
   return String((request as import("fastify").FastifyRequest & { rawBody?: Buffer }).rawBody?.toString() ?? "");
+}
+
+// Brevo transactional event delivered to /api/webhooks/brevo.
+interface BrevoEvent {
+  event?: string;
+  email?: string;
+  reason?: string;
+  "message-id"?: string;
+  messageId?: string;
+}
+
+// Only the events that mean a login code never reached the recipient are worth
+// an operator's attention; "delivered"/"opened"/"click"/"request" are noise
+// here. Brevo sends the event name in `event`.
+const BREVO_FAILURE_EVENTS = new Set(["blocked", "hardBounce", "softBounce", "spam", "unsubscribed"]);
+
+// Constant-time comparison so a caller cannot recover the configured secret by
+// timing the endpoint. A length mismatch returns early (length is not secret).
+function secretsMatch(presented: string, expected: string): boolean {
+  const a = Buffer.from(presented, "utf8");
+  const b = Buffer.from(expected, "utf8");
+  if (a.length !== b.length) return false;
+  return crypto.timingSafeEqual(a, b);
+}
+
+// The secret is accepted as a header (Brevo supports custom webhook headers) or
+// as a `?token=` query parameter, whichever the configured webhook uses.
+function presentedSecret(request: FastifyRequest): string {
+  const header = request.headers["x-brevo-webhook-secret"];
+  if (typeof header === "string" && header) return header;
+  const token = (request.query as Record<string, unknown> | undefined)?.token;
+  return typeof token === "string" ? token : "";
 }
 
 export async function isProcessed(eventId: string, entityId: string): Promise<boolean> {
@@ -76,6 +110,37 @@ export async function webhookRoutes(app: FastifyInstance) {
     if (!verifyRazorpayWebhookSignature(body, signature)) {
       return reply.status(400).send({ error: "Invalid signature" });
     }
+    return reply.send({ ok: true });
+  });
+
+  // Brevo delivery events (blocked, hard bounce, soft bounce, spam, unsubscribe).
+  // This is a diagnostic sink: it records why an OTP email did not reach the
+  // user. It performs no writes, so replaying the same delivery is harmless —
+  // the handler is idempotent. The recipient is masked and the code never
+  // appears (the event carries neither the subject nor the body).
+  app.post("/brevo", async (request, reply) => {
+    const expected = config.brevoWebhookSecret;
+    if (!expected || !secretsMatch(presentedSecret(request), expected)) {
+      logger.warn("brevo: webhook rejected", {
+        reason: expected ? "bad_secret" : "not_configured",
+      });
+      return reply.status(401).send({ error: "Invalid webhook secret" });
+    }
+
+    const payload = request.body;
+    const events: BrevoEvent[] = Array.isArray(payload) ? payload : [payload as BrevoEvent];
+
+    for (const ev of events) {
+      const event = String(ev?.event ?? "");
+      if (!BREVO_FAILURE_EVENTS.has(event)) continue;
+      logger.warn("brevo: delivery failed", {
+        event,
+        email: maskEmail(ev?.email),
+        reason: ev?.reason,
+        messageId: ev?.["message-id"] ?? ev?.messageId,
+      });
+    }
+
     return reply.send({ ok: true });
   });
 }
