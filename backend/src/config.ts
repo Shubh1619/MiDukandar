@@ -118,6 +118,29 @@ function splitList(value: string | undefined, fallback: string[]): string[] {
     .filter(Boolean);
 }
 
+/**
+ * Rewrites a configured origin into the exact shape a browser sends in the
+ * `Origin` header: scheme + host [+ port], never a path or trailing slash.
+ * Origins are compared byte-for-byte by the CORS handler, so an entry such as
+ * `https://app.example.com/` (a natural way to write APP_URL) would never match
+ * `https://app.example.com` and every cross-origin preflight would be refused
+ * with 403 CORS_DENIED — in production only, since development additionally
+ * allows any localhost origin.
+ */
+function normalizeOrigin(value: string): string {
+  const trimmed = value.trim();
+  if (!trimmed) return "";
+  try {
+    const url = new URL(trimmed);
+    // Only http(s) guarantees an origin tuple; opaque/custom schemes
+    // (capacitor://, myapp://) return "null" here and must be kept verbatim.
+    if (url.protocol === "http:" || url.protocol === "https:") return url.origin;
+  } catch {
+    // Not an absolute URL — fall through to the trailing-slash trim below.
+  }
+  return trimmed.replace(/\/+$/, "");
+}
+
 function firstPort(...candidates: Array<string | undefined>): number {
   for (const candidate of candidates) {
     const n = Number(candidate);
@@ -212,13 +235,17 @@ export const config: Config = {
   appUrl,
   appName: env.APP_NAME?.trim() || "MiDukandar",
   corsAllowedOrigins: [
-    ...new Set([
-      ...splitList(env.CORS_ALLOWED_ORIGINS ?? env.CORS_ORIGIN, [
-        "http://localhost:3000",
-        "http://localhost:8080",
-      ]),
-      ...(appUrl ? [appUrl] : []),
-    ]),
+    ...new Set(
+      [
+        ...splitList(env.CORS_ALLOWED_ORIGINS ?? env.CORS_ORIGIN, [
+          "http://localhost:3000",
+          "http://localhost:8080",
+        ]),
+        ...(appUrl ? [appUrl] : []),
+      ]
+        .map(normalizeOrigin)
+        .filter(Boolean),
+    ),
   ],
   rateLimitWindowMs: env.RATE_LIMIT_WINDOW_MS,
   rateLimitMaxRequests: env.RATE_LIMIT_MAX_REQUESTS,

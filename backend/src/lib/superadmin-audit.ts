@@ -2,11 +2,17 @@ import type { FastifyRequest } from "fastify";
 import type { SuperadminAuth } from "../middlewares/superadmin.js";
 import { qExec } from "../db/pool.js";
 
-/** Best-effort client IP honoring X-Forwarded-For when behind a proxy. */
+/**
+ * Client IP recorded on an audit row.
+ *
+ * `request.ip` is resolved by Fastify's trust filter (see app.ts), which only
+ * honours X-Forwarded-For through a co-located loopback proxy, so the value
+ * comes from the TCP peer otherwise. Reading the raw header instead took its
+ * FIRST entry — fully client-supplied, so any caller could prepend its own
+ * address and have the audit trail attribute the action to it.
+ */
 export function clientIp(request: FastifyRequest): string {
-  const fwd = request.headers["x-forwarded-for"];
-  const raw = Array.isArray(fwd) ? fwd[0] : fwd;
-  return String(raw?.toString().trim().split(",")[0] ?? request.ip ?? "").slice(0, 64);
+  return String(request.ip ?? "").slice(0, 64);
 }
 
 export interface AuditLogOptions {

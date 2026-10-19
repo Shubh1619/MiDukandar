@@ -1,34 +1,39 @@
 import type { FastifyRequest } from "fastify";
 
 /**
- * Socket addresses of hops we are willing to believe an X-Forwarded-For header
- * from: loopback (Next.js proxying /api/* on the same host or container) and
- * RFC1918 ranges (the compose `web` -> `backend` bridge network).
+ * Loopback peers: 127.0.0.0/8 and ::1. A request whose TCP peer is a loopback
+ * address can only have been injected by a process running on this host — in
+ * this architecture that is the co-located Next.js proxy of the
+ * single-container image, which is the only hop that deployment exposes. A
+ * remote client can never appear as the loopback peer.
  */
-const TRUSTED_PROXY_ADDR =
-  /^(::1|::ffff:127\.|127\.|::ffff:(10\.|172\.(1[6-9]|2\d|3[01])\.|192\.168\.)|10\.|172\.(1[6-9]|2\d|3[01])\.|192\.168\.)/;
+const LOOPBACK_ADDR = /^(::1|::ffff:127\.|127\.)/;
 
-export function isTrustedProxyAddr(addr: string): boolean {
-  return TRUSTED_PROXY_ADDR.test(addr);
+export function isLoopbackAddr(addr: string): boolean {
+  return LOOPBACK_ADDR.test(addr);
 }
 
 /**
  * Rate-limit bucket key.
  *
  * Anchored on the TCP peer address, which a client cannot forge. The
- * X-Forwarded-For value (`request.ip`, resolved by Fastify's trustProxy) is
- * only honoured when the request genuinely arrived from a trusted proxy hop —
- * otherwise a direct caller could rotate the header and mint an unlimited
- * number of buckets, defeating both the global limit and the stricter
- * superadmin auth limit.
+ * X-Forwarded-For value (`request.ip`) is only used when the request arrived
+ * through a loopback hop, because Fastify's trust filter (see app.ts) only
+ * accepts forwarded entries from a co-located proxy — the one deployment where
+ * the header is written by the edge in front of us rather than by the caller.
  *
- * `trustProxy` alone cannot fix this: the API port is published, so a direct
- * connection arrives with a client-supplied header that a hop count of 1 would
- * still trust.
+ * The compose stack proxies from another container over the bridge network, so
+ * those requests key on the socket address: the Next proxy forwards the
+ * caller's X-Forwarded-For verbatim and did nothing to it, which used to let
+ * anyone rotate the header through /api/* for a fresh bucket on every request
+ * (defeating the global limit and the stricter superadmin auth limit alike).
+ * The same value was also recorded as the client IP in auth and audit logs, so
+ * forwarding it also let a caller choose the address an action was attributed
+ * to.
  */
 export function rateLimitKey(request: FastifyRequest): string {
   const socketIp = request.socket.remoteAddress ?? "";
-  if (socketIp && isTrustedProxyAddr(socketIp)) {
+  if (socketIp && isLoopbackAddr(socketIp)) {
     return request.ip || socketIp;
   }
   return socketIp || "unknown";

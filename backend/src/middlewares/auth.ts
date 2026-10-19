@@ -71,7 +71,6 @@ export async function authenticate(request: FastifyRequest, reply: FastifyReply)
       verifyError: msg.slice(0, 160),
     });
     throw ApiError.unauthorized("Invalid or expired access token.");
-    throw ApiError.unauthorized("Invalid or expired access token.");
   }
 
   // Suspended / non-active businesses must not keep API access. The access

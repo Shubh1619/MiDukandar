@@ -11,7 +11,7 @@ import fastifyStatic from "@fastify/static";
 import { config } from "./config.js";
 import { logger } from "./lib/logger.js";
 import { ApiError } from "./lib/api-error.js";
-import { rateLimitKey } from "./lib/rate-limit-key.js";
+import { isLoopbackAddr, rateLimitKey } from "./lib/rate-limit-key.js";
 import { STORAGE_URL_PREFIX } from "./lib/storage.js";
 
 import { authRoutes } from "./routes/auth.routes.js";
@@ -79,12 +79,19 @@ function appSafeCode(code: unknown, status: number): string {
 export function buildApp(opts: { logger?: boolean } = {}): FastifyInstance {
   const app = Fastify({
     logger: false,
-    // Trust exactly TRUST_PROXY_HOPS reverse-proxy hops (default 1: the Next.js
-    // proxy in front of the API). `true` resolves the client IP from the
-    // LEFT-MOST X-Forwarded-For entry, which the client itself controls — that
-    // let anyone rotate the header to get a fresh rate-limit bucket. A hop count
-    // reads the entry the real proxy appended, which cannot be forged.
-    trustProxy: config.trustProxyHops,
+    // X-Forwarded-For is only believed when the hop that delivered the request
+    // is a loopback address, and only for TRUST_PROXY_HOPS hops (default 1).
+    // Loopback means the request was injected by a process on this host: the
+    // co-located Next.js proxy of the single-container image, in front of which
+    // an edge terminates TLS and appends the real client IP — an entry the
+    // caller cannot choose. Any other peer (the compose `web` container over
+    // the bridge, or a direct connection to a published port) is not trusted:
+    // those hops forward the caller's own X-Forwarded-For verbatim, and honouring
+    // it let anyone rotate the header through /api/* to mint a fresh
+    // rate-limit bucket per request and to forge the IP recorded in auth and
+    // audit logs.
+    trustProxy: (address: string, hop: number) =>
+      hop < config.trustProxyHops && isLoopbackAddr(address),
     bodyLimit: 5 * 1024 * 1024,
     ...opts,
   });
@@ -133,6 +140,11 @@ export function buildApp(opts: { logger?: boolean } = {}): FastifyInstance {
     credentials: true,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
+    // Without an explicit max-age the browser keeps a preflight for only a few
+    // seconds and re-issues the OPTIONS handshake for most API calls, doubling
+    // round-trips. Responses to a denied origin are never cached (no ACAO), so
+    // allowing 10 minutes here cannot pin a rejection.
+    maxAge: 600,
   });
 
   app.register(jwt, { secret: config.jwtAccessSecret });
@@ -149,9 +161,9 @@ export function buildApp(opts: { logger?: boolean } = {}): FastifyInstance {
     max: config.rateLimitMaxRequests,
     timeWindow: config.rateLimitWindowMs,
     // Keyed on the socket-anchored client IP (see lib/rate-limit-key.ts): the
-    // X-Forwarded-For value is only honoured for requests that actually arrived
-    // through a trusted proxy hop, so rotating the header no longer mints a
-    // fresh bucket.
+    // X-Forwarded-For value is only honoured for requests that arrived through
+    // a co-located (loopback) proxy hop, so a caller forwarding its own header
+    // through another hop can no longer mint a fresh bucket with it.
     keyGenerator: rateLimitKey,
     // @fastify/rate-limit `throw`s whatever this builder returns, so it must be
     // an Error carrying statusCode 429. Returning a bare object left the
