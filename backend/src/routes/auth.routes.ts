@@ -104,7 +104,7 @@ export async function authRoutes(app: FastifyInstance) {
     return { kind: "tenant" };
   });
 
-  // Step 1 - request OTP. lib/otp.ts already caps deliveries per email (3 per
+  // Step 1 - request OTP. lib/otp.ts already caps deliveries per email (5 per
   // 10 minutes); this per-IP cap is the second layer, stopping an attacker who
   // rotates through many victim addresses from burning sender quota.
   app.post("/otp/request", rateLimited(10, 600_000), async (request, reply) => {
