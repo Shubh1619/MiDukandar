@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth-store";
+import type { PermissionFlag } from "@/lib/types";
 import { planHasModule, type PlanModuleKey } from "@/lib/plan-catalog";
 
 const ROLE_LABEL: Record<string, string> = {
@@ -72,6 +73,9 @@ export default function Sidebar({ collapsed, onToggle, items, roleKey, mobileOpe
   const roleLabel = ROLE_LABEL[role] ?? role;
   const canSee = (item: NavItem) => {
     if (item.moduleKey && store?.planDetails && !planHasModule(store.planDetails, item.moduleKey)) return false;
+    const pageKey = item.href.replace(/^\//, "");
+    if (user?.access?.disabledPages?.includes(pageKey)) return false;
+    if (item.permission && user?.access?.disabledFeatures?.includes(item.permission as PermissionFlag)) return false;
     if (!item.permission || role === "OWNER" || role === "SUPERADMIN") return true;
     return user?.permissions?.[item.permission as keyof typeof user.permissions] === true;
   };

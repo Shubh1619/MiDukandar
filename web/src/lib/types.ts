@@ -14,6 +14,12 @@ export type PermissionFlag =
   | "can_manage_users";
 
 export type PermissionMap = Record<PermissionFlag, boolean>;
+
+/** Per-shop restriction overrides applied by the platform superadmin. */
+export interface StoreAccess {
+  disabledPages: string[];
+  disabledFeatures: PermissionFlag[];
+}
 export type PaymentMode = "CASH" | "UPI" | "CARD" | "CREDIT";
 export type SaleStatus = "HELD" | "CONFIRMED" | "CANCELED" | "REVERSED";
 export type SalePaymentStatus = "PAID" | "UNPAID" | "OVERDUE";

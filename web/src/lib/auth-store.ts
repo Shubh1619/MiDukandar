@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { apiFetch, setAccessToken, clearSession, refreshAccessToken } from "./api";
 import { getImpersonation, clearImpersonation, decodeJwtPayload } from "./impersonation";
 import { broadcastLogout, broadcastRestored, subscribeCrossTab } from "./cross-tab";
-import type { PermissionMap } from "./types";
+import type { PermissionMap, StoreAccess } from "./types";
 import type { PlanDefinition } from "./plan-catalog";
 
 export interface AuthUser {
@@ -12,6 +12,7 @@ export interface AuthUser {
   role: "OWNER" | "CASHIER" | "MANAGER" | "STAFF" | "STOCK_MANAGER";
   storeId: string | null;
   permissions?: Partial<PermissionMap>;
+  access?: StoreAccess;
 }
 
 export interface StoreInfo {

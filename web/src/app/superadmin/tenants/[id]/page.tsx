@@ -3,10 +3,36 @@
 import { useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { toast } from "sonner";
-import { Store, Loader2, ShieldAlert, ShieldCheck, ExternalLink, User, Layers3 } from "lucide-react";
+import { Store, Loader2, ShieldAlert, ShieldCheck, ExternalLink, User, Layers3, SlidersHorizontal } from "lucide-react";
 import { saFetch } from "@/lib/superadmin-api";
+import { cn } from "@/lib/utils";
 import { formatINR, formatDateTime } from "@/lib/format";
 import type { PlanDefinition } from "@/lib/plan-catalog";
+
+interface AccessFeature {
+  key: string;
+  label: string;
+  enabled: boolean;
+}
+
+interface AccessPage {
+  key: string;
+  label: string;
+  moduleKey: string | null;
+  includedInPlan: boolean;
+  enabled: boolean;
+  features: AccessFeature[];
+}
+
+function buildAccessOverrides(pages: AccessPage[]): Record<string, boolean> {
+  const next: Record<string, boolean> = {};
+  for (const page of pages) {
+    if (!page.includedInPlan) continue;
+    next[page.key] = page.enabled;
+    for (const feature of page.features) next[feature.key] = feature.enabled;
+  }
+  return next;
+}
 
 interface Detail {
   store: Record<string, unknown> & {
@@ -73,20 +99,28 @@ export default function TenantDetailPage() {
   const [planSaving, setPlanSaving] = useState(false);
   const [reason, setReason] = useState("");
   const [impersonating, setImpersonating] = useState(false);
+  const [accessPlanName, setAccessPlanName] = useState<string | null>(null);
+  const [accessPages, setAccessPages] = useState<AccessPage[]>([]);
+  const [overrides, setOverrides] = useState<Record<string, boolean>>({});
+  const [accessSaving, setAccessSaving] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [d, u, p] = await Promise.all([
+      const [d, u, p, a] = await Promise.all([
         saFetch<Detail>(`/api/superadmin/tenants/${id}`),
         saFetch<{ users: TenantUser[] }>(`/api/superadmin/tenants/${id}/users`),
         saFetch<{ plans: PlanDefinition[] }>(`/api/superadmin/plans`),
+        saFetch<{ planName: string | null; pages: AccessPage[] }>(`/api/superadmin/tenants/${id}/access`),
       ]);
       const assignablePlans = p.plans.filter((plan) => plan.status === "ACTIVE");
       setDetail(d);
       setUsers(u.users);
       setPlans(assignablePlans);
       setPlanId(assignablePlans.some((plan) => plan.id === d.store.planId) ? d.store.planId ?? "" : "");
+      setAccessPlanName(a.planName);
+      setAccessPages(a.pages);
+      setOverrides(buildAccessOverrides(a.pages));
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to load tenant");
     } finally {
@@ -142,6 +176,32 @@ export default function TenantDetailPage() {
       toast.error(err instanceof Error ? err.message : "Plan override failed");
     } finally {
       setPlanSaving(false);
+    }
+  };
+
+  const setOverride = (key: string, value: boolean) => {
+    setOverrides((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const saveAccess = async () => {
+    if (!reason.trim()) {
+      toast.error("A reason is required to change page access.");
+      return;
+    }
+    setAccessSaving(true);
+    try {
+      const res = await saFetch<{ pages: AccessPage[] }>(`/api/superadmin/tenants/${id}/access`, {
+        method: "PUT",
+        body: { reason: reason.trim(), access: overrides },
+      });
+      setAccessPages(res.pages);
+      setOverrides(buildAccessOverrides(res.pages));
+      toast.success("Page & feature access updated.");
+      setReason("");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Access update failed");
+    } finally {
+      setAccessSaving(false);
     }
   };
 
@@ -227,6 +287,83 @@ export default function TenantDetailPage() {
         </div>
         <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end"><div className="flex-1 space-y-1.5"><label htmlFor="tenant-plan" className="text-xs font-semibold uppercase tracking-wide text-slate-500">Plan</label><select id="tenant-plan" value={planId} onChange={(event) => setPlanId(event.target.value)} className="h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm text-navy-900"><option value="">Select a plan</option>{plans.map((plan) => <option key={plan.id} value={plan.id}>{plan.name}{plan.status !== "ACTIVE" ? ` (${plan.status.toLowerCase()})` : ""}</option>)}</select></div><button type="button" onClick={() => void overridePlan()} disabled={planSaving || !planId || planId === s.planId} className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-navy-900 px-4 text-sm font-semibold text-white hover:bg-navy-800 disabled:cursor-not-allowed disabled:opacity-50">{planSaving && <Loader2 className="size-4 animate-spin" />}Override plan</button></div>
         <p className="mt-2 text-[11px] text-slate-400">The audited reason entered in Platform actions below is required.</p>
+      </div>
+
+      <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
+          <div className="flex items-start gap-3">
+            <span className="flex size-9 items-center justify-center rounded-lg bg-royal-50 text-royal-600">
+              <SlidersHorizontal className="size-4" />
+            </span>
+            <div>
+              <h2 className="font-semibold text-navy-900">Pages &amp; features</h2>
+              <p className="mt-1 text-xs text-slate-500">
+                Turn app pages and features off for this business. Plan-included pages can be restricted here; the
+                audited reason below is required.
+              </p>
+            </div>
+          </div>
+          {accessPlanName && (
+            <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-600">{accessPlanName}</span>
+          )}
+        </div>
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          {accessPages.map((page) => {
+            const pageOn = overrides[page.key] ?? true;
+            return (
+              <div
+                key={page.key}
+                className={cn(
+                  "rounded-lg border p-3",
+                  page.includedInPlan ? "border-slate-200" : "border-slate-100 bg-slate-50",
+                )}
+              >
+                <label className="flex items-center gap-2 text-sm font-medium text-navy-900">
+                  <input
+                    type="checkbox"
+                    checked={page.includedInPlan && pageOn}
+                    disabled={!page.includedInPlan}
+                    onChange={(e) => setOverride(page.key, e.target.checked)}
+                    className="size-4 rounded border-slate-300 text-royal-600 focus:ring-royal-500"
+                  />
+                  <span className="truncate">{page.label}</span>
+                  {!page.includedInPlan && (
+                    <span className="ml-auto shrink-0 rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-medium text-slate-500">
+                      Not in plan
+                    </span>
+                  )}
+                </label>
+                {page.features.length > 0 && (
+                  <div className="mt-2 space-y-1 pl-6">
+                    {page.features.map((feature) => (
+                      <label key={feature.key} className="flex items-center gap-2 text-xs text-slate-600">
+                        <input
+                          type="checkbox"
+                          checked={page.includedInPlan && pageOn && (overrides[feature.key] ?? true)}
+                          disabled={!page.includedInPlan || !pageOn}
+                          onChange={(e) => setOverride(feature.key, e.target.checked)}
+                          className="size-3.5 rounded border-slate-300 text-royal-600 focus:ring-royal-500"
+                        />
+                        <span className="truncate">{feature.label}</span>
+                      </label>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+        <div className="mt-4 flex justify-end">
+          <button
+            type="button"
+            onClick={saveAccess}
+            disabled={accessSaving}
+            className="inline-flex h-9 items-center justify-center gap-2 rounded-lg bg-navy-900 px-4 text-sm font-semibold text-white hover:bg-navy-800 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {accessSaving && <Loader2 className="size-4 animate-spin" />}
+            Save access
+          </button>
+        </div>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
