@@ -94,6 +94,13 @@ export function buildApp(opts: { logger?: boolean } = {}): FastifyInstance {
       hop < config.trustProxyHops && isLoopbackAddr(address),
     bodyLimit: 5 * 1024 * 1024,
     ...opts,
+    // Fastify's own logger emits "incoming request" and "request completed"
+    // for every request (pino, at info level) on top of the single structured
+    // "request" line added below. With logger enabled that was three lines per
+    // request describing the same thing with different field names, which made
+    // production logs hard to read and expensive to store. Placed after ...opts
+    // so a caller passing { logger: true } still gets exactly one line.
+    disableRequestLogging: true,
   });
 
   if (config.sentryDsn) {
@@ -276,6 +283,7 @@ export function buildApp(opts: { logger?: boolean } = {}): FastifyInstance {
   app.addHook("onResponse", (request, reply, done) => {
     if (opts.logger) {
       logger.info("request", {
+        reqId: request.id,
         method: request.method,
         url: request.url,
         statusCode: reply.statusCode,
