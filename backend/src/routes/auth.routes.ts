@@ -1,4 +1,4 @@
-﻿import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
+import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
 import { createHash, randomBytes } from "node:crypto";
 import { q, qOne, qExec, withTx, type Row } from "../db/pool.js";
@@ -7,7 +7,7 @@ import { requestOtp, verifyOtp } from "../lib/otp.js";
 import { ApiError } from "../lib/api-error.js";
 import { parse } from "../lib/validate.js";
 import { authenticate, getAuth, type AuthenticatedRequest } from "../middlewares/auth.js";
-import { logger } from "../lib/logger.js";
+import { logger, maskEmail } from "../lib/logger.js";
 import { type DbUser, type Role } from "../middlewares/auth.types.js";
 import { defaultPermissionsFor } from "./role.routes.js";
 import { resolveReferralCode } from "./referral.routes.js";
@@ -16,8 +16,8 @@ import { rateLimited } from "../lib/route-rate-limit.js";
 
 const REFRESH_DAYS_MS = config.refreshTokenDays * 24 * 60 * 60 * 1000;
 // Window during which a just-rotated (revoked) refresh token is still
-// accepted, so concurrent refreshes from multiple tabs — or a mobile retry
-// after a timed-out first attempt — rotate again instead of being rejected.
+// accepted, so concurrent refreshes from multiple tabs � or a mobile retry
+// after a timed-out first attempt � rotate again instead of being rejected.
 // Explicit logouts and the recovery/PIN-reset revocation do NOT set a grace
 // window, so they stay immediate.
 const REFRESH_GRACE_MS = 60_000;
@@ -119,7 +119,7 @@ export async function authRoutes(app: FastifyInstance) {
     return reply.send(result);
   });
 
-  // Step 2 - verify OTP → issue access token (body) + refresh token (httpOnly cookie).
+  // Step 2 - verify OTP ? issue access token (body) + refresh token (httpOnly cookie).
   // A code is limited to 5 guesses per issuance inside lib/otp.ts; this per-IP
   // limit stops spraying the same short code across many emails from one host.
   app.post("/otp/verify", rateLimited(15, 600_000), async (request, reply) => {
@@ -134,7 +134,7 @@ export async function authRoutes(app: FastifyInstance) {
         [normalized, normalized.split("@")[0]],
       );
       user = created;
-      logger.info("auth: new user registered via OTP", { email: normalized });
+      logger.info("auth: new user registered via OTP", { email: maskEmail(normalized) });
     }
     if (!user.is_active) throw ApiError.forbidden("Account is inactive.");
 

@@ -1,6 +1,6 @@
 import { fetch, EnvHttpProxyAgent } from "undici";
 import { config } from "../config.js";
-import { logger } from "./logger.js";
+import { logger, maskEmail } from "./logger.js";
 
 const BREVO_API = "https://api.brevo.com/v3";
 
@@ -50,14 +50,16 @@ function normalizeRecipients(to: SendMailInput["to"]): MailRecipient[] {
  */
 export async function sendMail(input: SendMailInput): Promise<SendMailResult> {
   const recipients = normalizeRecipients(input.to);
-  const toList = recipients.map((r) => r.email).join(", ");
+  // Recipient addresses are PII: every log line and the local console dump use
+  // this masked form. The Brevo request below still sends the real addresses.
+  const maskedToList = recipients.map((r) => maskEmail(r.email)).join(", ");
 
   if (config.mailMode === "log") {
     const block = [
       "",
       "──────────────────────────────────────────────",
       " MAIL (MAIL_MODE=log) — NOT SENT",
-      ` To:      ${toList}`,
+      ` To:      ${maskedToList}`,
       ` Subject: ${input.subject}`,
       input.text ? ` Text:    ${input.text}` : "",
       " HTML:",
@@ -68,7 +70,7 @@ export async function sendMail(input: SendMailInput): Promise<SendMailResult> {
       .filter((line) => line !== "")
       .join("\n");
     process.stdout.write(`${block}\n`);
-    logger.info("mail:log", { to: toList, subject: input.subject });
+    logger.info("mail:log", { to: maskedToList, subject: input.subject });
     return { ok: true, mode: "log" };
   }
 
@@ -95,7 +97,7 @@ export async function sendMail(input: SendMailInput): Promise<SendMailResult> {
       logger.error("brevo: failed to send email", {
         status: res.status,
         body,
-        to: toList,
+        to: maskedToList,
         subject: input.subject,
       });
       return {
@@ -108,12 +110,12 @@ export async function sendMail(input: SendMailInput): Promise<SendMailResult> {
     }
 
     const json = (await res.json()) as { messageId?: string };
-    logger.info("brevo: email sent", { to: toList, subject: input.subject, messageId: json.messageId });
+    logger.info("brevo: email sent", { to: maskedToList, subject: input.subject, messageId: json.messageId });
     return { ok: true, mode: "brevo", messageId: json.messageId };
   } catch (err) {
     logger.error("brevo: email send exception", {
       error: String(err),
-      to: toList,
+      to: maskedToList,
       subject: input.subject,
     });
     return { ok: false, mode: "brevo", error: "BREVO_NETWORK_ERROR" };

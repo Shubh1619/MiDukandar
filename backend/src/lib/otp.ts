@@ -3,7 +3,7 @@ import { config } from "../config.js";
 import { q, qOne, qExec } from "../db/pool.js";
 import { sendMail, renderOtpEmail } from "./mail.js";
 import { ApiError } from "./api-error.js";
-import { logger } from "./logger.js";
+import { logger, maskEmail } from "./logger.js";
 
 export type OtpPurpose = "LOGIN" | "REGISTER" | "RECOVERY";
 
@@ -42,7 +42,7 @@ export async function requestOtp(email: string, purpose: OtpPurpose = "LOGIN") {
     text: `Your ${config.appName} OTP is ${otp}. It expires in ${config.otpExpiryMinutes} minutes.`,
   });
 
-  logger.info("otp: requested", { email: normalized, purpose, emailSent: result.ok });
+  logger.info("otp: requested", { email: maskEmail(normalized), purpose, emailSent: result.ok });
 
   if (!result.ok) {
     // Production: the code was stored but never left the building. Drop the
@@ -60,7 +60,7 @@ export async function requestOtp(email: string, purpose: OtpPurpose = "LOGIN") {
     // Dev/test: keep the row and answer 200 so the master-OTP / offline flow
     // keeps working when a real provider is misconfigured locally.
     logger.warn("otp: delivery failed (non-production, request still succeeds)", {
-      email: normalized,
+      email: maskEmail(normalized),
       purpose,
       error: result.error,
     });
@@ -72,7 +72,7 @@ export async function requestOtp(email: string, purpose: OtpPurpose = "LOGIN") {
   // client — previously it was echoed in the response body as `devOtp`, which
   // leaked a valid login code to any caller.
   if (!config.isProd && config.masterOtp) {
-    logger.info("otp: dev master code available", { email: normalized, purpose });
+    logger.info("otp: dev master code available", { email: maskEmail(normalized), purpose });
   }
 
   return {
@@ -99,7 +99,7 @@ export async function verifyOtp(email: string, otp: string, purpose: OtpPurpose 
   // bypass inert even if a prod process somehow ends up with the value loaded.
   if (!config.isProd && config.masterOtp && otp.trim() === config.masterOtp) {
     await qExec(`UPDATE otps SET verified = TRUE WHERE id = $1`, [latest.id]);
-    logger.info("otp: verified via master code", { email: normalized, purpose });
+    logger.info("otp: verified via master code", { email: maskEmail(normalized), purpose });
     return true;
   }
 
@@ -116,6 +116,6 @@ export async function verifyOtp(email: string, otp: string, purpose: OtpPurpose 
   }
 
   await qExec(`UPDATE otps SET verified = TRUE WHERE id = $1`, [latest.id]);
-  logger.info("otp: verified", { email: normalized, purpose });
+  logger.info("otp: verified", { email: maskEmail(normalized), purpose });
   return true;
 }

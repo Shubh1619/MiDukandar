@@ -7,7 +7,7 @@ import { ApiError } from "../lib/api-error.js";
 import { parse } from "../lib/validate.js";
 import { authenticate, getAuth, requireStore, requireRole, type AuthenticatedRequest } from "../middlewares/auth.js";
 import { ROLES } from "../middlewares/auth.types.js";
-import { logger } from "../lib/logger.js";
+import { logger, maskEmail, maskPhone } from "../lib/logger.js";
 import { config } from "../config.js";
 import { getModuleLimit, hasModuleAccess } from "../lib/plans.js";
 
@@ -137,7 +137,7 @@ export async function userRoutes(app: FastifyInstance) {
          RETURNING *`,
         [storeId, body.name.trim(), email, phone, body.role, token, auth.id],
       );
-      logger.info("users: invite created", { storeId, email, phone, role: body.role });
+      logger.info("users: invite created", { storeId, email: maskEmail(email), phone: maskPhone(phone), role: body.role });
       const inviteLink = inviteAcceptUrl(token);
       return reply.status(201).send({ invite: inviteJson(invite as Row), inviteLink });
     },

@@ -7,7 +7,7 @@ import { config } from "../config.js";
 import { requestOtp, verifyOtp } from "../lib/otp.js";
 import { ApiError } from "../lib/api-error.js";
 import { parse } from "../lib/validate.js";
-import { logger } from "../lib/logger.js";
+import { logger, maskEmail } from "../lib/logger.js";
 import { rateLimited } from "../lib/route-rate-limit.js";
 
 const RESET_TOKEN_TTL = "10m";
@@ -108,7 +108,7 @@ export async function recoveryRoutes(app: FastifyInstance) {
     if (!target.isActive) throw ApiError.forbidden("Account is inactive.");
 
     const result = await requestOtp(target.email, "RECOVERY");
-    logger.info("recovery: OTP requested", { email: target.email, emailSent: result.emailSent });
+    logger.info("recovery: OTP requested", { email: maskEmail(target.email), emailSent: result.emailSent });
 
     return {
       ok: true,

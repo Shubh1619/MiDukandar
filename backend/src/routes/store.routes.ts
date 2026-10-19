@@ -1,4 +1,4 @@
-﻿import type { FastifyInstance } from "fastify";
+import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { q, qOne, qExec, withTx } from "../db/pool.js";
 import { ApiError } from "../lib/api-error.js";
@@ -6,7 +6,7 @@ import { parse } from "../lib/validate.js";
 import { buildUpdate } from "../lib/db.js";
 import { authenticate, requireStore, requireRole, getAuth, type AuthenticatedRequest } from "../middlewares/auth.js";
 import { ROLES } from "../middlewares/auth.types.js";
-import { logger } from "../lib/logger.js";
+import { logger, maskEmail } from "../lib/logger.js";
 import { getModuleLimit, getPlanForBusiness } from "../lib/plans.js";
 
 async function withPlan<T extends Record<string, unknown>>(store: T | null): Promise<(T & { planDetails?: unknown }) | null> {
@@ -132,7 +132,7 @@ export async function storeRoutes(app: FastifyInstance) {
           ]);
         }
       });
-      logger.info("store: staff added", { storeId, email: body.email, role: body.role });
+      logger.info("store: staff added", { storeId, email: maskEmail(body.email), role: body.role });
       return reply.status(201).send({ ok: true });
     },
   );
