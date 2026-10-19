@@ -12,6 +12,7 @@ import { type DbUser, type Role } from "../middlewares/auth.types.js";
 import { defaultPermissionsFor } from "./role.routes.js";
 import { resolveReferralCode } from "./referral.routes.js";
 import { getPlanForBusiness } from "../lib/plans.js";
+import { rateLimited } from "../lib/route-rate-limit.js";
 
 const REFRESH_DAYS_MS = config.refreshTokenDays * 24 * 60 * 60 * 1000;
 // Window during which a just-rotated (revoked) refresh token is still
@@ -89,8 +90,11 @@ export async function authRoutes(app: FastifyInstance) {
 
   // Tells the unified login page which flow to use after the user types an
   // identifier: platform superadmins sign in with email+password, everyone
-  // else continues with the OTP flow.
-  app.post("/login-kind", async (request) => {
+  // else continues with the OTP flow. It answers "superadmin" or "tenant", so
+  // an unauthenticated caller can enumerate which addresses are platform
+  // admins; 30 probes per minute per IP keeps that useless without slowing a
+  // real user down.
+  app.post("/login-kind", rateLimited(30, 60_000), async (request) => {
     const { identifier } = parse(loginKindSchema, request.body);
     const value = identifier.trim().toLowerCase();
     if (value.includes("@")) {
@@ -100,8 +104,10 @@ export async function authRoutes(app: FastifyInstance) {
     return { kind: "tenant" };
   });
 
-  // Step 1 - request OTP
-  app.post("/otp/request", async (request, reply) => {
+  // Step 1 - request OTP. lib/otp.ts already caps deliveries per email (3 per
+  // 10 minutes); this per-IP cap is the second layer, stopping an attacker who
+  // rotates through many victim addresses from burning sender quota.
+  app.post("/otp/request", rateLimited(10, 600_000), async (request, reply) => {
     const { email, purpose } = parse(requestOtpSchema, request.body);
     if (purpose === "LOGIN") {
       const existing = await qOne<Row>(`SELECT id FROM users WHERE email = $1`, [email.trim().toLowerCase()]);
@@ -113,8 +119,10 @@ export async function authRoutes(app: FastifyInstance) {
     return reply.send(result);
   });
 
-  // Step 2 - verify OTP → issue access token (body) + refresh token (httpOnly cookie)
-  app.post("/otp/verify", async (request, reply) => {
+  // Step 2 - verify OTP → issue access token (body) + refresh token (httpOnly cookie).
+  // A code is limited to 5 guesses per issuance inside lib/otp.ts; this per-IP
+  // limit stops spraying the same short code across many emails from one host.
+  app.post("/otp/verify", rateLimited(15, 600_000), async (request, reply) => {
     const { email, otp, purpose } = parse(verifyOtpSchema, request.body);
     await verifyOtp(email, otp, purpose);
 
@@ -144,7 +152,10 @@ export async function authRoutes(app: FastifyInstance) {
   });
 
   // Registration - creates the account + store together, no OTP required.
-  app.post("/register", async (request, reply) => {
+  // No verification stands between a caller and a new store, so this is the
+  // cheapest way to mass-create tenants and referral-credit fraud; 10 per hour
+  // per IP still clears an office or a shared NAT signing up several people.
+  app.post("/register", rateLimited(10, 3_600_000), async (request, reply) => {
     const registerSchema = z.object({
       email: z.string().email(),
       ownerName: z.string().min(2).max(80),
@@ -199,8 +210,12 @@ export async function authRoutes(app: FastifyInstance) {
     return reply.status(201).send({ ok: true, email, storeId: store.id });
   });
 
-  // Step 3 - refresh token rotation + sliding expiry
-  app.post("/refresh", async (request, reply) => {
+  // Step 3 - refresh token rotation + sliding expiry. Tokens are 48 random
+  // bytes, so guessing is hopeless, but the endpoint is unauthenticated and a
+  // tight per-IP cap also bounds how fast a stolen token can be replayed from
+  // another host before it is rotated away. 60/minute covers several devices
+  // refreshing on the same network.
+  app.post("/refresh", rateLimited(60, 60_000), async (request, reply) => {
     const cookieToken = request.cookies?.[COOKIE];
     const { refreshToken: bodyToken } = parse(refreshSchema, request.body ?? {});
     const raw = bodyToken ?? cookieToken;

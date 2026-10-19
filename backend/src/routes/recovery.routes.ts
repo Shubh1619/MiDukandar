@@ -8,6 +8,7 @@ import { requestOtp, verifyOtp } from "../lib/otp.js";
 import { ApiError } from "../lib/api-error.js";
 import { parse } from "../lib/validate.js";
 import { logger } from "../lib/logger.js";
+import { rateLimited } from "../lib/route-rate-limit.js";
 
 const RESET_TOKEN_TTL = "10m";
 const RESET_TOKEN_TTL_SECONDS = 10 * 60;
@@ -96,7 +97,9 @@ const isWeakPin = (pin: string) =>
   /^(19|20)\d{2}$/.test(pin);
 
 export async function recoveryRoutes(app: FastifyInstance) {
-  app.post("/initiate", async (request) => {
+  // Sends a recovery OTP. lib/otp.ts caps deliveries per account; this per-IP
+  // limit stops one host from cycling through many accounts' recovery flows.
+  app.post("/initiate", rateLimited(10, 600_000), async (request) => {
     const body = parse(initiateSchema, request.body);
     if (body.method === "mobile" && !body.mobile) throw ApiError.badRequest("A mobile number is required.");
     if (body.method === "email" && !body.email) throw ApiError.badRequest("An email address is required.");
@@ -116,7 +119,9 @@ export async function recoveryRoutes(app: FastifyInstance) {
     };
   });
 
-  app.post("/verify-otp", async (request) => {
+  // A recovery code is limited to 5 guesses per issuance inside lib/otp.ts;
+  // this per-IP limit stops spraying the same code across many accounts.
+  app.post("/verify-otp", rateLimited(15, 600_000), async (request) => {
     const body = parse(verifyOtpSchema, request.body);
     if (!body.identifier && !body.mobile) throw ApiError.badRequest("A mobile number or email is required.");
 
@@ -144,7 +149,10 @@ export async function recoveryRoutes(app: FastifyInstance) {
     return { ok: true, resetToken, expiresInSeconds: RESET_TOKEN_TTL_SECONDS };
   });
 
-  app.post("/reset-pin", async (request) => {
+  // Spending a reset token costs one request; the token itself is single-use
+  // and expires in 10 minutes, so this bound only exists to keep a leaked or
+  // guessed token from being replayed in a tight loop from one host.
+  app.post("/reset-pin", rateLimited(15, 600_000), async (request) => {
     const body = parse(resetPinSchema, request.body);
     if (body.newPin !== body.confirmPin) throw ApiError.badRequest("PINs do not match.");
     if (isWeakPin(body.newPin)) throw ApiError.badRequest("Pick a stronger PIN that isn't repeated or sequential.");
@@ -217,7 +225,7 @@ export async function merchantVerifyRoutes(app: FastifyInstance) {
   // phone numbers have an account.
   app.get(
     "/verify-context",
-    { config: { rateLimit: { max: 30, timeWindow: 60_000 } } },
+    rateLimited(30, 60_000),
     async (request) => {
       const { mobile } = parse(mobileQuerySchema, request.query);
       const store = await qOne<Row>(STORE_BY_PHONE, [onlyDigits(mobile)]);
