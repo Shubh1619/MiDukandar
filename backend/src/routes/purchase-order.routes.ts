@@ -1,6 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
-import { q, qOne, withTx, type Row } from "../db/pool.js";
+import { q, qOne, withTx, type Row, type DbClient } from "../db/pool.js";
 import { ApiError } from "../lib/api-error.js";
 import { parse, paginationSchema } from "../lib/validate.js";
 import { authenticate, requireStore, requireRole, getAuth, type AuthenticatedRequest } from "../middlewares/auth.js";
@@ -32,6 +32,19 @@ function lineToRs(item: { quantity: number; rate: number; taxRate: number }): { 
   const gross = qty * rate;
   const lineTotal = round2(gross + (gross * taxRate) / 100);
   return { lineTotal, qty: String(qty), rate: String(rate) };
+}
+
+async function nextPoNumber(tx: DbClient, storeId: string): Promise<string> {
+  const rows = await tx.q<{ po_number: string }>(
+    `SELECT po_number FROM purchase_orders WHERE store_id = $1`,
+    [storeId],
+  );
+  let maxSeq = 0;
+  for (const row of rows) {
+    const match = /^PO-(\d+)$/.exec(String(row.po_number));
+    if (match) maxSeq = Math.max(maxSeq, Number(match[1]));
+  }
+  return `PO-${String(maxSeq + 1).padStart(4, "0")}`;
 }
 
 export async function purchaseOrderRoutes(app: FastifyInstance) {
@@ -111,10 +124,8 @@ export async function purchaseOrderRoutes(app: FastifyInstance) {
           throw ApiError.badRequestCode("One or more products are not in this store.", "PRODUCT_NOT_FOUND");
         }
 
-        const cnt = await tx.qOne<{ c: number }>(`SELECT COUNT(*) AS c FROM purchase_orders WHERE store_id = $1`, [
-          storeId,
-        ]);
-        const poNumber = `PO-${String((cnt?.c ?? 0) + 1).padStart(4, "0")}`;
+        await tx.q(`SELECT id FROM stores WHERE id = $1 FOR UPDATE`, [storeId]);
+        const poNumber = await nextPoNumber(tx, storeId);
 
         const totals = body.lines.map((l) => lineToRs(l));
         const totalAmount = round2(totals.reduce((acc, t) => acc + t.lineTotal, 0));
