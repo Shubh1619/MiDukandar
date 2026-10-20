@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 import { apiFetch, ApiError } from "@/lib/api";
 import { useI18n } from "@/components/i18n-provider";
-import { formatINR } from "@/lib/format";
+import { formatINR, localDateKey, todayLocalKey } from "@/lib/format";
 import type {
   ReportsRow,
   ReportsTotals,
@@ -49,7 +49,7 @@ import { EmptyTableRow } from "@/components/shared/empty-state";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-const today = new Date().toISOString().slice(0, 10);
+const today = todayLocalKey();
 
 function downloadCsv(filename: string, header: string[], rows: (string | number | null | undefined)[][]) {
   const lines = [
@@ -76,7 +76,7 @@ function pct(val: number, total: number) {
 
 function getPreset(preset: string): { from: string; to: string } {
   const now = new Date();
-  const fmt = (d: Date) => d.toISOString().slice(0, 10);
+  const fmt = (d: Date) => localDateKey(d);
   const startOf = (unit: "week" | "month" | "quarter" | "year"): Date => {
     const d = new Date(now);
     if (unit === "week") {
