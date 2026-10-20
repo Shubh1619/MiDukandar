@@ -41,7 +41,7 @@ const idSchema = z.object({ id: z.string().uuid() });
 const statusSchema = z.object({ status: z.enum(PLAN_STATUSES) });
 const tenantPlanSchema = z.object({
     planId: z.string().uuid(),
-    reason: z.string().trim().min(3).max(500),
+    reason: z.string().trim().min(3).max(500).optional(),
 });
 function normalizedModules(modules) {
     return modules.map((module) => ({
@@ -211,21 +211,29 @@ export async function superadminPlanRoutes(app) {
     });
     app.delete("/plans/:id", async (request) => {
         const { id } = parse(idSchema, request.params);
-        const current = await qOne(`SELECT id, is_default FROM plans WHERE id = $1`, [id]);
+        const current = await qOne(`SELECT id, is_default, name FROM plans WHERE id = $1`, [id]);
         if (!current)
             throw ApiError.notFound("Plan not found.");
         if (current.isDefault === true) {
-            throw ApiError.conflict("The default Free plan cannot be archived.");
+            throw ApiError.conflict("The default Free plan cannot be deleted or archived.");
         }
         const active = await qOne(`SELECT COUNT(*)::int AS count FROM stores WHERE plan_id = $1 AND status = 'ACTIVE' AND plan_status <> 'CANCELED'`, [id]);
         if (Number(active?.count ?? 0) > 0) {
             throw ApiError.conflict("Plans with active businesses cannot be deleted. Archive the plan instead.");
         }
-        const result = await q(`UPDATE plans SET status = 'ARCHIVED', updated_at = now() WHERE id = $1 RETURNING id`, [id]);
-        if (!result[0])
-            throw ApiError.notFound("Plan not found.");
-        await logSuperadminAction(request, "PLAN_ARCHIVE", { reason: id });
-        return { ok: true, archived: true };
+        try {
+            const result = await q(`DELETE FROM plans WHERE id = $1 RETURNING id`, [id]);
+            if (!result[0])
+                throw ApiError.notFound("Plan not found.");
+            await logSuperadminAction(request, "PLAN_DELETE", { reason: `${id}:${current.name}` });
+            return { ok: true, deleted: true };
+        }
+        catch (err) {
+            if (err?.code === "23503") {
+                throw ApiError.conflict("Plans with existing businesses cannot be deleted. Archive the plan instead.");
+            }
+            throw err;
+        }
     });
     app.patch("/tenants/:id/plan", async (request) => {
         const { id } = parse(idSchema, request.params);
@@ -242,7 +250,7 @@ export async function superadminPlanRoutes(app) {
         if (!updated[0])
             throw ApiError.notFound("Tenant not found.");
         const sa = getSuperadmin(request);
-        await logSuperadminAction(request, "TENANT_PLAN_OVERRIDE", { targetTenantId: id, reason: body.reason });
+        await logSuperadminAction(request, "TENANT_PLAN_OVERRIDE", { targetTenantId: id, reason: body.reason ?? null });
         return { ok: true, planId: body.planId, updatedBy: sa.id };
     });
 }

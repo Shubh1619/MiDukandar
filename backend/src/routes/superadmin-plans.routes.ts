@@ -253,10 +253,10 @@ export async function superadminPlanRoutes(app: FastifyInstance) {
 
   app.delete("/plans/:id", async (request) => {
     const { id } = parse(idSchema, request.params);
-    const current = await qOne<Row>(`SELECT id, is_default FROM plans WHERE id = $1`, [id]);
+    const current = await qOne<Row>(`SELECT id, is_default, name FROM plans WHERE id = $1`, [id]);
     if (!current) throw ApiError.notFound("Plan not found.");
     if (current.isDefault === true) {
-      throw ApiError.conflict("The default Free plan cannot be archived.");
+      throw ApiError.conflict("The default Free plan cannot be deleted or archived.");
     }
     const active = await qOne<Row>(
       `SELECT COUNT(*)::int AS count FROM stores WHERE plan_id = $1 AND status = 'ACTIVE' AND plan_status <> 'CANCELED'`,
@@ -265,10 +265,17 @@ export async function superadminPlanRoutes(app: FastifyInstance) {
     if (Number(active?.count ?? 0) > 0) {
       throw ApiError.conflict("Plans with active businesses cannot be deleted. Archive the plan instead.");
     }
-    const result = await q<Row>(`UPDATE plans SET status = 'ARCHIVED', updated_at = now() WHERE id = $1 RETURNING id`, [id]);
-    if (!result[0]) throw ApiError.notFound("Plan not found.");
-    await logSuperadminAction(request, "PLAN_ARCHIVE", { reason: id });
-    return { ok: true, archived: true };
+    try {
+      const result = await q<Row>(`DELETE FROM plans WHERE id = $1 RETURNING id`, [id]);
+      if (!result[0]) throw ApiError.notFound("Plan not found.");
+      await logSuperadminAction(request, "PLAN_DELETE", { reason: `${id}:${current.name}` });
+      return { ok: true, deleted: true };
+    } catch (err: any) {
+      if (err?.code === "23503") {
+        throw ApiError.conflict("Plans with existing businesses cannot be deleted. Archive the plan instead.");
+      }
+      throw err;
+    }
   });
 
   app.patch("/tenants/:id/plan", async (request) => {

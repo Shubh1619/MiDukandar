@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Archive, Copy, Edit3, ExternalLink, Layers3, Loader2, Plus, Users } from "lucide-react";
+import { Archive, Copy, Edit3, ExternalLink, Layers3, Loader2, Plus, Trash2, Users } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -112,6 +112,28 @@ export default function PlansPage() {
     }
   };
 
+  const remove = async (plan: PlanDefinition) => {
+    if (plan.isDefault) {
+      toast.error("The default Free plan cannot be deleted.");
+      return;
+    }
+    if ((plan.activeBusinessCount ?? 0) > 0) {
+      toast.error("Plans with active businesses cannot be deleted. Archive the plan instead.");
+      return;
+    }
+    if (!window.confirm(`Delete ${plan.name} permanently? This action cannot be undone.`)) return;
+    setBusyId(plan.id);
+    try {
+      await saFetch(`/api/superadmin/plans/${plan.id}`, { method: "DELETE" });
+      toast.success("Plan deleted.");
+      await load();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not delete plan.");
+    } finally {
+      setBusyId(null);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
@@ -128,7 +150,7 @@ export default function PlansPage() {
 
       <div className="flex flex-wrap items-center justify-between gap-3"><div className="flex flex-wrap gap-1 rounded-xl bg-slate-100 p-1">{filters.map((item) => <button key={item.key} type="button" onClick={() => setFilter(item.key)} className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${filter === item.key ? "bg-white text-navy-900 shadow-sm" : "text-slate-500 hover:text-navy-800"}`}>{item.label}</button>)}</div><p className="text-xs text-slate-400">Active businesses on an archived plan remain assigned until an admin changes them.</p></div>
 
-      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm"><div className="overflow-x-auto"><table className="w-full min-w-[980px] text-sm"><thead><tr className="border-b border-slate-100 bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-500"><th className="px-4 py-3">Plan</th><th className="px-4 py-3">Pricing</th><th className="px-4 py-3 text-right">Businesses</th><th className="px-4 py-3">Status</th><th className="px-4 py-3">Ads</th><th className="px-4 py-3 text-right">Modules</th><th className="px-4 py-3">Last edited</th><th className="px-4 py-3 text-right">Actions</th></tr></thead><tbody className="divide-y divide-slate-100">{loading && <tr><td colSpan={8} className="px-4 py-12 text-center text-slate-400"><Loader2 className="mx-auto size-5 animate-spin" /></td></tr>}{!loading && plans.length === 0 && <tr><td colSpan={8} className="px-4 py-12 text-center text-slate-400">No plans match this filter.</td></tr>}{!loading && plans.map((plan) => <tr key={plan.id} className="hover:bg-slate-50"><td className="px-4 py-3"><div className="flex items-center gap-2"><span className="font-semibold text-navy-900">{plan.name}</span>{plan.isPopular && <Badge className="bg-royal-50 text-royal-700 hover:bg-royal-50">Popular</Badge>}</div><p className="mt-0.5 max-w-xs truncate text-xs text-slate-400">{plan.description || "No description"}</p></td><td className="px-4 py-3"><p className="font-semibold text-navy-900">{formatINR(plan.priceMonthly)} / month</p><p className="text-xs text-slate-400">{formatINR(plan.priceYearly)} / year</p></td><td className="px-4 py-3 text-right"><span className="inline-flex items-center gap-1 font-semibold text-navy-900"><Users className="size-3.5 text-slate-400" />{plan.activeBusinessCount ?? 0}</span></td><td className="px-4 py-3"><Badge variant={statusVariant(plan.status)}>{plan.status === "ACTIVE" ? "Active" : plan.status === "DRAFT" ? "Draft" : "Archived"}</Badge></td><td className="px-4 py-3">{plan.adsEnabled ? <Badge className="bg-amber-50 text-amber-700 hover:bg-amber-50">Enabled · {plan.adsTier.toLowerCase()}</Badge> : <Badge variant="secondary">Disabled</Badge>}</td><td className="px-4 py-3 text-right font-semibold text-navy-900">{plan.moduleCount ?? plan.modules.filter((module) => module.enabled).length}</td><td className="px-4 py-3 text-slate-500">{formatDateTime(plan.updatedAt)}</td><td className="px-4 py-3"><div className="flex justify-end gap-1"><button type="button" title="Edit plan" onClick={() => openEdit(plan)} className="rounded-lg p-2 text-slate-500 hover:bg-royal-50 hover:text-royal-700"><Edit3 className="size-4" /></button><button type="button" title="Duplicate plan" disabled={busyId === plan.id} onClick={() => void duplicate(plan)} className="rounded-lg p-2 text-slate-500 hover:bg-royal-50 hover:text-royal-700 disabled:opacity-40"><Copy className="size-4" /></button>{plan.status !== "ARCHIVED" && <button type="button" title="Archive plan" disabled={busyId === plan.id} onClick={() => void archive(plan)} className="rounded-lg p-2 text-slate-500 hover:bg-amber-50 hover:text-amber-700 disabled:opacity-40"><Archive className="size-4" /></button>}</div></td></tr>)}</tbody></table></div></div>
+      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm"><div className="overflow-x-auto"><table className="w-full min-w-[980px] text-sm"><thead><tr className="border-b border-slate-100 bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-500"><th className="px-4 py-3">Plan</th><th className="px-4 py-3">Pricing</th><th className="px-4 py-3 text-right">Businesses</th><th className="px-4 py-3">Status</th><th className="px-4 py-3">Ads</th><th className="px-4 py-3 text-right">Modules</th><th className="px-4 py-3">Last edited</th><th className="px-4 py-3 text-right">Actions</th></tr></thead><tbody className="divide-y divide-slate-100">{loading && <tr><td colSpan={8} className="px-4 py-12 text-center text-slate-400"><Loader2 className="mx-auto size-5 animate-spin" /></td></tr>}{!loading && plans.length === 0 && <tr><td colSpan={8} className="px-4 py-12 text-center text-slate-400">No plans match this filter.</td></tr>}{!loading && plans.map((plan) => <tr key={plan.id} className="hover:bg-slate-50"><td className="px-4 py-3"><div className="flex items-center gap-2"><span className="font-semibold text-navy-900">{plan.name}</span>{plan.isPopular && <Badge className="bg-royal-50 text-royal-700 hover:bg-royal-50">Popular</Badge>}</div><p className="mt-0.5 max-w-xs truncate text-xs text-slate-400">{plan.description || "No description"}</p></td><td className="px-4 py-3"><p className="font-semibold text-navy-900">{formatINR(plan.priceMonthly)} / month</p><p className="text-xs text-slate-400">{formatINR(plan.priceYearly)} / year</p></td><td className="px-4 py-3 text-right"><span className="inline-flex items-center gap-1 font-semibold text-navy-900"><Users className="size-3.5 text-slate-400" />{plan.activeBusinessCount ?? 0}</span></td><td className="px-4 py-3"><Badge variant={statusVariant(plan.status)}>{plan.status === "ACTIVE" ? "Active" : plan.status === "DRAFT" ? "Draft" : "Archived"}</Badge></td><td className="px-4 py-3">{plan.adsEnabled ? <Badge className="bg-amber-50 text-amber-700 hover:bg-amber-50">Enabled · {plan.adsTier.toLowerCase()}</Badge> : <Badge variant="secondary">Disabled</Badge>}</td><td className="px-4 py-3 text-right font-semibold text-navy-900">{plan.moduleCount ?? plan.modules.filter((module) => module.enabled).length}</td><td className="px-4 py-3 text-slate-500">{formatDateTime(plan.updatedAt)}</td>                  <td className="px-4 py-3"><div className="flex justify-end gap-1"><button type="button" title="Edit plan" onClick={() => openEdit(plan)} className="rounded-lg p-2 text-slate-500 hover:bg-royal-50 hover:text-royal-700"><Edit3 className="size-4" /></button><button type="button" title="Duplicate plan" disabled={busyId === plan.id} onClick={() => void duplicate(plan)} className="rounded-lg p-2 text-slate-500 hover:bg-royal-50 hover:text-royal-700 disabled:opacity-40"><Copy className="size-4" /></button>{plan.status !== "ARCHIVED" && <button type="button" title="Archive plan" disabled={busyId === plan.id} onClick={() => void archive(plan)} className="rounded-lg p-2 text-slate-500 hover:bg-amber-50 hover:text-amber-700 disabled:opacity-40"><Archive className="size-4" /></button>}{!plan.isDefault && (plan.activeBusinessCount ?? 0) === 0 && <button type="button" title="Delete plan" disabled={busyId === plan.id} onClick={() => void remove(plan)} className="rounded-lg p-2 text-slate-500 hover:bg-red-50 hover:text-red-700 disabled:opacity-40"><Trash2 className="size-4" /></button>}</div></td></tr>)}</tbody></table></div></div>
 
       <PlanEditor key={editingPlan?.id ?? "new"} open={editorOpen} plan={editingPlan} onOpenChange={setEditorOpen} onSaved={handleSaved} />
     </div>
