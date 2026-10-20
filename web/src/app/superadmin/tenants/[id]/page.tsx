@@ -285,8 +285,23 @@ export default function TenantDetailPage() {
           <div className="flex items-start gap-3"><span className="flex size-9 items-center justify-center rounded-lg bg-royal-50 text-royal-600"><Layers3 className="size-4" /></span><div><h2 className="font-semibold text-navy-900">Plan assignment</h2><p className="mt-1 text-xs text-slate-500">Change this business&apos;s plan without going through checkout.</p></div></div>
           <span className="rounded-full bg-indigo-50 px-2.5 py-1 text-xs font-semibold text-indigo-700">Current: {s.plan}</span>
         </div>
-        <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end"><div className="flex-1 space-y-1.5"><label htmlFor="tenant-plan" className="text-xs font-semibold uppercase tracking-wide text-slate-500">Plan</label><select id="tenant-plan" value={planId} onChange={(event) => setPlanId(event.target.value)} className="h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm text-navy-900"><option value="">Select a plan</option>{plans.map((plan) => <option key={plan.id} value={plan.id}>{plan.name}{plan.status !== "ACTIVE" ? ` (${plan.status.toLowerCase()})` : ""}</option>)}</select></div><button type="button" onClick={() => void overridePlan()} disabled={planSaving || !planId || planId === s.planId} className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-navy-900 px-4 text-sm font-semibold text-white hover:bg-navy-800 disabled:cursor-not-allowed disabled:opacity-50">{planSaving && <Loader2 className="size-4 animate-spin" />}Override plan</button></div>
-        <p className="mt-2 text-[11px] text-slate-400">The audited reason entered in Platform actions below is required.</p>
+        <div className="mt-4 space-y-3">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+            <div className="flex-1 space-y-1.5"><label htmlFor="tenant-plan" className="text-xs font-semibold uppercase tracking-wide text-slate-500">Plan</label><select id="tenant-plan" value={planId} onChange={(event) => setPlanId(event.target.value)} className="h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm text-navy-900"><option value="">Select a plan</option>{plans.map((plan) => <option key={plan.id} value={plan.id}>{plan.name}{plan.status !== "ACTIVE" ? ` (${plan.status.toLowerCase()})` : ""}</option>)}</select></div>
+            <button type="button" onClick={() => void overridePlan()} disabled={planSaving || !planId || planId === s.planId} className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-navy-900 px-4 text-sm font-semibold text-white hover:bg-navy-800 disabled:cursor-not-allowed disabled:opacity-50">{planSaving && <Loader2 className="size-4 animate-spin" />}Override plan</button>
+          </div>
+          <div className="space-y-1.5">
+            <label htmlFor="plan-override-reason" className="text-xs font-semibold uppercase tracking-wide text-slate-500">Reason <span className="text-red-500">*</span></label>
+            <textarea
+              id="plan-override-reason"
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              placeholder="Reason for plan override (required, min 3 characters)"
+              rows={2}
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-royal-500 focus:outline-none focus:ring-2 focus:ring-royal-100"
+            />
+          </div>
+        </div>
       </div>
 
       <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
