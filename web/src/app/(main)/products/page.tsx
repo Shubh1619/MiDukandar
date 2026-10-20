@@ -95,6 +95,19 @@ function stockBadge(p: Product) {
   return <Badge variant="outline" className="border-emerald-200 bg-emerald-50 text-emerald-700">{formatQty(s)}</Badge>;
 }
 
+function expiryLabel(p: Product) {
+  if (!p.expiryDate) return "—";
+  const key = String(p.expiryDate).slice(0, 10);
+  const parsed = new Date(key);
+  if (Number.isNaN(parsed.getTime())) return "—";
+  const todayKey = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, "0")}-${String(new Date().getDate()).padStart(2, "0")}`;
+  const dateText = parsed.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+  if (key < todayKey) {
+    return <span className="font-medium text-destructive">{dateText} · Expired</span>;
+  }
+  return dateText;
+}
+
 interface ProductRowProps {
   product: Product;
   showPurchase: boolean;
@@ -133,6 +146,7 @@ const ProductRow = memo(function ProductRow({
         <p className="text-xs text-muted-foreground">{product.sku || product.barcode || "—"}</p>
       </TableCell>
       <TableCell className="text-muted-foreground">{product.category ?? "—"}</TableCell>
+      <TableCell className="text-muted-foreground">{expiryLabel(product)}</TableCell>
       {showPurchase ? (
         <TableCell className="text-right tabular-nums text-muted-foreground">{formatINR(product.purchasePrice)}</TableCell>
       ) : null}
@@ -713,6 +727,7 @@ const showPurchase = canManage;
                       <TableRow>
                         <TableHead>Product</TableHead>
                         <TableHead>Category</TableHead>
+                        <TableHead>Expiry</TableHead>
                         {showPurchase ? <TableHead className="text-right">Purchase</TableHead> : null}
                         <TableHead className="text-right">Selling</TableHead>
                         <TableHead className="text-right">GST</TableHead>

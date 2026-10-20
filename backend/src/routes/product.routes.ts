@@ -38,6 +38,15 @@ import {
 
 const idParamSchema = z.object({ id: z.string().uuid() });
 
+// Optional ISO date (YYYY-MM-DD). Empty string clears the value to NULL.
+const optionalDate = z
+  .string()
+  .optional()
+  .refine(
+    (v) => v === undefined || v.trim() === "" || !Number.isNaN(Date.parse(v)),
+    { message: "Invalid date. Use an ISO date such as 2026-01-31." },
+  );
+
 const productSchema = z.object({
   name: z.string().min(1).max(150),
   barcode: z.string().max(64).optional().default(""),
@@ -53,6 +62,7 @@ const productSchema = z.object({
   imageUrl: z.string().max(500).optional().default(""),
   openingStock: z.coerce.number().min(0).optional().default(0),
   description: z.string().max(2000).optional().default(""),
+  expiryDate: optionalDate,
 });
 
 // ---------------------------------------------------------------------------
@@ -192,14 +202,15 @@ export async function productRoutes(app: FastifyInstance) {
           const created = await tx.qOne<Row>(
             `INSERT INTO products
                (store_id, name, barcode, sku, category, unit, purchase_price, selling_price, mrp,
-                gst_percent, min_stock, supplier, image_url, description)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+                gst_percent, min_stock, supplier, image_url, description, expiry_date)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
              RETURNING *`,
             [
               storeId, scrubNul(body.name), scrubNul(body.barcode), scrubNul(body.sku), scrubNul(body.category),
               scrubNul(body.unit) ?? "pc", String(body.purchasePrice), String(body.sellingPrice),
               body.mrp != null ? String(body.mrp) : null, String(body.gstPercent), String(body.minStock),
               scrubNul(body.supplier), scrubNul(body.imageUrl), scrubNul(body.description),
+              scrubNul(body.expiryDate),
             ],
           );
           if (!created) throw new Error("Product insert failed");

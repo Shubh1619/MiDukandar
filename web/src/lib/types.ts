@@ -67,6 +67,7 @@ export interface Product {
   supplier: string | null;
   imageUrl: string | null;
   description?: string | null;
+  expiryDate?: string | null;
   isArchived: boolean;
   stock: number;
   isLow: boolean;

@@ -38,6 +38,7 @@ export interface ProductFormState {
   minStock: string;
   supplier: string;
   description: string;
+  expiryDate: string;
   openingStock: string;
 }
 
@@ -54,6 +55,7 @@ export const EMPTY_FORM: ProductFormState = {
   minStock: "0",
   supplier: "",
   description: "",
+  expiryDate: "",
   openingStock: "0",
 };
 
@@ -71,6 +73,7 @@ export function formFromProduct(p: Product): ProductFormState {
     minStock: String(p.minStock),
     supplier: p.supplier ?? "",
     description: p.description ?? "",
+    expiryDate: p.expiryDate ? String(p.expiryDate).slice(0, 10) : "",
     openingStock: "0",
   };
 }
@@ -118,6 +121,7 @@ export default function ProductFormDialog({ open, setOpen, editing, onSaved, onD
       minStock: Number(form.minStock) || 0,
       supplier: form.supplier.trim() || undefined,
       description: form.description.trim() || undefined,
+      expiryDate: form.expiryDate.trim() || undefined,
       openingStock: editing ? undefined : Number(form.openingStock) || 0,
     };
     try {
@@ -236,6 +240,11 @@ export default function ProductFormDialog({ open, setOpen, editing, onSaved, onD
           <div className="space-y-1.5">
             <Label>Supplier</Label>
             <Input value={form.supplier} onChange={(e) => set("supplier", e.target.value)} placeholder="Optional" />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Expiry date</Label>
+            <Input type="date" value={form.expiryDate} onChange={(e) => set("expiryDate", e.target.value)} />
+            <p className="text-xs text-muted-foreground">Optional</p>
           </div>
           {!editing && (
             <div className="space-y-1.5 sm:col-span-2">

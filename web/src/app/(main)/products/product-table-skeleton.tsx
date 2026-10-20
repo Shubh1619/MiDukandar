@@ -17,6 +17,7 @@ export default function ProductTableSkeleton({ showPurchase }: { showPurchase: b
         <TableRow>
           <TableHead>Product</TableHead>
           <TableHead>Category</TableHead>
+          <TableHead>Expiry</TableHead>
           {showPurchase ? <TableHead className="text-right">Purchase</TableHead> : null}
           <TableHead className="text-right">Selling</TableHead>
           <TableHead className="text-right">GST</TableHead>
@@ -38,6 +39,9 @@ export default function ProductTableSkeleton({ showPurchase }: { showPurchase: b
             </TableCell>
             <TableCell>
               <Skeleton className="h-4 w-20" />
+            </TableCell>
+            <TableCell>
+              <Skeleton className="h-4 w-16" />
             </TableCell>
             {showPurchase ? (
               <TableCell>
