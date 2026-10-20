@@ -100,7 +100,7 @@ export function PurchaseOrderFormDialog({ open, onOpenChange, supplierId = "", s
       );
       setOrderDate(editing.orderDate?.slice(0, 10) || today());
       setExpectedDate(editing.expectedDate?.slice(0, 10) || "");
-      setStatus("draft");
+      setStatus(editing.status === "sent" ? "sent" : "draft");
     } else {
       setLines([newLine()]);
       setOrderDate(today());
