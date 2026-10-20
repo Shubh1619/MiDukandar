@@ -35,3 +35,12 @@ export function cachedFetch<T>(
 export function invalidateCache(...keys: string[]): void {
   for (const key of keys) cache.delete(key);
 }
+
+/**
+ * Drops everything. Must run whenever a session ends (logout, refresh token
+ * revoked, cross-tab logout) so the next user on a shared device never reads a
+ * previous session's cached categories/units/settings.
+ */
+export function clearSessionCache(): void {
+  cache.clear();
+}

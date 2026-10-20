@@ -1,5 +1,6 @@
 import { getImpersonation, clearImpersonation } from "./impersonation";
 import { broadcastLogout } from "./cross-tab";
+import { clearSessionCache } from "./session-cache";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "";
 
@@ -85,6 +86,9 @@ export function clearSession() {
     window.localStorage.removeItem("mz_access");
     window.localStorage.removeItem("mz_refresh");
   }
+  // Also drop the in-memory data cache so a new sign-in on this device never
+  // sees the previous session's cached categories/units/settings.
+  clearSessionCache();
 }
 
 export type RefreshOutcome = "success" | "rejected" | "network-error";
