@@ -48,7 +48,7 @@ const inviteJson = (row: Row) => ({
   invitedByName: (row.invited_by_name as string | null) ?? null,
 });
 
-async function assertNotLastOwner(storeId: string, userId: string) {
+export async function assertNotLastOwner(storeId: string, userId: string) {
   const target = await qOne<Row>(
     `SELECT id, role, is_active FROM users WHERE id = $1 AND store_id = $2`,
     [userId, storeId],

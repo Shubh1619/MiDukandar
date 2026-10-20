@@ -8,6 +8,7 @@ import { authenticate, requireStore, requireRole, getAuth, type AuthenticatedReq
 import { ROLES } from "../middlewares/auth.types.js";
 import { logger, maskEmail } from "../lib/logger.js";
 import { getModuleLimit, getPlanForBusiness } from "../lib/plans.js";
+import { assertNotLastOwner } from "./user.routes.js";
 
 async function withPlan<T extends Record<string, unknown>>(store: T | null): Promise<(T & { planDetails?: unknown }) | null> {
   if (!store?.id) return store;
@@ -155,11 +156,14 @@ export async function storeRoutes(app: FastifyInstance) {
     async (request: AuthenticatedRequest) => {
       const storeId = requireStore(request);
       const { id } = request.params as { id: string };
-      const body = (request.body ?? {}) as { isActive?: boolean };
-      await qExec(`UPDATE users SET is_active = $1 WHERE id = $2 AND store_id = $3`, [
-        body.isActive ?? false, id, storeId,
+      const body = parse(z.object({ isActive: z.boolean() }), request.body);
+      if (!body.isActive) await assertNotLastOwner(storeId, id);
+      const count = await qExec(`UPDATE users SET is_active = $1, updated_at = now() WHERE id = $2 AND store_id = $3`, [
+        body.isActive, id, storeId,
       ]);
-      return { ok: true };
+      if (!count) throw ApiError.notFound("User not found.");
+      logger.info("store: staff status changed", { storeId, userId: id, isActive: body.isActive });
+      return { ok: true, isActive: body.isActive };
     },
   );
 }
