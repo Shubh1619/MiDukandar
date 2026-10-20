@@ -317,6 +317,10 @@ export default function InvoicesPage() {
         `/api/sales/${paying.id}/pay`,
         {
           method: "POST",
+          body: {
+            amount: Number(paying.dueAmount),
+            mode: "CASH",
+          },
         }
       );
 
