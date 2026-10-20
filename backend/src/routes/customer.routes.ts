@@ -4,7 +4,7 @@ import { q, qOne, qExec, withTx, qClient, type Row } from "../db/pool.js";
 import { ApiError } from "../lib/api-error.js";
 import { parse, paginationSchema } from "../lib/validate.js";
 import { buildUpdate } from "../lib/db.js";
-import { authenticate, requireStore, type AuthenticatedRequest } from "../middlewares/auth.js";
+import { authenticate, requireStore, requirePermission, type AuthenticatedRequest } from "../middlewares/auth.js";
 import { boolFilter } from "./product.shared.js";
 import { getCustomerOutstanding, createLedgerEntry, setupCustomerOpeningBalance } from "../services/ledger.service.js";
 import { logger } from "../lib/logger.js";
@@ -52,7 +52,7 @@ export async function customerRoutes(app: FastifyInstance) {
   });
 
   // Create
-  app.post("/", { preHandler: authenticate }, async (request: AuthenticatedRequest, reply) => {
+  app.post("/", { preHandler: [authenticate, requirePermission("can_manage_customers")] }, async (request: AuthenticatedRequest, reply) => {
     const storeId = requireStore(request);
     const body = parse(customerSchema, request.body);
     const userId = getAuth(request).id;
@@ -106,7 +106,7 @@ export async function customerRoutes(app: FastifyInstance) {
   });
 
   // Update
-  app.put("/:id", { preHandler: authenticate }, async (request: AuthenticatedRequest) => {
+  app.put("/:id", { preHandler: [authenticate, requirePermission("can_manage_customers")] }, async (request: AuthenticatedRequest) => {
     const storeId = requireStore(request);
     const { id } = request.params as { id: string };
     const body = parse(customerSchema.partial(), request.body);
@@ -128,7 +128,7 @@ export async function customerRoutes(app: FastifyInstance) {
   });
 
   // Delete (hard delete; ledger + udhaari cascade, sales/payments keep history with nulled customer)
-  app.delete("/:id", { preHandler: authenticate }, async (request: AuthenticatedRequest, reply) => {
+  app.delete("/:id", { preHandler: [authenticate, requirePermission("can_manage_customers")] }, async (request: AuthenticatedRequest, reply) => {
     const storeId = requireStore(request);
     const { id } = request.params as { id: string };
     const existing = await qOne<Row>(`SELECT id, name FROM customers WHERE id = $1 AND store_id = $2`, [id, storeId]);

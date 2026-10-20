@@ -3,7 +3,7 @@ import { z } from "zod";
 import { q, qOne, withTx, qClient, type Row } from "../db/pool.js";
 import { ApiError } from "../lib/api-error.js";
 import { parse, paginationSchema } from "../lib/validate.js";
-import { authenticate, requireStore, getAuth, type AuthenticatedRequest } from "../middlewares/auth.js";
+import { authenticate, requireStore, requirePermission, getAuth, type AuthenticatedRequest } from "../middlewares/auth.js";
 import { getCustomerOutstanding, createLedgerEntry } from "../services/ledger.service.js";
 import { insertPayment } from "../services/payment.service.js";
 import { logger } from "../lib/logger.js";
@@ -19,7 +19,7 @@ export async function paymentRoutes(app: FastifyInstance) {
   // Record a payment received from a customer (reduces udhaari)
   app.post(
     "/receive",
-    { preHandler: authenticate },
+    { preHandler: [authenticate, requirePermission("can_manage_udhaari")] },
     async (request: AuthenticatedRequest, reply) => {
       const storeId = requireStore(request);
       const body = parse(paymentSchema, request.body);

@@ -3,7 +3,7 @@ import { z } from "zod";
 import { q, qOne, withTx, qClient, type DbClient, type Row } from "../db/pool.js";
 import { ApiError } from "../lib/api-error.js";
 import { parse, paginationSchema } from "../lib/validate.js";
-import { authenticate, requireStore, getAuth, type AuthenticatedRequest } from "../middlewares/auth.js";
+import { authenticate, requireStore, requirePermission, getAuth, type AuthenticatedRequest } from "../middlewares/auth.js";
 import { createLedgerEntry } from "../services/ledger.service.js";
 import { insertPayment } from "../services/payment.service.js";
 import { dec, money } from "../lib/money.js";
@@ -427,7 +427,7 @@ export async function udhaariRoutes(app: FastifyInstance) {
   });
 
   // Create a new udhaari entry (optional initial payment driven by `status`)
-  app.post("/", { preHandler: authenticate }, async (request: AuthenticatedRequest, reply) => {
+  app.post("/", { preHandler: [authenticate, requirePermission("can_manage_udhaari")] }, async (request: AuthenticatedRequest, reply) => {
     const storeId = requireStore(request);
     const body = parse(createSchema, request.body);
     const userId = getAuth(request).id;
@@ -483,7 +483,7 @@ export async function udhaariRoutes(app: FastifyInstance) {
   });
 
   // Record a (partial) payment against a specific udhaari entry
-  app.post("/:id/pay", { preHandler: authenticate }, async (request: AuthenticatedRequest, reply) => {
+  app.post("/:id/pay", { preHandler: [authenticate, requirePermission("can_manage_udhaari")] }, async (request: AuthenticatedRequest, reply) => {
     const storeId = requireStore(request);
     const { id } = request.params as { id: string };
     const body = parse(paySchema, request.body);
