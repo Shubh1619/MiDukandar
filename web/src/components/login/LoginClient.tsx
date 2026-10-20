@@ -81,8 +81,7 @@ export default function LoginClient() {
   const [devHint, setDevHint] = useState<string | null>(null);
   const [fieldError, setFieldError] = useState<string | null>(null);
   const [notice, setNotice] = useState<Notice | null>(null);
-  const countdown = useCountdown(0);
-  const secondsLeft = countdown.secondsLeft;
+  const { secondsLeft, reset: resetCountdown } = useCountdown(0);
 
   const inFlight = useRef(false);
   const advanceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -127,7 +126,7 @@ export default function LoginClient() {
         setEmail(address);
         setOtp(res.devOtp ?? "");
         setDevHint(res.devOtp ?? null);
-        countdown.reset(res.expiresInSeconds || 120);
+        resetCountdown(res.expiresInSeconds || 120);
         advanceTimer.current = setTimeout(() => setStep("otp"), 250);
       } catch (err) {
         if (err instanceof ApiError && err.code === "ACCOUNT_NOT_FOUND") {
@@ -156,7 +155,7 @@ export default function LoginClient() {
         setSending(false);
       }
     },
-    [],
+    [resetCountdown],
   );
 
   const verifyCode = useCallback(
@@ -300,10 +299,10 @@ export default function LoginClient() {
     setOtp("");
     setPassword("");
     setDevHint(null);
-    countdown.reset(0);
+    resetCountdown(0);
     setNotice(null);
     setFieldError(null);
-  }, []);
+  }, [resetCountdown]);
 
   const continueWithOtp = useCallback(() => {
     changeEmail();
