@@ -659,7 +659,29 @@ export async function deleteRecurringExpense(db: Tx, storeId: string, id: string
   return (r.rowCount ?? 0) > 0;
 }
 
-/** Auto-process due recurring expenses and create actual expense entries */
+/** Advance a YYYY-MM-DD date by one period, clamped to the target month's last day. */
+function nextPeriodDate(currentDate: string, frequency: "MONTHLY" | "WEEKLY"): string {
+  const [y, m, d] = currentDate.split("-").map(Number);
+  if (frequency === "WEEKLY") {
+    return new Date(Date.UTC(y, m - 1, d + 7)).toISOString().slice(0, 10);
+  }
+  const base = new Date(Date.UTC(y, m - 1, 1));
+  base.setUTCMonth(base.getUTCMonth() + 1);
+  const y2 = base.getUTCFullYear();
+  const m2 = base.getUTCMonth() + 1;
+  const lastDay = new Date(Date.UTC(y2, m2, 0)).getUTCDate();
+  const d2 = Math.min(d, lastDay);
+  return `${y2}-${String(m2).padStart(2, "0")}-${String(d2).padStart(2, "0")}`;
+}
+
+/**
+ * Auto-process due recurring expenses and create actual expense entries.
+ *
+ * Callers must run this inside a transaction: the due rows are taken with
+ * `FOR UPDATE SKIP LOCKED`, so two concurrent runs (two list loads, or a list
+ * load racing the manual process-due endpoint) can never materialise the same
+ * period twice.
+ */
 export async function processDueRecurringExpenses(db: Tx, storeId?: string): Promise<{ createdCount: number }> {
   const todayStr = new Date().toISOString().split("T")[0];
   const params: unknown[] = [todayStr];
@@ -685,7 +707,8 @@ export async function processDueRecurringExpenses(db: Tx, storeId?: string): Pro
             to_char(next_due_date, 'YYYY-MM-DD') AS next_due_date,
             payment_mode, created_by_id
      FROM recurring_expenses
-     WHERE is_active = TRUE AND next_due_date <= $1::date${storeFilter}`,
+     WHERE is_active = TRUE AND next_due_date <= $1::date${storeFilter}
+     FOR UPDATE SKIP LOCKED`,
     params,
   );
 
@@ -704,14 +727,7 @@ export async function processDueRecurringExpenses(db: Tx, storeId?: string): Pro
     createdCount++;
 
     // 2. Compute next due date
-    const currentDate = new Date(row.next_due_date);
-    if (row.frequency === "WEEKLY") {
-      currentDate.setDate(currentDate.getDate() + 7);
-    } else {
-      // MONTHLY
-      currentDate.setMonth(currentDate.getMonth() + 1);
-    }
-    const newNextDue = currentDate.toISOString().split("T")[0];
+    const newNextDue = nextPeriodDate(row.next_due_date, row.frequency);
 
     // 3. Update next_due_date in recurring_expenses
     await db.q(

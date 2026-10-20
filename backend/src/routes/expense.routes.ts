@@ -1,6 +1,6 @@
 import type { FastifyInstance, FastifyReply } from "fastify";
 import { z } from "zod";
-import { qClient } from "../db/pool.js";
+import { qClient, withTx } from "../db/pool.js";
 import { ApiError } from "../lib/api-error.js";
 import { parse, paginationSchema } from "../lib/validate.js";
 import { authenticate, requireStore, requireRole, getAuth, type AuthenticatedRequest } from "../middlewares/auth.js";
@@ -43,7 +43,7 @@ const createRecurringSchema = z.object({
   amount: z.coerce.number().positive("Amount must be greater than 0"),
   categoryId: z.string().nullable().optional(),
   frequency: z.enum(["MONTHLY", "WEEKLY"]).default("MONTHLY"),
-  nextDueDate: z.string(),
+  nextDueDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "nextDueDate must be YYYY-MM-DD"),
   paymentMode: z.enum(["CASH", "UPI", "CARD", "BANK"]).default("CASH"),
 });
 
@@ -205,7 +205,7 @@ export async function recurringExpenseRoutes(app: FastifyInstance) {
   // existing clients keep working.
   const listRecurring = async (request: AuthenticatedRequest) => {
     const storeId = requireStore(request);
-    await processDueRecurringExpenses(qClient(), storeId);
+    await withTx((tx) => processDueRecurringExpenses(tx, storeId));
     const recurring = await listRecurringExpenses(qClient(), storeId);
     return { recurring };
   };
@@ -258,7 +258,7 @@ export async function recurringExpenseRoutes(app: FastifyInstance) {
     { preHandler: [authenticate, requireRole(ROLES.OWNER, ROLES.MANAGER)] },
     async (request: AuthenticatedRequest) => {
       const storeId = requireStore(request);
-      const res = await processDueRecurringExpenses(qClient(), storeId);
+      const res = await withTx((tx) => processDueRecurringExpenses(tx, storeId));
       return res;
     },
   );
