@@ -18,6 +18,7 @@ export interface Config {
   jwtAccessSecret: string;
   jwtRefreshSecret: string;
   jwtAccessExpiresIn: string;
+  jwtAccessExpiresInSeconds: number;
   refreshTokenDays: number;
   refreshCookieName: string;
   refreshCookieSecure: boolean;
@@ -227,6 +228,24 @@ if (mailModeRaw !== "log" && mailModeRaw !== "brevo") {
 }
 const mailMode = mailModeRaw as MailMode;
 
+/**
+ * Parses a jsonwebtoken-style duration ("15m", "2h", "7d", "900s", "900") into
+ * seconds so the API can report an `expiresInSeconds` that always matches what
+ * the token actually carries. Falls back to the literal when it is a plain
+ * integer, and to 15 minutes for anything unrecognised.
+ */
+export function durationToSeconds(value: string): number {
+  const m = /^\s*(\d+)\s*([smhd]?)\s*$/i.exec(value);
+  if (!m) return 15 * 60;
+  const n = Number(m[1]);
+  switch (m[2].toLowerCase()) {
+    case "h": return n * 3600;
+    case "d": return n * 86400;
+    case "m": return n * 60;
+    default: return n;
+  }
+}
+
 export const config: Config = {
   nodeEnv,
   isProd,
@@ -237,6 +256,7 @@ export const config: Config = {
   jwtAccessSecret: env.JWT_ACCESS_SECRET ?? DEV_ACCESS_SECRET,
   jwtRefreshSecret: env.JWT_REFRESH_SECRET ?? DEV_REFRESH_SECRET,
   jwtAccessExpiresIn: env.JWT_ACCESS_EXPIRES_IN ?? "15m",
+  jwtAccessExpiresInSeconds: durationToSeconds(env.JWT_ACCESS_EXPIRES_IN ?? "15m"),
   refreshTokenDays: env.REFRESH_TOKEN_DAYS,
   refreshCookieName: env.REFRESH_COOKIE_NAME ?? "mz_refresh",
   // Browsers silently drop `Secure` cookies over plain HTTP, which would make

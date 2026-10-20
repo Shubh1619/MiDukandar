@@ -13,26 +13,14 @@ import {
 } from "../services/report.service.js";
 import { q, qOne, qClient } from "../db/pool.js";
 import { boolFilter } from "./product.shared.js";
+import { istBoundary, istDayEnd, istDayStart } from "../lib/ist.js";
 
 function resolveRange(from?: string, to?: string): { from: Date; to: Date } {
-  let fromDate: Date;
-  let toDate: Date;
-
-  if (from) {
-    fromDate = new Date(from);
-    fromDate.setHours(0, 0, 0, 0);
-  } else {
-    fromDate = new Date();
-    fromDate.setHours(0, 0, 0, 0);
-  }
-
-  if (to) {
-    toDate = new Date(to);
-    toDate.setHours(23, 59, 59, 999);
-  } else {
-    toDate = new Date();
-    toDate.setHours(23, 59, 59, 999);
-  }
+  // Day boundaries are IST, not the server's UTC day: a report for "today"
+  // must cover 00:00–23:59:59.999 IST, otherwise early-morning transactions
+  // fall into the previous UTC day.
+  const fromDate = from ? istBoundary(from, false) : istDayStart();
+  const toDate = to ? istBoundary(to, true) : istDayEnd();
 
   return { from: fromDate, to: toDate };
 }

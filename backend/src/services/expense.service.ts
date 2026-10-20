@@ -1,5 +1,6 @@
 import type { DbClient } from "../db/pool.js";
 import { ApiError } from "../lib/api-error.js";
+import { istDateKey } from "../lib/ist.js";
 
 type Tx = DbClient;
 
@@ -352,8 +353,8 @@ export async function createExpense(
   if (!title) throw ApiError.badRequest("Expense title is required.");
   if (!data.amount || data.amount <= 0) throw ApiError.badRequest("Amount must be greater than 0.");
 
-  const expDate = data.expenseDate ? data.expenseDate : new Date().toISOString().split("T")[0];
-  const todayStr = new Date().toISOString().split("T")[0];
+  const expDate = data.expenseDate ? data.expenseDate : istDateKey();
+  const todayStr = istDateKey();
 
   if (expDate > todayStr) {
     throw ApiError.badRequest("Expense date cannot be in the future beyond today.");
@@ -415,7 +416,7 @@ export async function updateExpense(
   let expenseDate = existing.expenseDate;
   if (data.expenseDate !== undefined) {
     expenseDate = data.expenseDate;
-    const todayStr = new Date().toISOString().split("T")[0];
+    const todayStr = istDateKey();
     if (expenseDate > todayStr) {
       throw ApiError.badRequest("Expense date cannot be in the future beyond today.");
     }
@@ -446,16 +447,19 @@ export async function deleteExpense(db: Tx, storeId: string, id: string): Promis
 /** Get expense metrics summary (Today, Month, vs Last Month, Top Category, Breakdown) */
 export async function getExpenseSummary(db: Tx, storeId: string): Promise<ExpenseSummary> {
   const now = new Date();
-  const year = now.getFullYear();
-  const month = now.getMonth();
+  // "Today"/"this month" are IST calendar concepts; deriving them from the UTC
+  // date shifted the window by 5h30m for every store.
+  const istNow = new Date(now.getTime() + 330 * 60 * 1000);
+  const year = istNow.getUTCFullYear();
+  const month = istNow.getUTCMonth();
 
-  const startThisMonth = new Date(year, month, 1).toISOString().split("T")[0];
-  const endThisMonth = new Date(year, month + 1, 0).toISOString().split("T")[0];
+  const startThisMonth = new Date(Date.UTC(year, month, 1)).toISOString().split("T")[0];
+  const endThisMonth = new Date(Date.UTC(year, month + 1, 0)).toISOString().split("T")[0];
 
-  const startLastMonth = new Date(year, month - 1, 1).toISOString().split("T")[0];
-  const endLastMonth = new Date(year, month, 0).toISOString().split("T")[0];
+  const startLastMonth = new Date(Date.UTC(year, month - 1, 1)).toISOString().split("T")[0];
+  const endLastMonth = new Date(Date.UTC(year, month, 0)).toISOString().split("T")[0];
 
-  const todayStr = now.toISOString().split("T")[0];
+  const todayStr = istDateKey();
 
   const [todayAgg, thisMonthAgg, lastMonthAgg] = await Promise.all([
     db.qOne<{ total: string }>(
@@ -683,7 +687,7 @@ function nextPeriodDate(currentDate: string, frequency: "MONTHLY" | "WEEKLY"): s
  * period twice.
  */
 export async function processDueRecurringExpenses(db: Tx, storeId?: string): Promise<{ createdCount: number }> {
-  const todayStr = new Date().toISOString().split("T")[0];
+  const todayStr = istDateKey();
   const params: unknown[] = [todayStr];
   let storeFilter = "";
 

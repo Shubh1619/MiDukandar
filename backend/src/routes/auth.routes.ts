@@ -148,7 +148,7 @@ export async function authRoutes(app: FastifyInstance) {
     setRefreshCookie(reply, refreshToken);
     return reply.send({
       accessToken,
-      expiresInSeconds: 15 * 60,
+      expiresInSeconds: config.jwtAccessExpiresInSeconds,
       user: toUserJson(user),
     });
   });
@@ -292,7 +292,7 @@ export async function authRoutes(app: FastifyInstance) {
     // installed mobile builds keep working.
     return reply.send({
       accessToken,
-      expiresInSeconds: 15 * 60,
+      expiresInSeconds: config.jwtAccessExpiresInSeconds,
       user: toUserJson(user),
     });
   });

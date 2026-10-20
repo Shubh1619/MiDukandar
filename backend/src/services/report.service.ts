@@ -1,6 +1,7 @@
 import type { DbClient } from "../db/pool.js";
 import { ledgerBalanceExpr } from "./ledger.service.js";
 import { getStockBalances, mapLow } from "./stock.service.js";
+import { istDateKey } from "../lib/ist.js";
 
 type Tx = DbClient;
 
@@ -56,7 +57,7 @@ export async function getDashboardStats(
     ),
     db.qOne<{ t: number }>(
       `SELECT COALESCE(SUM(amount),0) AS t FROM expenses WHERE store_id=$1 AND expense_date BETWEEN $2::date AND $3::date`,
-      [storeId, start.toISOString().split("T")[0], end.toISOString().split("T")[0]],
+      [storeId, istDateKey(start), istDateKey(end)],
     ),
   ]);
 

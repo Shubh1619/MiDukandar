@@ -52,8 +52,12 @@ function buildExportRows(rows: Row[]): ProductRow[] {
 }
 
 function queryTitle(request: AuthenticatedRequest): string {
+  // Query params are strings, so `q.archived === true` is never true and the
+  // archived export was always titled "Product Report". Match how the filename
+  // and subtitle branches read the flag.
   const q = request.query as Record<string, unknown>;
-  return "archived" in q && q.archived === true ? "Archived Product Report" : "Product Report";
+  const archived = q.archived === true || q.archived === "true";
+  return archived ? "Archived Product Report" : "Product Report";
 }
 
 declare module "fastify" {
