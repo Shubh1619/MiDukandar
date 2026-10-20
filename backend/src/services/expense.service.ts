@@ -437,10 +437,10 @@ export async function updateExpense(
   return getExpenseById(db, storeId, id);
 }
 
-/** Delete expense record */
+/** Delete expense record. Returns false when no row matched the id/store. */
 export async function deleteExpense(db: Tx, storeId: string, id: string): Promise<boolean> {
-  const r = await db.q(`DELETE FROM expenses WHERE id = $1 AND store_id = $2`, [id, storeId]);
-  return true;
+  const r = await db.query(`DELETE FROM expenses WHERE id = $1 AND store_id = $2`, [id, storeId]);
+  return (r.rowCount ?? 0) > 0;
 }
 
 /** Get expense metrics summary (Today, Month, vs Last Month, Top Category, Breakdown) */
@@ -655,8 +655,8 @@ export async function updateRecurringExpense(
 }
 
 export async function deleteRecurringExpense(db: Tx, storeId: string, id: string): Promise<boolean> {
-  await db.q(`DELETE FROM recurring_expenses WHERE id = $1 AND store_id = $2`, [id, storeId]);
-  return true;
+  const r = await db.query(`DELETE FROM recurring_expenses WHERE id = $1 AND store_id = $2`, [id, storeId]);
+  return (r.rowCount ?? 0) > 0;
 }
 
 /** Auto-process due recurring expenses and create actual expense entries */

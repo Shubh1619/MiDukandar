@@ -1,6 +1,7 @@
 import type { FastifyInstance, FastifyReply } from "fastify";
 import { z } from "zod";
 import { qClient } from "../db/pool.js";
+import { ApiError } from "../lib/api-error.js";
 import { parse, paginationSchema } from "../lib/validate.js";
 import { authenticate, requireStore, requireRole, getAuth, type AuthenticatedRequest } from "../middlewares/auth.js";
 import { ROLES } from "../middlewares/auth.types.js";
@@ -167,7 +168,8 @@ export async function expenseRoutes(app: FastifyInstance) {
     async (request: AuthenticatedRequest, reply) => {
       const storeId = requireStore(request);
       const { id } = request.params as { id: string };
-      await deleteExpense(qClient(), storeId, id);
+      const deleted = await deleteExpense(qClient(), storeId, id);
+      if (!deleted) throw ApiError.notFound("Expense not found.");
       return reply.send({ ok: true });
     },
   );
@@ -244,7 +246,8 @@ export async function recurringExpenseRoutes(app: FastifyInstance) {
     async (request: AuthenticatedRequest, reply) => {
       const storeId = requireStore(request);
       const { id } = request.params as { id: string };
-      await deleteRecurringExpense(qClient(), storeId, id);
+      const deleted = await deleteRecurringExpense(qClient(), storeId, id);
+      if (!deleted) throw ApiError.notFound("Recurring expense not found.");
       return reply.send({ ok: true });
     },
   );
