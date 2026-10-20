@@ -1,4 +1,4 @@
-import type { FastifyInstance } from "fastify";
+import type { FastifyInstance, FastifyReply } from "fastify";
 import { z } from "zod";
 import { qClient } from "../db/pool.js";
 import { parse, paginationSchema } from "../lib/validate.js";
@@ -46,35 +46,48 @@ const createRecurringSchema = z.object({
   paymentMode: z.enum(["CASH", "UPI", "CARD", "BANK"]).default("CASH"),
 });
 
-export async function expenseRoutes(app: FastifyInstance) {
-  // --- CATEGORIES ---
-  app.get("/categories", { preHandler: authenticate }, async (request: AuthenticatedRequest) => {
+/**
+ * Category handlers, bound by `expenseRoutes` (legacy `/categories` paths) and
+ * by `expenseCategoryRoutes` (the REST-correct `/` and `/:id` paths too).
+ */
+function registerCategoryRoutes(app: FastifyInstance, restful: boolean) {
+  const list = async (request: AuthenticatedRequest) => {
     const storeId = requireStore(request);
     const categories = await listExpenseCategories(qClient(), storeId);
     return { categories };
-  });
+  };
 
-  app.post(
-    "/categories",
-    { preHandler: [authenticate, requireRole(ROLES.OWNER, ROLES.MANAGER)] },
-    async (request: AuthenticatedRequest, reply) => {
-      const storeId = requireStore(request);
-      const body = parse(expenseCategorySchema, request.body);
-      const category = await createExpenseCategory(qClient(), storeId, body.name);
-      return reply.status(201).send({ category });
-    },
-  );
+  const create = async (request: AuthenticatedRequest, reply: FastifyReply) => {
+    const storeId = requireStore(request);
+    const body = parse(expenseCategorySchema, request.body);
+    const category = await createExpenseCategory(qClient(), storeId, body.name);
+    return reply.status(201).send({ category });
+  };
 
-  app.delete(
-    "/categories/:id",
-    { preHandler: [authenticate, requireRole(ROLES.OWNER, ROLES.MANAGER)] },
-    async (request: AuthenticatedRequest, reply) => {
-      const storeId = requireStore(request);
-      const { id } = request.params as { id: string };
-      const res = await deleteExpenseCategory(qClient(), storeId, id);
-      return reply.send(res);
-    },
-  );
+  const remove = async (request: AuthenticatedRequest, reply: FastifyReply) => {
+    const storeId = requireStore(request);
+    const { id } = request.params as { id: string };
+    const res = await deleteExpenseCategory(qClient(), storeId, id);
+    return reply.send(res);
+  };
+
+  const writeGuard = { preHandler: [authenticate, requireRole(ROLES.OWNER, ROLES.MANAGER)] };
+
+  app.get("/categories", { preHandler: authenticate }, list);
+  app.post("/categories", writeGuard, create);
+  app.delete("/categories/:id", writeGuard, remove);
+
+  if (restful) {
+    app.get("/", { preHandler: authenticate }, list);
+    app.post("/", writeGuard, create);
+    app.delete("/:id", writeGuard, remove);
+  }
+}
+
+export async function expenseRoutes(app: FastifyInstance) {
+  // --- CATEGORIES (legacy `/categories` paths; the REST-shaped `/` and `/:id`
+  // expense handlers below own those paths in this plugin) ---
+  registerCategoryRoutes(app, false);
 
   // --- EXPENSES SUMMARY ---
   app.get("/summary", { preHandler: authenticate }, async (request: AuthenticatedRequest) => {
@@ -161,15 +174,28 @@ export async function expenseRoutes(app: FastifyInstance) {
 }
 
 /**
+ * Dedicated router for the `/api/expense-categories` prefix.
+ *
+ * Mounting the whole `expenseRoutes` plugin there bound its bare `"/"` and
+ * `"/:id"` handlers to one-time expenses, so `GET /api/expense-categories`
+ * listed expenses and `POST /api/expense-categories` created one instead of a
+ * category. Only the category handlers belong here; the web client's
+ * `/categories` paths stay supported for compatibility.
+ */
+export async function expenseCategoryRoutes(app: FastifyInstance) {
+  registerCategoryRoutes(app, true);
+}
+
+/**
  * Dedicated router for the `/api/recurring-expenses` prefix.
  *
- * The generic `expenseRoutes` plugin is also mounted under `/api/expenses` and
- * `/api/expense-categories`, but its bare `"/"` and `"/:id"` handlers operate on
- * one-time expenses. Mounting that plugin under `/api/recurring-expenses` meant
- * `POST /api/recurring-expenses` hit `createExpense` (Zod stripped
- * `frequency`/`nextDueDate`), and `PATCH`/`DELETE /api/recurring-expenses/:id`
- * acted on one-time rows. This router binds those bare paths to the recurring
- * table so the `/recurring-expenses` contract matches its name.
+ * The generic `expenseRoutes` plugin is mounted under `/api/expenses`, where its
+ * bare `"/"` and `"/:id"` handlers operate on one-time expenses. Mounting that
+ * plugin under `/api/recurring-expenses` meant `POST /api/recurring-expenses`
+ * hit `createExpense` (Zod stripped `frequency`/`nextDueDate`), and
+ * `PATCH`/`DELETE /api/recurring-expenses/:id` acted on one-time rows. This
+ * router binds those bare paths to the recurring table so the
+ * `/recurring-expenses` contract matches its name.
  */
 export async function recurringExpenseRoutes(app: FastifyInstance) {
   // List recurring expenses (also materialises any due items). The collection

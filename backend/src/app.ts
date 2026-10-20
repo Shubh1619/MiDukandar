@@ -35,7 +35,7 @@ import { superadminAccessRoutes } from "./routes/superadmin-access.routes.js";
 import { planRoutes } from "./routes/plan.routes.js";
 import { supplierRoutes } from "./routes/supplier.routes.js";
 import { purchaseOrderRoutes } from "./routes/purchase-order.routes.js";
-import { expenseRoutes, recurringExpenseRoutes } from "./routes/expense.routes.js";
+import { expenseRoutes, expenseCategoryRoutes, recurringExpenseRoutes } from "./routes/expense.routes.js";
 import { userRoutes } from "./routes/user.routes.js";
 import { roleRoutes } from "./routes/role.routes.js";
 import { referralRoutes } from "./routes/referral.routes.js";
@@ -325,7 +325,7 @@ function registerRoutes(app: FastifyInstance) {
   app.register(supplierRoutes, { prefix: "/api/suppliers" });
   app.register(purchaseOrderRoutes, { prefix: "/api/purchase-orders" });
   app.register(expenseRoutes, { prefix: "/api/expenses" });
-  app.register(expenseRoutes, { prefix: "/api/expense-categories" });
+  app.register(expenseCategoryRoutes, { prefix: "/api/expense-categories" });
   app.register(recurringExpenseRoutes, { prefix: "/api/recurring-expenses" });
   app.register(saleRoutes, { prefix: "/api/sales" });
   app.register(purchaseRoutes, { prefix: "/api/purchases" });
