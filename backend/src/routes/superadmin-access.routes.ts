@@ -20,7 +20,7 @@ import { requireSuperAdmin } from "../middlewares/superadmin.js";
 const tenantIdParams = z.object({ id: z.string().uuid() });
 
 const accessBodySchema = z.object({
-  reason: z.string().trim().min(3).max(500),
+  reason: z.string().trim().min(3).max(500).optional(),
   access: z.record(z.boolean()),
 });
 
@@ -73,7 +73,7 @@ export async function superadminAccessRoutes(app: FastifyInstance) {
       .filter(([, enabled]) => !enabled)
       .map(([key]) => key)
       .join(",");
-    await logSuperadminAction(request, "TENANT_ACCESS_UPDATE", { targetTenantId: id, reason: reason || body.reason });
+    await logSuperadminAction(request, "TENANT_ACCESS_UPDATE", { targetTenantId: id, reason: reason || body.reason || null });
 
     const plan = await getPlanForBusiness(id);
     const disabled = await getDisabledAccessKeys(id);

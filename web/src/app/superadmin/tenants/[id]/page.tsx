@@ -97,7 +97,6 @@ export default function TenantDetailPage() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [planSaving, setPlanSaving] = useState(false);
-  const [reason, setReason] = useState("");
   const [impersonating, setImpersonating] = useState(false);
   const [accessPlanName, setAccessPlanName] = useState<string | null>(null);
   const [accessPages, setAccessPages] = useState<AccessPage[]>([]);
@@ -134,18 +133,13 @@ export default function TenantDetailPage() {
   }, [load]);
 
   const submitStatus = async (action: "SUSPEND" | "ACTIVATE") => {
-    if (!reason.trim()) {
-      toast.error(`A reason is required to ${action.toLowerCase()} a tenant.`);
-      return;
-    }
     setBusy(true);
     try {
       await saFetch(`/api/superadmin/tenants/${id}/status`, {
         method: "PATCH",
-        body: { action, reason: reason.trim() },
+        body: { action },
       });
       toast.success(action === "SUSPEND" ? "Tenant suspended." : "Tenant activated.");
-      setReason("");
       void load();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Action failed");
@@ -159,18 +153,13 @@ export default function TenantDetailPage() {
       toast.error("Select a plan first.");
       return;
     }
-    if (!reason.trim()) {
-      toast.error("A reason is required for a plan override.");
-      return;
-    }
     setPlanSaving(true);
     try {
       await saFetch(`/api/superadmin/tenants/${id}/plan`, {
         method: "PATCH",
-        body: { planId, reason: reason.trim() },
+        body: { planId },
       });
       toast.success("Business plan updated.");
-      setReason("");
       void load();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Plan override failed");
@@ -184,20 +173,15 @@ export default function TenantDetailPage() {
   };
 
   const saveAccess = async () => {
-    if (!reason.trim()) {
-      toast.error("A reason is required to change page access.");
-      return;
-    }
     setAccessSaving(true);
     try {
       const res = await saFetch<{ pages: AccessPage[] }>(`/api/superadmin/tenants/${id}/access`, {
         method: "PUT",
-        body: { reason: reason.trim(), access: overrides },
+        body: { access: overrides },
       });
       setAccessPages(res.pages);
       setOverrides(buildAccessOverrides(res.pages));
       toast.success("Page & feature access updated.");
-      setReason("");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Access update failed");
     } finally {
@@ -206,15 +190,11 @@ export default function TenantDetailPage() {
   };
 
   const impersonate = async () => {
-    if (!reason.trim()) {
-      toast.error("A reason is required for impersonation (audit trail).");
-      return;
-    }
     setImpersonating(true);
     try {
       const res = await saFetch<{ accessToken: string; expiresInSeconds: number; tenant: { id: string; name: string }; user: { email: string } }>(
         `/api/superadmin/tenants/${id}/impersonate`,
-        { method: "POST", body: { reason: reason.trim() } },
+        { method: "POST", body: {} },
       );
       const handoff = encodeURIComponent(
         JSON.stringify({
@@ -290,17 +270,6 @@ export default function TenantDetailPage() {
             <div className="flex-1 space-y-1.5"><label htmlFor="tenant-plan" className="text-xs font-semibold uppercase tracking-wide text-slate-500">Plan</label><select id="tenant-plan" value={planId} onChange={(event) => setPlanId(event.target.value)} className="h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm text-navy-900"><option value="">Select a plan</option>{plans.map((plan) => <option key={plan.id} value={plan.id}>{plan.name}{plan.status !== "ACTIVE" ? ` (${plan.status.toLowerCase()})` : ""}</option>)}</select></div>
             <button type="button" onClick={() => void overridePlan()} disabled={planSaving || !planId || planId === s.planId} className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-navy-900 px-4 text-sm font-semibold text-white hover:bg-navy-800 disabled:cursor-not-allowed disabled:opacity-50">{planSaving && <Loader2 className="size-4 animate-spin" />}Override plan</button>
           </div>
-          <div className="space-y-1.5">
-            <label htmlFor="plan-override-reason" className="text-xs font-semibold uppercase tracking-wide text-slate-500">Reason <span className="text-red-500">*</span></label>
-            <textarea
-              id="plan-override-reason"
-              value={reason}
-              onChange={(e) => setReason(e.target.value)}
-              placeholder="Reason for plan override (required, min 3 characters)"
-              rows={2}
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-royal-500 focus:outline-none focus:ring-2 focus:ring-royal-100"
-            />
-          </div>
         </div>
       </div>
 
@@ -313,8 +282,7 @@ export default function TenantDetailPage() {
             <div>
               <h2 className="font-semibold text-navy-900">Pages &amp; features</h2>
               <p className="mt-1 text-xs text-slate-500">
-                Turn app pages and features off for this business. Plan-included pages can be restricted here; the
-                audited reason below is required.
+                Turn app pages and features off for this business. Plan-included pages can be restricted here.
               </p>
             </div>
           </div>
@@ -406,14 +374,7 @@ export default function TenantDetailPage() {
 
         <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
           <h2 className="mb-3 font-semibold text-navy-900">Platform actions</h2>
-          <textarea
-            value={reason}
-            onChange={(e) => setReason(e.target.value)}
-            placeholder="Reason (audited) — e.g. payment overdue, compliance…"
-            rows={3}
-            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-royal-500 focus:outline-none focus:ring-2 focus:ring-royal-100"
-          />
-          <div className="mt-3 flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2">
             <button
               type="button"
               disabled={busy}

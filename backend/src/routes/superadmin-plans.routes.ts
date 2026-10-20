@@ -58,7 +58,7 @@ const idSchema = z.object({ id: z.string().uuid() });
 const statusSchema = z.object({ status: z.enum(PLAN_STATUSES) });
 const tenantPlanSchema = z.object({
   planId: z.string().uuid(),
-  reason: z.string().trim().min(3).max(500),
+  reason: z.string().trim().min(3).max(500).optional(),
 });
 
 function normalizedModules(modules: PlanModuleInput[]) {
@@ -286,7 +286,7 @@ export async function superadminPlanRoutes(app: FastifyInstance) {
     );
     if (!updated[0]) throw ApiError.notFound("Tenant not found.");
     const sa = getSuperadmin(request);
-    await logSuperadminAction(request, "TENANT_PLAN_OVERRIDE", { targetTenantId: id, reason: body.reason });
+    await logSuperadminAction(request, "TENANT_PLAN_OVERRIDE", { targetTenantId: id, reason: body.reason ?? null });
     return { ok: true, planId: body.planId, updatedBy: sa.id };
   });
 }

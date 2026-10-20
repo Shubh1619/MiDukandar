@@ -140,7 +140,7 @@ export async function superadminRoutes(app: FastifyInstance) {
   // ---------- TENANT SUSPEND / ACTIVATE ----------
   const statusSchema = z.object({
     action: z.enum(["SUSPEND", "ACTIVATE"]),
-    reason: z.string().min(3).max(500),
+    reason: z.string().trim().min(3).max(500).optional(),
   });
 
   app.patch("/tenants/:id/status", async (request: FastifyRequest) => {
@@ -154,7 +154,7 @@ export async function superadminRoutes(app: FastifyInstance) {
       if (store.status === "SUSPENDED") throw ApiError.conflict("Tenant is already suspended.");
       await qExec(
         `UPDATE stores SET status = 'SUSPENDED', suspended_at = now(), suspended_reason = $2, updated_at = now() WHERE id = $1`,
-        [id, body.reason],
+        [id, body.reason ?? null],
       );
     } else {
       if (store.status !== "SUSPENDED") throw ApiError.conflict("Tenant is already active.");
@@ -166,7 +166,7 @@ export async function superadminRoutes(app: FastifyInstance) {
 
     await logSuperadminAction(request, body.action === "SUSPEND" ? "TENANT_SUSPEND" : "TENANT_ACTIVATE", {
       targetTenantId: id,
-      reason: body.reason,
+      reason: body.reason ?? null,
     });
 
     return { ok: true, id, status: body.action === "SUSPEND" ? "SUSPENDED" : "ACTIVE" };
@@ -174,13 +174,14 @@ export async function superadminRoutes(app: FastifyInstance) {
 
   // ---------- IMPERSONATE ----------
   const impersonateSchema = z.object({
-    reason: z.string().min(3).max(500),
+    reason: z.string().trim().min(3).max(500).optional(),
   });
 
   app.post("/tenants/:id/impersonate", async (request: FastifyRequest) => {
     const sa = getSuperadmin(request);
     const { id } = parse(tenantIdParams, request.params);
-    const { reason } = parse(impersonateSchema, request.body);
+    const body = parse(impersonateSchema, request.body);
+    const { reason } = body;
 
     const store = await qOne<{ id: string; name: string; status: string }>(
       `SELECT id, name, status FROM stores WHERE id = $1`,
@@ -209,7 +210,7 @@ export async function superadminRoutes(app: FastifyInstance) {
         imp: true,
         impersonatedBy: sa.id,
         impersonatedByName: sa.name,
-        reason,
+        reason: reason ?? null,
         impExpiresAt: new Date(Date.now() + minutes * 60_000).toISOString(),
       },
       { expiresIn: minutes * 60 },
@@ -218,14 +219,14 @@ export async function superadminRoutes(app: FastifyInstance) {
     await logSuperadminAction(request, "TENANT_IMPERSONATE", {
       targetTenantId: store.id,
       targetUserId: user.id as string,
-      reason,
+      reason: reason ?? null,
     });
 
     return {
       ok: true,
       accessToken,
       expiresInSeconds: minutes * 60,
-      reason,
+      reason: reason ?? null,
       tenant: { id: store.id, name: store.name },
       user: {
         id: user.id,
