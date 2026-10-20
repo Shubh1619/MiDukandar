@@ -3,6 +3,7 @@ import { z } from "zod";
 import { q, qOne, qClient, type Row } from "../db/pool.js";
 import { parse, paginationSchema } from "../lib/validate.js";
 import { authenticate, requireStore, type AuthenticatedRequest } from "../middlewares/auth.js";
+import { boolFilter } from "./product.shared.js";
 import { getCurrentStock } from "../services/report.service.js";
 
 export async function inventoryRoutes(app: FastifyInstance) {
@@ -10,7 +11,7 @@ export async function inventoryRoutes(app: FastifyInstance) {
   app.get("/stock/current", { preHandler: authenticate }, async (request: AuthenticatedRequest) => {
     const storeId = requireStore(request);
     const query = parse(
-      z.object({ lowOnly: z.coerce.boolean().default(false), search: z.string().optional() }),
+      z.object({ lowOnly: boolFilter(false), search: z.string().optional() }),
       request.query,
     );
     const rows = await getCurrentStock(qClient(), storeId, { lowOnly: query.lowOnly, search: query.search });

@@ -18,7 +18,7 @@ import { mapLow } from "../services/stock.service.js";
 
 // z.coerce.boolean() turns the string "false" into true (Boolean("false") === true),
 // which silently inverted the archived filter. Parse query booleans explicitly.
-const boolFilter = (asDefault: boolean) =>
+export const boolFilter = (asDefault: boolean) =>
   z
     .enum(["true", "false", "1", "0", ""])
     .optional()

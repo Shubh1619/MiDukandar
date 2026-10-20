@@ -12,6 +12,7 @@ import {
   getStockMovementReport,
 } from "../services/report.service.js";
 import { q, qOne, qClient } from "../db/pool.js";
+import { boolFilter } from "./product.shared.js";
 
 function resolveRange(from?: string, to?: string): { from: Date; to: Date } {
   let fromDate: Date;
@@ -37,7 +38,7 @@ function resolveRange(from?: string, to?: string): { from: Date; to: Date } {
 }
 
 const stockQuerySchema = z.object({
-  lowOnly: z.coerce.boolean().default(false),
+  lowOnly: boolFilter(false),
   search: z.string().optional(),
 });
 

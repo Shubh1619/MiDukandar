@@ -5,6 +5,7 @@ import { ApiError } from "../lib/api-error.js";
 import { parse, paginationSchema } from "../lib/validate.js";
 import { buildUpdate } from "../lib/db.js";
 import { authenticate, requireStore, type AuthenticatedRequest } from "../middlewares/auth.js";
+import { boolFilter } from "./product.shared.js";
 import { getCustomerOutstanding, createLedgerEntry, setupCustomerOpeningBalance } from "../services/ledger.service.js";
 import { logger } from "../lib/logger.js";
 
@@ -25,7 +26,7 @@ export async function customerRoutes(app: FastifyInstance) {
   app.get("/", { preHandler: authenticate }, async (request: AuthenticatedRequest) => {
     const storeId = requireStore(request);
     const query = parse(
-      paginationSchema.extend({ search: z.string().optional(), withBalance: z.coerce.boolean().default(false) }),
+      paginationSchema.extend({ search: z.string().optional(), withBalance: boolFilter(false) }),
       request.query,
     );
     const conditions = ["store_id = $1"];
