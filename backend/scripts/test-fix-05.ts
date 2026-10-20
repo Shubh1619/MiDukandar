@@ -64,6 +64,7 @@ async function main(): Promise<void> {
   );
   const ownerId = ownerRow.rows[0]?.id;
   let toggledStaffId = "";
+  let createdStaffId = "";
 
   try {
     // --- fixture: a staff member we are allowed to toggle -------------------
@@ -80,6 +81,7 @@ async function main(): Promise<void> {
       staffId = String((addRes.json() as { ok?: boolean }).ok ? (await pool.query<{ id: string }>(
         `SELECT id FROM users WHERE store_id = $1 AND role <> 'OWNER' ORDER BY created_at DESC LIMIT 1`, [storeId],
       )).rows[0]?.id : "");
+      createdStaffId = staffId;
       check("fixtures: staff member created", !!staffId, `status=${addRes.statusCode}`);
     }
     if (!staffId) throw new Error("no staff member available for the test");
@@ -147,6 +149,9 @@ async function main(): Promise<void> {
     await pool.query(`UPDATE users SET is_active = TRUE WHERE store_id = $1 AND role = 'OWNER'`, [storeId]);
     if (toggledStaffId) {
       await pool.query(`UPDATE users SET is_active = TRUE WHERE id = $1`, [toggledStaffId]);
+    }
+    if (createdStaffId) {
+      await pool.query(`DELETE FROM users WHERE id = $1`, [createdStaffId]).catch(() => undefined);
     }
     if (planId) {
       for (const key of MODULES) {
