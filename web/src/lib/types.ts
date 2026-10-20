@@ -19,6 +19,8 @@ export type PermissionMap = Record<PermissionFlag, boolean>;
 export interface StoreAccess {
   disabledPages: string[];
   disabledFeatures: PermissionFlag[];
+  /** Pages the superadmin granted beyond the tenant's plan (full access). */
+  grantedPages?: string[];
 }
 export type PaymentMode = "CASH" | "UPI" | "CARD" | "CREDIT";
 export type SaleStatus = "HELD" | "CONFIRMED" | "CANCELED" | "REVERSED";

@@ -2,9 +2,10 @@
  * Platform superadmin: per-shop page & feature access.
  *
  * A shop's effective access is plan modules + role permissions minus the keys
- * a superadmin has explicitly turned off. This is a restriction-only layer: a
- * key can never be enabled beyond what the plan and role already allow — the
- * endpoint only stores/clears "disabled" overrides.
+ * a superadmin has explicitly turned off, PLUS any key the superadmin has
+ * explicitly granted: a grant (`enabled = TRUE` row) unlocks a page even when
+ * the tenant's plan does not include it. The superadmin can therefore enable
+ * any page for any plan; only the superadmin can create these overrides.
  */
 
 import type { FastifyInstance } from "fastify";
@@ -14,7 +15,13 @@ import { ApiError } from "../lib/api-error.js";
 import { parse } from "../lib/validate.js";
 import { logSuperadminAction } from "../lib/superadmin-audit.js";
 import { getPlanForBusiness } from "../lib/plans.js";
-import { buildAccessView, getDisabledAccessKeys, isKnownAccessKey } from "../lib/pages.js";
+import {
+  accessKeyIncludedInPlan,
+  buildAccessView,
+  getDisabledAccessKeys,
+  getGrantedAccessKeys,
+  isKnownAccessKey,
+} from "../lib/pages.js";
 import { requireSuperAdmin } from "../middlewares/superadmin.js";
 
 const tenantIdParams = z.object({ id: z.string().uuid() });
@@ -37,10 +44,11 @@ export async function superadminAccessRoutes(app: FastifyInstance) {
     await assertStore(id);
     const plan = await getPlanForBusiness(id);
     const disabled = await getDisabledAccessKeys(id);
+    const granted = await getGrantedAccessKeys(id);
 
     await logSuperadminAction(request, "TENANT_ACCESS_VIEW", { targetTenantId: id });
 
-    return { planName: plan?.name ?? null, pages: buildAccessView(plan, disabled) };
+    return { planName: plan?.name ?? null, pages: buildAccessView(plan, disabled, granted) };
   });
 
   app.put("/tenants/:id/access", async (request) => {
@@ -54,10 +62,22 @@ export async function superadminAccessRoutes(app: FastifyInstance) {
       throw ApiError.badRequest(`Unknown access key(s): ${unknown.join(", ")}`);
     }
 
+    const plan = await getPlanForBusiness(id);
+
     await withTx(async (db) => {
       for (const [key, enabled] of entries) {
         if (enabled) {
-          await db.query(`DELETE FROM store_page_access WHERE store_id = $1 AND access_key = $2`, [id, key]);
+          if (accessKeyIncludedInPlan(plan, key)) {
+            await db.query(`DELETE FROM store_page_access WHERE store_id = $1 AND access_key = $2`, [id, key]);
+          } else {
+            // Granted beyond the plan: persist an explicit unlock for this shop.
+            await db.query(
+              `INSERT INTO store_page_access (store_id, access_key, enabled)
+               VALUES ($1, $2, TRUE)
+               ON CONFLICT (store_id, access_key) DO UPDATE SET enabled = TRUE, updated_at = now()`,
+              [id, key],
+            );
+          }
         } else {
           await db.query(
             `INSERT INTO store_page_access (store_id, access_key, enabled)
@@ -75,8 +95,8 @@ export async function superadminAccessRoutes(app: FastifyInstance) {
       .join(",");
     await logSuperadminAction(request, "TENANT_ACCESS_UPDATE", { targetTenantId: id, reason: reason || body.reason || null });
 
-    const plan = await getPlanForBusiness(id);
     const disabled = await getDisabledAccessKeys(id);
-    return { ok: true, pages: buildAccessView(plan, disabled) };
+    const granted = await getGrantedAccessKeys(id);
+    return { ok: true, pages: buildAccessView(plan, disabled, granted) };
   });
 }

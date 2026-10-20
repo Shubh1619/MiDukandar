@@ -20,6 +20,7 @@ interface AccessPage {
   label: string;
   moduleKey: string | null;
   includedInPlan: boolean;
+  granted?: boolean;
   enabled: boolean;
   features: AccessFeature[];
 }
@@ -27,7 +28,6 @@ interface AccessPage {
 function buildAccessOverrides(pages: AccessPage[]): Record<string, boolean> {
   const next: Record<string, boolean> = {};
   for (const page of pages) {
-    if (!page.includedInPlan) continue;
     next[page.key] = page.enabled;
     for (const feature of page.features) next[feature.key] = feature.enabled;
   }
@@ -282,7 +282,7 @@ export default function TenantDetailPage() {
             <div>
               <h2 className="font-semibold text-navy-900">Pages &amp; features</h2>
               <p className="mt-1 text-xs text-slate-500">
-                Turn app pages and features off for this business. Plan-included pages can be restricted here.
+                Turn any app page or feature on or off for this business. Any page can be enabled on any plan.
               </p>
             </div>
           </div>
@@ -298,21 +298,20 @@ export default function TenantDetailPage() {
                 key={page.key}
                 className={cn(
                   "rounded-lg border p-3",
-                  page.includedInPlan ? "border-slate-200" : "border-slate-100 bg-slate-50",
+                  page.granted ? "border-royal-200 bg-royal-50/40" : "border-slate-200",
                 )}
               >
                 <label className="flex items-center gap-2 text-sm font-medium text-navy-900">
                   <input
                     type="checkbox"
-                    checked={page.includedInPlan && pageOn}
-                    disabled={!page.includedInPlan}
+                    checked={pageOn}
                     onChange={(e) => setOverride(page.key, e.target.checked)}
                     className="size-4 rounded border-slate-300 text-royal-600 focus:ring-royal-500"
                   />
                   <span className="truncate">{page.label}</span>
-                  {!page.includedInPlan && (
-                    <span className="ml-auto shrink-0 rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-medium text-slate-500">
-                      Not in plan
+                  {page.granted && (
+                    <span className="ml-auto shrink-0 rounded-full bg-royal-100 px-2 py-0.5 text-[10px] font-medium text-royal-700">
+                      Granted
                     </span>
                   )}
                 </label>
@@ -322,8 +321,8 @@ export default function TenantDetailPage() {
                       <label key={feature.key} className="flex items-center gap-2 text-xs text-slate-600">
                         <input
                           type="checkbox"
-                          checked={page.includedInPlan && pageOn && (overrides[feature.key] ?? true)}
-                          disabled={!page.includedInPlan || !pageOn}
+                          checked={pageOn && (overrides[feature.key] ?? true)}
+                          disabled={!pageOn}
                           onChange={(e) => setOverride(feature.key, e.target.checked)}
                           className="size-3.5 rounded border-slate-300 text-royal-600 focus:ring-royal-500"
                         />

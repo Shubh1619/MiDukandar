@@ -81,6 +81,18 @@ async function main(): Promise<void> {
   check("plan-disabled page is off", invoices.includedInPlan === false && invoices.enabled === false);
   check("module-less page is included by plan", settings.includedInPlan === true && settings.enabled === true);
 
+  const grantedView = buildAccessView(fakePlan, empty, new Set(["invoices"]));
+  const grantedInvoices = grantedView.find((p) => p.key === "invoices")!;
+  check(
+    "superadmin grant unlocks a plan-disabled page",
+    grantedInvoices.includedInPlan === false && grantedInvoices.granted === true && grantedInvoices.enabled === true,
+  );
+  const grantedOffView = buildAccessView(fakePlan, new Set(["invoices"]), new Set(["invoices"]));
+  check(
+    "an explicit restriction still wins over a grant",
+    grantedOffView.find((p) => p.key === "invoices")!.enabled === false,
+  );
+
   check(
     "only valid module keys are referenced by pages",
     APP_PAGES.every((p) => p.moduleKey === null || (PLAN_MODULE_KEYS as readonly string[]).includes(p.moduleKey)),

@@ -3,8 +3,10 @@
  *
  * The platform superadmin can turn individual pages / feature flags OFF for a
  * specific shop (an extra restriction layer on top of the plan's modules and
- * the shop's role permissions). Only *disabled* keys are persisted in
- * `store_page_access`; absence means "no restriction".
+ * the shop's role permissions) and can also grant keys the plan does not
+ * include — a superadmin grant unlocks a page for that shop in any plan.
+ * `store_page_access` stores `enabled = FALSE` rows (restrictions) and
+ * `enabled = TRUE` rows (grants); absence means "plan/role defaults apply".
  *
  * Keys are either a page key ("products") or a permission flag
  * ("can_manage_products"). This module is the single source of truth for both
@@ -130,6 +132,39 @@ export async function getDisabledAccessKeys(storeId: string, db: DbClient = qCli
   }
 }
 
+/**
+ * Reads the set of keys the platform superadmin explicitly granted for a
+ * store (`enabled = TRUE` rows). Grants unlock pages/features even when the
+ * tenant's plan does not include them. Tolerates the table being absent.
+ */
+export async function getGrantedAccessKeys(storeId: string, db: DbClient = qClient()): Promise<Set<string>> {
+  try {
+    const rows = await db.q<Row>(
+      `SELECT access_key FROM store_page_access WHERE store_id = $1 AND enabled = TRUE`,
+      [storeId],
+    );
+    return new Set(rows.map((row) => String(row.accessKey ?? row.access_key)));
+  } catch (err) {
+    if ((err as { code?: string }).code === "42P01") return new Set();
+    throw err;
+  }
+}
+
+/** Resolves a page key or permission flag to the page that owns it. */
+export function pageForKey(key: string): AppPage | undefined {
+  const page = pageByKey(key);
+  if (page) return page;
+  const flag = key as PermissionFlag;
+  return PERMISSION_FLAGS.includes(flag) ? pageByKey(PAGE_KEY_BY_FLAG[flag]) : undefined;
+}
+
+/** True when the tenant's plan already covers this page/feature key. */
+export function accessKeyIncludedInPlan(plan: PlanDefinition | null, key: string): boolean {
+  const page = pageForKey(key);
+  if (!page) return false;
+  return page.moduleKey == null || hasPlanModule(plan, page.moduleKey);
+}
+
 /** A feature flag is blocked when the flag itself or its owning page is off. */
 export function isFlagDisabled(disabled: ReadonlySet<string>, flag: PermissionFlag): boolean {
   return disabled.has(flag) || disabled.has(PAGE_KEY_BY_FLAG[flag]);
@@ -153,20 +188,32 @@ export interface AccessPageView {
   label: string;
   moduleKey: PlanModuleKey | null;
   includedInPlan: boolean;
+  granted: boolean;
   enabled: boolean;
   features: AccessFeatureView[];
 }
 
-/** Builds the console/tenant view of a store's effective page access. */
-export function buildAccessView(plan: PlanDefinition | null, disabled: ReadonlySet<string>): AccessPageView[] {
+/**
+ * Builds the console/tenant view of a store's effective page access.
+ *
+ * `granted` marks keys the superadmin unlocked beyond the plan; such pages
+ * count as enabled regardless of plan inclusion (unless explicitly disabled).
+ */
+export function buildAccessView(
+  plan: PlanDefinition | null,
+  disabled: ReadonlySet<string>,
+  granted: ReadonlySet<string> = new Set(),
+): AccessPageView[] {
   return APP_PAGES.map((page) => {
     const includedInPlan = page.moduleKey == null ? true : hasPlanModule(plan, page.moduleKey);
+    const pageGranted = !includedInPlan && granted.has(page.key);
     return {
       key: page.key,
       label: page.label,
       moduleKey: page.moduleKey,
       includedInPlan,
-      enabled: includedInPlan && !disabled.has(page.key),
+      granted: pageGranted,
+      enabled: (includedInPlan || pageGranted) && !disabled.has(page.key),
       features: page.features.map((feature) => ({
         key: feature.key,
         label: feature.label,

@@ -21,6 +21,7 @@ const MOBILE_NAV = [
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const store = useAuth((state) => state.store);
+  const user = useAuth((state) => state.user);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(() => {
     if (typeof window === "undefined") return false;
@@ -73,7 +74,11 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
       <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-navy-100 bg-white/95 shadow-[0_-10px_30px_rgba(15,39,71,0.08)] backdrop-blur-sm sm:hidden">
         <div className="grid grid-cols-4 gap-1 px-2 py-1.5">
-          {MOBILE_NAV.filter(({ moduleKey }) => !store?.planDetails || planHasModule(store.planDetails, moduleKey)).map(({ href, label, icon: Icon }) => {
+          {MOBILE_NAV.filter(({ moduleKey, href }) => {
+            const pageKey = href.replace(/^\//, "");
+            if (user?.access?.grantedPages?.includes(pageKey)) return true;
+            return !store?.planDetails || planHasModule(store.planDetails, moduleKey);
+          }).map(({ href, label, icon: Icon }) => {
             const active = pathname === href || pathname.startsWith(`${href}/`);
             return (
               <Link

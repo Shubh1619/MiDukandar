@@ -13,7 +13,7 @@ import { defaultPermissionsFor } from "./role.routes.js";
 import { resolveReferralCode } from "./referral.routes.js";
 import { getPlanForBusiness } from "../lib/plans.js";
 import { PERMISSION_FLAGS } from "../lib/permissions.js";
-import { APP_PAGES, getDisabledAccessKeys } from "../lib/pages.js";
+import { APP_PAGES, getDisabledAccessKeys, getGrantedAccessKeys } from "../lib/pages.js";
 import { rateLimited } from "../lib/route-rate-limit.js";
 import { getPlatformSettings } from "../lib/platform-settings.js";
 
@@ -333,13 +333,16 @@ export async function authRoutes(app: FastifyInstance) {
       : null;
     const plan = user.store_id ? await getPlanForBusiness(String(user.store_id)) : null;
     const disabled = user.store_id ? await getDisabledAccessKeys(String(user.store_id)) : new Set<string>();
+    const granted = user.store_id ? await getGrantedAccessKeys(String(user.store_id)) : new Set<string>();
+    const pageKeys = APP_PAGES.map((page) => page.key);
     return {
       user: {
         ...toUserJson(user),
         permissions: user.role === "OWNER" ? defaultPermissionsFor("OWNER") : rolePermissions?.permissions ?? defaultPermissionsFor(roleKey),
         access: {
-          disabledPages: APP_PAGES.map((page) => page.key).filter((key) => disabled.has(key)),
+          disabledPages: pageKeys.filter((key) => disabled.has(key)),
           disabledFeatures: PERMISSION_FLAGS.filter((flag) => disabled.has(flag)),
+          grantedPages: pageKeys.filter((key) => granted.has(key)),
         },
       },
       store: store && plan ? { ...store, planDetails: plan } : store,

@@ -72,8 +72,9 @@ export default function Sidebar({ collapsed, onToggle, items, roleKey, mobileOpe
   const role = roleKey ?? user?.role ?? "OWNER";
   const roleLabel = ROLE_LABEL[role] ?? role;
   const canSee = (item: NavItem) => {
-    if (item.moduleKey && store?.planDetails && !planHasModule(store.planDetails, item.moduleKey)) return false;
     const pageKey = item.href.replace(/^\//, "");
+    const granted = user?.access?.grantedPages?.includes(pageKey) ?? false;
+    if (item.moduleKey && !granted && store?.planDetails && !planHasModule(store.planDetails, item.moduleKey)) return false;
     if (user?.access?.disabledPages?.includes(pageKey)) return false;
     if (item.permission && user?.access?.disabledFeatures?.includes(item.permission as PermissionFlag)) return false;
     if (!item.permission || role === "OWNER" || role === "SUPERADMIN") return true;
