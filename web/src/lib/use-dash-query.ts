@@ -26,6 +26,10 @@ export function useDashQuery<T>(
 
   useEffect(() => {
     let mounted = true;
+    // Only the very first load shows the skeleton. Background polls and manual
+    // refreshes keep the current data on screen so a single failed poll can't
+    // blank the whole page.
+    let hasLoaded = false;
     const run = async () => {
       try {
         const d = await fetcher();
@@ -35,10 +39,13 @@ export function useDashQuery<T>(
         }
       } catch (err) {
         if (mounted) {
-          setData(null);
-          setError(err instanceof Error ? err.message : "Failed to load data");
+          const message = err instanceof Error ? err.message : "Failed to load data";
+          setError(message);
+          // Preserve the last good payload unless we never had one.
+          if (!hasLoaded) setData(null);
         }
       } finally {
+        hasLoaded = true;
         if (mounted) setLoading(false);
       }
     };
@@ -59,6 +66,9 @@ export function useDashQuery<T>(
     data,
     error,
     loading,
-    refresh: () => setTick((t) => t + 1),
+    refresh: () => {
+      setLoading(true);
+      setTick((t) => t + 1);
+    },
   };
 }
