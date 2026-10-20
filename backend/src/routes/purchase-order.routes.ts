@@ -106,7 +106,8 @@ export async function purchaseOrderRoutes(app: FastifyInstance) {
           `SELECT id FROM products WHERE store_id = $1 AND id = ANY($2::uuid[])`,
           [storeId, body.lines.map((l) => l.productId)],
         );
-        if (products.length !== body.lines.length) {
+        const knownProducts = new Set(products.map((p) => p.id));
+        if (body.lines.some((l) => !knownProducts.has(l.productId))) {
           throw ApiError.badRequestCode("One or more products are not in this store.", "PRODUCT_NOT_FOUND");
         }
 
@@ -207,7 +208,8 @@ export async function purchaseOrderRoutes(app: FastifyInstance) {
             `SELECT id FROM products WHERE store_id = $1 AND id = ANY($2::uuid[])`,
             [storeId, body.lines.map((l) => l.productId)],
           );
-          if (products.length !== body.lines.length) {
+          const knownProducts = new Set(products.map((p) => p.id));
+          if (body.lines.some((l) => !knownProducts.has(l.productId))) {
             throw ApiError.badRequestCode("One or more products are not in this store.", "PRODUCT_NOT_FOUND");
           }
           lines = body.lines;
