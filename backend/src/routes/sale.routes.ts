@@ -44,12 +44,14 @@ const saleSchema = z.object({
 });
 
 /**
- * Edit schema. A partial edit may omit `lines` (and discount / due date): the
- * sale's stored values are then preserved. When `lines` *is* supplied the whole
- * sale is re-priced, matching the create contract.
+ * Edit schema. A partial edit may omit `lines`, `paymentMode`, `paidAmount`,
+ * `discount` and `notes`: `updateSale` then preserves each stored value instead
+ * of clearing it. When `lines` *is* supplied the whole sale is re-priced,
+ * matching the create contract.
  */
 const saleUpdateSchema = saleSchema.extend({
   lines: z.array(saleLineSchema).min(1).optional(),
+  paymentMode: z.enum(["CASH", "UPI", "CARD", "CREDIT"]).optional(),
   discount: z.coerce.number().min(0).optional(),
   discountType: z.enum(["FLAT", "PERCENT"]).optional(),
 });

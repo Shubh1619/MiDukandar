@@ -143,8 +143,13 @@ export interface SaleInput {
  * changes customer / paid amount / payment mode) omits it and the sale's stored
  * lines, bill discount and credit due date are preserved.
  */
-export interface SaleUpdateInput extends Omit<SaleInput, "lines"> {
+export interface SaleUpdateInput extends Omit<SaleInput, "lines" | "paymentMode" | "discount" | "discountType" | "paidAmount" | "notes"> {
   lines?: SaleLineInput[];
+  paymentMode?: "CASH" | "UPI" | "CARD" | "CREDIT";
+  discount?: number;
+  discountType?: "FLAT" | "PERCENT";
+  paidAmount?: number;
+  notes?: string;
 }
 
 export interface SaleRow {
@@ -701,7 +706,7 @@ export async function updateSale(
   // from scratch, all gated on this row still being CONFIRMED. Locking it stops
   // a concurrent edit or reversal from interleaving and double-restocking.
   const existing = await db.qOne<
-    SaleRow & { customer_id: string | null; payment_mode: string; due_amount: number; discount_type: string; due_date: Date | string | null }
+    SaleRow & { customer_id: string | null; payment_mode: string; due_amount: number; discount_type: string; due_date: Date | string | null; notes: string | null }
   >(
     `SELECT * FROM sales WHERE id = $1 AND store_id = $2 FOR UPDATE`,
     [saleId, storeId],
@@ -746,6 +751,18 @@ export async function updateSale(
     ? { dueDate: toYmd(existing.due_date) }
     : input.udhaar;
 
+  // An omitted field means "unchanged" (the same convention `lines`, `discount`
+  // and `udhaar` already follow). Writing `input.x ?? null` instead would clear
+  // the customer link, wipe the notes and, with `input.paidAmount ?? 0`/the
+  // mode changing, reset the settlement of an invoice the caller only meant to
+  // partially touch. Payment history is only rebuilt when its inputs change.
+  const touchesPayment = input.paymentMode !== undefined || input.paidAmount !== undefined;
+  const paymentMode = input.paymentMode ?? (existing.payment_mode as "CASH" | "UPI" | "CARD" | "CREDIT");
+  const preservedPaid =
+    existing.due_amount <= 0 || existing.payment_mode === "CREDIT"
+      ? Number(existing.paid_amount)
+      : undefined;
+
   for (const it of oldItems) {
     if (!it.product_id) continue;
     await createStockMovement(db, {
@@ -782,8 +799,14 @@ export async function updateSale(
 
   const { items, subtotal, taxTotal, lineDiscounts } = priceLines(lines, pMap);
   const { billDiscount, grantTotal } = billTotals(subtotal, taxTotal, lineDiscounts, discount, discountType);
-  const { paidAmount, dueAmount } = splitPayment(grantTotal, input.paymentMode, input.paidAmount);
-  const customerId = await resolveCustomer(db, storeId, input, input.createdById);
+  const { paidAmount, dueAmount } = splitPayment(
+    grantTotal,
+    paymentMode,
+    input.paidAmount ?? preservedPaid,
+  );
+  const customerId = input.customerId !== undefined || input.customer !== undefined
+    ? await resolveCustomer(db, storeId, input, input.createdById)
+    : (existing.customer_id ?? undefined);
 
   const updated = await db.qOne<SaleRow>(
     `UPDATE sales
@@ -801,9 +824,9 @@ export async function updateSale(
       grantTotal,
       paidAmount,
       dueAmount,
-      input.paymentMode,
-      input.paymentMode === "CREDIT" ? udhaar?.dueDate || null : null,
-      input.notes ?? null,
+      paymentMode,
+      udhaar?.dueDate || null,
+      input.notes !== undefined ? input.notes : existing.notes,
       saleId,
       storeId,
     ],
@@ -857,20 +880,22 @@ export async function updateSale(
     await linkUdhaariEntry(db, storeId, customerId, existing, dueAmount, udhaar, input.createdById);
   }
 
-  await db.q(`DELETE FROM payments WHERE sale_id = $1`, [saleId]);
-  if (input.paymentMode !== "CREDIT" && paidAmount > 0) {
-    await insertPayment(db, {
-      storeId,
-      customerId: customerId ?? null,
-      saleId,
-      amount: paidAmount,
-      type: "RECEIVED",
-      mode: input.paymentMode,
-      referenceType: "SALE",
-      referenceId: saleId,
-      note: `Payment for ${existing.invoice_number}`,
-      createdById: input.createdById,
-    });
+  if (touchesPayment) {
+    await db.q(`DELETE FROM payments WHERE sale_id = $1`, [saleId]);
+    if (paymentMode !== "CREDIT" && paidAmount > 0) {
+      await insertPayment(db, {
+        storeId,
+        customerId: customerId ?? null,
+        saleId,
+        amount: paidAmount,
+        type: "RECEIVED",
+        mode: paymentMode,
+        referenceType: "SALE",
+        referenceId: saleId,
+        note: `Payment for ${existing.invoice_number}`,
+        createdById: input.createdById,
+      });
+    }
   }
 
   return updated;
