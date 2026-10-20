@@ -549,7 +549,7 @@ export default function SettingsPage() {
 
             <div className="rounded-lg border bg-card p-5">
               <h2 className="font-display text-base font-bold">Have a code?</h2>
-              <p className="mt-1 text-sm text-muted-foreground">Enter a friend's referral code to link your shop.</p>
+              <p className="mt-1 text-sm text-muted-foreground">Enter a friend&apos;s referral code to link your shop.</p>
               <div className="mt-3 flex gap-2">
                 <Input
                   placeholder="e.g. A1B2C3D4"
