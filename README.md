@@ -100,7 +100,7 @@ Equivalent VS Code launch configurations live in `.vscode/launch.json`
   is printed to the backend console.
 - `OTP_MASTER=000000` is a universal OTP bypass that is honoured **only** when
   `NODE_ENV != production` (set to production it refuses to boot instead).
-- `MAIL_MODE=brevo` requires `BREVO_API_KEY` and `BREVO_SENDER_EMAIL`; the API
+- `MAIL_MODE=brevo` requires `BREVO_API_KEY` and `MAIL_FROM_EMAIL`/`BREVO_SENDER_EMAIL`; the API
   refuses to boot if they are missing.
 
 ---
@@ -122,7 +122,7 @@ set these environment variables in the Render dashboard:
 | `NODE_ENV` | `production` |
 | `MAIL_MODE` | `brevo` |
 | `BREVO_API_KEY` | your Brevo API key |
-| `BREVO_SENDER_EMAIL` | verified sender address |
+| `MAIL_FROM_EMAIL` | verified sender address (custom domain) |
 | `DATABASE_URL` | managed Postgres connection string (pooled) |
 | `DIRECT_URL` | non-pooler endpoint (used for migrations) |
 | `JWT_ACCESS_SECRET` | random, ≥ 32 chars (**different from local**) |
@@ -150,7 +150,7 @@ Notes:
 - [ ] Rotate `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`, `SUPERADMIN_JWT_SECRET`
       (must differ from the local development values)
 - [ ] Unset `OTP_MASTER` (a universal OTP bypass)
-- [ ] `MAIL_MODE=brevo` with valid `BREVO_API_KEY` + `BREVO_SENDER_EMAIL`
+- [ ] `MAIL_MODE=brevo` with valid `BREVO_API_KEY` + `MAIL_FROM_EMAIL`/`BREVO_SENDER_EMAIL`
       (Brevo account IP allow-list must include the Render egress IP)
 - [ ] `DATABASE_URL` / `DIRECT_URL` point at the production database
 - [ ] `APP_URL` and `CORS_ALLOWED_ORIGINS` set to the real `https://` origin
@@ -174,3 +174,9 @@ npm run seed:dev   # demo data — refuses when NODE_ENV=production
 npm run lint
 npm run typecheck
 ```
+
+## Switching to a custom domain (Brevo)
+- Authenticate your domain in Brevo (SPF + DKIM + DMARC).
+- Set MAIL_FROM_EMAIL to an address on that authenticated domain.
+- Delete or unset ALLOW_UNVERIFIED_MAIL_SENDER. You may also remove MAIL_REPLY_TO if not needed.
+

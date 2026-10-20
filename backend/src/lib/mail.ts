@@ -105,7 +105,7 @@ export async function sendMail(input: SendMailInput): Promise<SendMailResult> {
       },
       body: JSON.stringify({
         sender: { email: config.mailFromEmail, name: config.mailFromName },
-        ...(config.mailReplyTo ? { replyTo: { email: config.mailReplyTo } } : {}),
+        replyTo: { email: config.mailReplyTo || config.mailFromEmail },
         to: recipients,
         subject: input.subject,
         htmlContent: input.html,
@@ -119,14 +119,11 @@ export async function sendMail(input: SendMailInput): Promise<SendMailResult> {
 
     if (!res.ok) {
       const rawBody = await res.text();
-      // Status + code only. The raw body — and the recipient list and subject
-      // this line used to carry — can contain the recipient address and other
-      // request data, which does not belong in the log stream. The status and
-      // Brevo's code are what an operator acts on (e.g. a 401/unauthorized
-      // caused by an unauthorised egress IP).
+      // Log the status code and response body as requested (no API key)
       logger.error("brevo: failed to send email", {
         status: res.status,
         code: brevoErrorCode(rawBody, res.status),
+        body: rawBody,
       });
       return {
         ok: false,

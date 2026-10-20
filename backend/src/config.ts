@@ -14,6 +14,7 @@ export interface Config {
   databaseUrl: string;
   /** Hostname of DATABASE_URL (never includes credentials) — safe to log. */
   dbHost: string;
+  allowUnverifiedMailSender: boolean;
   jwtAccessSecret: string;
   jwtRefreshSecret: string;
   jwtAccessExpiresIn: string;
@@ -71,13 +72,21 @@ const EnvSchema = z.object({
     .string({ required_error: "DATABASE_URL is required" })
     .min(1, "DATABASE_URL is required"),
   ALLOW_REMOTE_DB_IN_DEV: bool(false),
+  ALLOW_UNVERIFIED_MAIL_SENDER: z.string().optional(),
   APP_URL: z.string().optional(),
   APP_NAME: z.string().optional(),
   MAIL_MODE: z.string().optional(),
   BREVO_API_KEY: z.string().optional(),
   MAIL_FROM_EMAIL: z.string().optional(),
   MAIL_FROM_NAME: z.string().optional(),
-  MAIL_REPLY_TO: z.string().optional(),
+  MAIL_REPLY_TO: z
+    .string()
+    .optional()
+    .refine((v) => {
+      if (v === undefined || v.trim() === "") return true;
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      return emailRegex.test(v.trim());
+    }, "MAIL_REPLY_TO must be a valid email address"),
   BREVO_SENDER_EMAIL: z.string().optional(),
   BREVO_SENDER_NAME: z.string().optional(),
   BREVO_WEBHOOK_SECRET: z.string().optional(),
@@ -209,6 +218,9 @@ const appUrl = env.APP_URL?.trim() ?? "";
 const databaseUrl = env.DATABASE_URL.trim();
 const dbHost = hostOf(databaseUrl);
 
+const allowUnverifiedMailSender =
+  (env.ALLOW_UNVERIFIED_MAIL_SENDER ?? "").trim().toLowerCase() === "true";
+
 const mailModeRaw = env.MAIL_MODE?.trim().toLowerCase() || (isProd ? "brevo" : "log");
 if (mailModeRaw !== "log" && mailModeRaw !== "brevo") {
   throw new Error(`MAIL_MODE must be "log" or "brevo" (got "${env.MAIL_MODE}")`);
@@ -221,6 +233,7 @@ export const config: Config = {
   port: firstPort(env.API_PORT, env.PORT),
   databaseUrl,
   dbHost,
+  allowUnverifiedMailSender,
   jwtAccessSecret: env.JWT_ACCESS_SECRET ?? DEV_ACCESS_SECRET,
   jwtRefreshSecret: env.JWT_REFRESH_SECRET ?? DEV_REFRESH_SECRET,
   jwtAccessExpiresIn: env.JWT_ACCESS_EXPIRES_IN ?? "15m",
@@ -361,9 +374,16 @@ function assertProductionSecrets(): void {
   // by Gmail and the other large providers. Fail the boot instead of shipping
   // a login email nobody receives.
   if (config.mailMode === "brevo" && isFreeMailDomain(config.mailFromEmail)) {
-    problems.push(
-      `MAIL_FROM_EMAIL must be an address on a domain you have authenticated in Brevo, not a free mailbox (${config.mailFromEmail})`,
-    );
+    if (config.allowUnverifiedMailSender) {
+      const domain = (config.mailFromEmail.split("@")[1] || "").toLowerCase();
+      console.warn(
+        `MAIL_FROM_EMAIL uses a free mailbox (${domain}). Brevo will replace the sender address and OTP emails may land in spam. Authenticate a custom domain before onboarding real users.`,
+      );
+    } else {
+      problems.push(
+        `MAIL_FROM_EMAIL must be an address on a domain you have authenticated in Brevo, not a free mailbox (${config.mailFromEmail})`,
+      );
+    }
   }
 
   if (config.masterOtp) {
@@ -408,10 +428,19 @@ assertProductionSecrets();
  * One-line summary of the active configuration, safe to print at startup
  * (never includes secrets). Callers add the current migration version.
  */
+function getMailSenderMode(): string {
+  if (config.mailMode !== "brevo") return "custom-domain";
+  if (config.mailFromEmail && isFreeMailDomain(config.mailFromEmail)) {
+    return config.allowUnverifiedMailSender ? "free-mailbox-allowed" : "free-mailbox-blocked";
+  }
+  return "custom-domain";
+}
+
 export function startupSummary(): Record<string, string> {
   return {
     env: config.nodeEnv,
     mailMode: config.mailMode,
     dbHost: config.dbHost || "(unset)",
+    mailSenderMode: getMailSenderMode(),
   };
 }
