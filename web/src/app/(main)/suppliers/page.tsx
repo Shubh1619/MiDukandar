@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Plus, Eye, Pencil, Trash2, HandCoins, MessageCircle, FileText } from "lucide-react";
+import { Plus, Eye, Pencil, Trash2, HandCoins, MessageCircle, FileText, FilePlus2 } from "lucide-react";
 import { apiFetch, ApiError } from "@/lib/api";
 import { useI18n } from "@/components/i18n-provider";
 import { formatINR, formatDateTime } from "@/lib/format";
@@ -281,6 +281,15 @@ export default function SuppliersPage() {
                           aria-label={t("reorderWhatsApp")}
                         >
                           <MessageCircle className="size-4 text-emerald-600" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => setPoSupplierTarget(s)}
+                          title={t("newPurchaseOrder")}
+                          aria-label={t("newPurchaseOrder")}
+                        >
+                          <FilePlus2 className="size-4 text-sky-600" />
                         </Button>
                         <Button
                           variant="ghost"
