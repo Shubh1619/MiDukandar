@@ -6,6 +6,7 @@ import { parse } from "../lib/validate.js";
 import { logSuperadminAction } from "../lib/superadmin-audit.js";
 import { requireSuperAdmin, getSuperadmin } from "../middlewares/superadmin.js";
 import { q, qOne, qExec } from "../db/pool.js";
+import { invalidatePlatformSettings } from "../lib/platform-settings.js";
 
 const STATUS = ["ACTIVE", "SUSPENDED"] as const;
 
@@ -297,6 +298,10 @@ export async function superadminRoutes(app: FastifyInstance) {
       );
       applied[key] = value;
     }
+
+    // Drop the read cache so the change is live on the very next request
+    // instead of after the cache window.
+    invalidatePlatformSettings();
 
     await logSuperadminAction(request, "SETTINGS_UPDATE", { reason: Object.keys(applied).join(",") });
 

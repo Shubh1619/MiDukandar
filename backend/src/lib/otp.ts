@@ -4,16 +4,29 @@ import { q, qOne, qExec } from "../db/pool.js";
 import { sendMail, renderOtpEmail } from "./mail.js";
 import { ApiError } from "./api-error.js";
 import { logger, maskEmail } from "./logger.js";
+import { getPlatformSettings, type PlatformSettings } from "./platform-settings.js";
 
 export type OtpPurpose = "LOGIN" | "REGISTER" | "RECOVERY";
 
-function generateOtp(): string {
+function generateOtp(length: number): string {
   const chars = "0123456789";
   let otp = "";
-  for (let i = 0; i < config.otpLength; i++) {
+  for (let i = 0; i < length; i++) {
     otp += chars[crypto.randomInt(0, chars.length)];
   }
   return otp;
+}
+
+/**
+ * Per-issuance OTP policy: the superadmin console may override the code length
+ * and expiry; otherwise the deployment config applies. Values are clamped to a
+ * sane range so a bad setting cannot mint a 1-digit code or a 10-year expiry.
+ */
+function otpPolicy(settings: PlatformSettings): { length: number; expiryMinutes: number } {
+  const clamp = (n: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, n));
+  const length = clamp(settings.default_otp_length ?? config.otpLength, 4, 10);
+  const expiryMinutes = clamp(settings.default_otp_expiry_minutes ?? config.otpExpiryMinutes, 1, 60);
+  return { length, expiryMinutes };
 }
 
 export async function requestOtp(email: string, purpose: OtpPurpose = "LOGIN") {
@@ -27,15 +40,16 @@ export async function requestOtp(email: string, purpose: OtpPurpose = "LOGIN") {
     throw ApiError.badRequestCode("Too many OTP requests. Try again in a few minutes.", "OTP_RATE_LIMITED");
   }
 
-  const otp = generateOtp();
-  const expiresAt = new Date(Date.now() + config.otpExpiryMinutes * 60 * 1000);
+  const policy = otpPolicy(await getPlatformSettings());
+  const otp = generateOtp(policy.length);
+  const expiresAt = new Date(Date.now() + policy.expiryMinutes * 60 * 1000);
 
   const [otpRow] = await q<{ id: string }>(
     `INSERT INTO otps (email, otp_hash, purpose, expires_at) VALUES ($1, $2, $3, $4) RETURNING id`,
     [normalized, crypto.createHash("sha256").update(otp).digest("hex"), purpose, expiresAt],
   );
 
-  const otpEmail = renderOtpEmail(otp, config.appName, config.otpExpiryMinutes);
+  const otpEmail = renderOtpEmail(otp, config.appName, policy.expiryMinutes);
   const result = await sendMail({
     to: normalized,
     subject: otpEmail.subject,
@@ -79,7 +93,7 @@ export async function requestOtp(email: string, purpose: OtpPurpose = "LOGIN") {
 
   return {
     ok: true,
-    expiresInSeconds: config.otpExpiryMinutes * 60,
+    expiresInSeconds: policy.expiryMinutes * 60,
     emailSent: result.ok,
   };
 }

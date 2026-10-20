@@ -3,6 +3,7 @@ import { qOne, type Row } from "../db/pool.js";
 import { ApiError } from "../lib/api-error.js";
 import { hasModuleAccess } from "../lib/plans.js";
 import { getDisabledAccessKeys, isFlagDisabled, isModuleDisabled } from "../lib/pages.js";
+import { getPlatformSettings } from "../lib/platform-settings.js";
 import { logger } from "../lib/logger.js";
 import { defaultPermissionsFor, permissionRoleKey, type PermissionFlag } from "../lib/permissions.js";
 import type { Role } from "./auth.types.js";
@@ -80,6 +81,16 @@ export async function authenticate(request: FastifyRequest, reply: FastifyReply)
   // unaffected because they never reach this middleware — their routes use
   // the separate mz_sa cookie guard.
   if (request.auth?.storeId) {
+    // Maintenance mode (set from the superadmin console) takes the whole tenant
+    // API offline while leaving superadmin routes reachable so it can be turned
+    // back off. Settings are cached for a few seconds, so this is not a query
+    // per request.
+    const settings = await getPlatformSettings();
+    if (settings.maintenance_mode) {
+      logger.warn("authz: denied", { ...base, userId: request.auth.id, reason: "maintenance_mode" });
+      throw ApiError.serviceUnavailableCode("MiDukandar is under maintenance. Please try again shortly.", "MAINTENANCE_MODE");
+    }
+
     const store = await qOne<Row>(`SELECT status FROM stores WHERE id = $1`, [request.auth.storeId]);
     const status = (store?.status as string | undefined) ?? null;
     if (status && status !== "ACTIVE") {

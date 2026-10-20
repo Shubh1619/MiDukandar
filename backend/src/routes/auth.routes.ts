@@ -15,6 +15,7 @@ import { getPlanForBusiness } from "../lib/plans.js";
 import { PERMISSION_FLAGS } from "../lib/permissions.js";
 import { APP_PAGES, getDisabledAccessKeys } from "../lib/pages.js";
 import { rateLimited } from "../lib/route-rate-limit.js";
+import { getPlatformSettings } from "../lib/platform-settings.js";
 
 const REFRESH_DAYS_MS = config.refreshTokenDays * 24 * 60 * 60 * 1000;
 // Window during which a just-rotated (revoked) refresh token is still
@@ -176,6 +177,12 @@ export async function authRoutes(app: FastifyInstance) {
     });
     const body = parse(registerSchema, request.body);
     const email = body.email.trim().toLowerCase();
+
+    // The superadmin console's signup switch; without this gate the toggle was
+    // cosmetic and new tenants could always self-register.
+    if (!(await getPlatformSettings()).signup_enabled) {
+      throw ApiError.forbidden("New signups are temporarily disabled. Please try again later.");
+    }
 
     const existing = await qOne<Row>(`SELECT id FROM users WHERE email = $1`, [email]);
     if (existing) {

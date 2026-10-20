@@ -1,6 +1,7 @@
 import { fetch, EnvHttpProxyAgent } from "undici";
 import { config } from "../config.js";
 import { logger, maskEmail } from "./logger.js";
+import { getPlatformSettings } from "./platform-settings.js";
 
 const BREVO_API = "https://api.brevo.com/v3";
 
@@ -96,6 +97,15 @@ export async function sendMail(input: SendMailInput): Promise<SendMailResult> {
   }
 
   try {
+    // Superadmin kill-switch for outbound email (e.g. provider incident or a
+    // suspected compromise). Checked only for the real-send path so the dev
+    // MAIL_MODE=log flow above is unaffected. Returning ok:false routes into
+    // the callers' existing failure handling.
+    if ((await getPlatformSettings()).smtp_paused) {
+      logger.warn("mail: paused by platform setting", { to: maskedToList });
+      return { ok: false, mode: "brevo", error: "smtp_paused" };
+    }
+
     const res = await fetch(`${BREVO_API}/smtp/email`, {
       method: "POST",
       headers: {
