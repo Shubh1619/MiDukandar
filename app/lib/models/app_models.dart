@@ -203,6 +203,71 @@ class Product {
   }
 }
 
+/// A product surfaced by the expiry alert (expired or expiring soon).
+class ExpiringProduct {
+  const ExpiringProduct({
+    required this.id,
+    required this.name,
+    this.category,
+    required this.unit,
+    this.expiryDate,
+    required this.daysLeft,
+  });
+
+  final String id;
+  final String name;
+  final String? category;
+  final String unit;
+  final String? expiryDate;
+  final int daysLeft;
+
+  bool get isExpired => daysLeft < 0;
+
+  factory ExpiringProduct.fromJson(Map<String, dynamic> json) {
+    final raw = _firstValue(json, const ['expiryDate', 'expiry_date']);
+    return ExpiringProduct(
+      id: _firstValue(json, const ['id']) ?? '',
+      name: _firstValue(json, const ['name']) ?? '',
+      category: _firstValue(json, const ['category']),
+      unit: _firstValue(json, const ['unit']) ?? 'Piece',
+      expiryDate: raw != null && raw.length >= 10 ? raw.substring(0, 10) : raw,
+      daysLeft: _firstNumber(json, const ['daysLeft', 'days_left'], fallback: 0).toInt(),
+    );
+  }
+}
+
+/// Result of the product expiry alert query: what is expired and what expires
+/// within the store's configured window.
+class ExpiryAlert {
+  const ExpiryAlert({
+    required this.expired,
+    required this.expiringSoon,
+    required this.warningDays,
+  });
+
+  final List<ExpiringProduct> expired;
+  final List<ExpiringProduct> expiringSoon;
+  final int warningDays;
+
+  int get total => expired.length + expiringSoon.length;
+  bool get hasAlerts => total > 0;
+
+  factory ExpiryAlert.fromJson(Map<String, dynamic> json) {
+    List<ExpiringProduct> parse(Object? list) => list is List
+        ? list
+            .whereType<Map<String, dynamic>>()
+            .map(ExpiringProduct.fromJson)
+            .toList()
+        : const [];
+    return ExpiryAlert(
+      expired: parse(json['expired']),
+      expiringSoon: parse(json['expiringSoon'] ?? json['expiring_soon']),
+      warningDays: _firstNumber(json, const ['warningDays', 'warning_days'], fallback: 30).toInt(),
+    );
+  }
+}
+
+
 class Customer {
   const Customer({
     required this.id,

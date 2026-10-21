@@ -88,6 +88,18 @@ export interface ProductSummary {
   value: number;
 }
 
+export interface ExpiringProduct {
+  id: string;
+  name: string;
+  sku: string | null;
+  barcode: string | null;
+  category: string | null;
+  unit: string;
+  sellingPrice: number | string;
+  expiryDate: string;
+  daysLeft: number;
+}
+
 export interface Customer {
   id: string;
   name: string;

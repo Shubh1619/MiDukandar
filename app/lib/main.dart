@@ -72,6 +72,7 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
   bool _isBootstrapping = true;
   bool _isLoading = false;
   bool _showRegister = false;
+  bool _expiryAlertShown = false;
   AuthUser? _user;
   Store? _store;
 
@@ -140,6 +141,7 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
             setState(() {
               _isAuthenticated = true;
             });
+            unawaited(_maybeShowExpiryAlert());
           }
         } on SessionExpiredException {
           await _apiService.logout();
@@ -173,6 +175,20 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
     }
   }
 
+  // Shows the product expiry alert once per app session, after login. A failed
+  // fetch is silent so it never blocks the dashboard.
+  Future<void> _maybeShowExpiryAlert() async {
+    if (_expiryAlertShown || !mounted) return;
+    _expiryAlertShown = true;
+    try {
+      final alert = await _apiService.getExpiryAlerts();
+      if (!mounted || !alert.hasAlerts) return;
+      await showExpiryAlertDialog(context, alert);
+    } catch (_) {
+      // Silent: an expiry-alert failure must not disturb the session.
+    }
+  }
+
   Future<String> _handleRequestOtp(String email) async {
     return _apiService.requestLoginOtp(email: email);
   }
@@ -196,6 +212,7 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
       setState(() {
         _isAuthenticated = true;
       });
+      unawaited(_maybeShowExpiryAlert());
     } on SessionExpiredException {
       await _signOut(showError: false);
       rethrow;

@@ -85,6 +85,7 @@ import { TableSearch } from "@/components/shared/table-search";
 import { TableSkeleton } from "@/components/shared/table-skeleton";
 import { EmptyState } from "@/components/shared/empty-state";
 import { Pager } from "@/components/shared/pager";
+import { ExpiryAlertBanner } from "@/components/shared/expiry-alert";
 
 const LIMIT = 50;
 
@@ -637,6 +638,7 @@ const showPurchase = canManage;
 
         <TabsContent value="products" className="space-y-4">
           <SummaryCards summary={summary} loading={initialLoading && !summary} />
+          <ExpiryAlertBanner />
 
           <div className="flex flex-col gap-2 md:flex-row md:flex-wrap md:items-center">
             <div className="hidden md:block md:flex-1">

@@ -1,7 +1,133 @@
 import 'package:flutter/material.dart';
 
 import '../l10n/generated/app_localizations.dart';
+import '../models/app_models.dart';
 import '../theme/md_design.dart';
+
+/// Product expiry alert dialog: lists already-expired products (red) and
+/// products expiring within the store's configured window (amber). Shown once
+/// per app session from the auth gate. Returns when dismissed.
+Future<void> showExpiryAlertDialog(BuildContext context, ExpiryAlert alert) {
+  return showDialog<void>(
+    context: context,
+    builder: (dialogContext) {
+      return AlertDialog(
+        backgroundColor: MdColors.surface,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Padding(
+          padding: const EdgeInsets.only(top: 8),
+          child: Row(
+            children: [
+              Icon(
+                alert.expired.isNotEmpty ? Icons.error_outline : Icons.schedule,
+                color: alert.expired.isNotEmpty ? MdColors.red700 : MdColors.amber500,
+                size: 22,
+              ),
+              const SizedBox(width: 10),
+              const Expanded(
+                child: Text(
+                  'Product expiry alert',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: MdColors.navy900),
+                ),
+              ),
+            ],
+          ),
+        ),
+        content: SizedBox(
+          width: 360,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxHeight: MediaQuery.of(dialogContext).size.height * 0.5),
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (alert.expired.isNotEmpty) ...[
+                    _expiryGroupHeader('Expired (${alert.expired.length})', MdColors.red700),
+                    ...alert.expired.map((p) => _expiryTile(p, true)),
+                  ],
+                  if (alert.expiringSoon.isNotEmpty) ...[
+                    if (alert.expired.isNotEmpty) const SizedBox(height: 12),
+                    _expiryGroupHeader(
+                      'Expiring within ${alert.warningDays} day${alert.warningDays == 1 ? '' : 's'} (${alert.expiringSoon.length})',
+                      MdColors.amber500,
+                    ),
+                    ...alert.expiringSoon.map((p) => _expiryTile(p, false)),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        ),
+        actionsPadding: const EdgeInsets.fromLTRB(16, 4, 16, 14),
+        actions: [
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: MdColors.navy900, foregroundColor: Colors.white),
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Got it'),
+          ),
+        ],
+      );
+    },
+  );
+}
+
+Widget _expiryGroupHeader(String text, Color color) {
+  return Padding(
+    padding: const EdgeInsets.only(bottom: 6),
+    child: Text(
+      text.toUpperCase(),
+      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: color, letterSpacing: 0.5),
+    ),
+  );
+}
+
+Widget _expiryTile(ExpiringProduct p, bool expired) {
+  final dateText = p.expiryDate ?? '';
+  final label = expired
+      ? '$dateText · ${p.daysLeft.abs()} day${p.daysLeft.abs() == 1 ? '' : 's'} overdue'
+      : (p.daysLeft == 0
+          ? '$dateText · expires today'
+          : '$dateText · in ${p.daysLeft} day${p.daysLeft == 1 ? '' : 's'}');
+  return Container(
+    margin: const EdgeInsets.only(bottom: 6),
+    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+    decoration: BoxDecoration(
+      color: expired ? const Color(0xFFFDECEC) : const Color(0xFFFFF7E6),
+      borderRadius: BorderRadius.circular(10),
+      border: Border.all(color: expired ? const Color(0xFFF5C2C2) : const Color(0xFFF3D9A4)),
+    ),
+    child: Row(
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                p.name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontWeight: FontWeight.w700, color: MdColors.navy900, fontSize: 14),
+              ),
+              const SizedBox(height: 2),
+              Text(label, style: const TextStyle(fontSize: 11.5, color: MdColors.mutedForeground)),
+            ],
+          ),
+        ),
+        const SizedBox(width: 8),
+        Text(
+          expired ? 'Expired' : 'Expiring',
+          style: TextStyle(
+            fontSize: 10,
+            fontWeight: FontWeight.w800,
+            color: expired ? MdColors.red700 : MdColors.amber500,
+          ),
+        ),
+      ],
+    ),
+  );
+}
 
 /// Shared popup API. Every screen routes its confirmations, form/input
 /// popups, success/error feedback and loading states through this class so the

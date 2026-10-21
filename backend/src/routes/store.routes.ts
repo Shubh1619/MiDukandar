@@ -29,6 +29,9 @@ const setupSchema = z.object({
   language: z.string().max(8).optional().default("hi"),
   logoUrl: z.string().max(500).optional().default(""),
   invoicePrefix: z.string().max(10).optional().default("INV"),
+  // Window (in days) for the product expiry alert. 0 disables the
+  // "expiring soon" group, leaving only already-expired products.
+  expiryWarningDays: z.coerce.number().int().min(0).max(365).optional(),
 });
 
 export async function storeRoutes(app: FastifyInstance) {

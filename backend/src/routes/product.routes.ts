@@ -169,6 +169,38 @@ export async function productRoutes(app: FastifyInstance) {
     return { summary: await computeSummary(storeId) };
   });
 
+  // Expiry alert: products already expired or expiring within the store's
+  // configured window (stores.expiry_warning_days). Feeds the web/mobile popup.
+  app.get("/expiring", { preHandler: authenticate }, async (request: AuthenticatedRequest) => {
+    const storeId = requireStore(request);
+    const store = await qOne<{ expiry_warning_days: number }>(
+      `SELECT expiry_warning_days FROM stores WHERE id = $1`,
+      [storeId],
+    );
+    const warningDays = Number(store?.expiry_warning_days ?? 30);
+
+    // Days remaining is computed against today in IST, matching how the app
+    // renders dates elsewhere (a UTC "today" would flip near midnight).
+    const rows = await q<Row>(
+      `SELECT id, name, sku, barcode, category, unit, selling_price, expiry_date,
+              (expiry_date - (now() AT TIME ZONE 'Asia/Kolkata')::date) AS days_left
+       FROM products
+       WHERE store_id = $1 AND is_archived = FALSE AND expiry_date IS NOT NULL
+         AND expiry_date <= (now() AT TIME ZONE 'Asia/Kolkata')::date + ($2::int)
+       ORDER BY expiry_date ASC`,
+      [storeId, warningDays],
+    );
+    applyRoleCost(rows, getAuth(request).role);
+
+    const expired: Row[] = [];
+    const expiringSoon: Row[] = [];
+    for (const r of rows) {
+      if (Number(r.days_left) < 0) expired.push(r);
+      else expiringSoon.push(r);
+    }
+    return { expired, expiringSoon, warningDays };
+  });
+
   // Categories
   app.get("/categories", { preHandler: authenticate }, async (request: AuthenticatedRequest) => {
     const storeId = requireStore(request);

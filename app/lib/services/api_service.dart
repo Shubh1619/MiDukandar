@@ -670,6 +670,11 @@ class ApiService {
     return ProductSummary.fromJson(summary);
   }
 
+  Future<ExpiryAlert> getExpiryAlerts() async {
+    final data = await _request('/api/products/expiring');
+    return ExpiryAlert.fromJson(data);
+  }
+
   Future<List<String>> getProductCategories() async {
     final data = await _request('/api/products/categories');
     final items = data['categories'] is List
