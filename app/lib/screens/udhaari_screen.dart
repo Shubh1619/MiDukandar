@@ -364,10 +364,9 @@ class _UdhaariScreenState extends State<UdhaariScreen> {
                     MobileNumberField(key: newMobileKey, controller: newMobileController),
                     const SizedBox(height: 12),
                   ],
-                  TextField(
+                  NumberField(
                     controller: amountController,
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                    decoration: InputDecoration(labelText: l.udhrAmountLabel),
+                    label: l.udhrAmountLabel,
                   ),
                   const SizedBox(height: 12),
                   Row(
@@ -679,10 +678,9 @@ class _UdhaariScreenState extends State<UdhaariScreen> {
                   style: TextStyle(color: Colors.orange.shade800, fontWeight: FontWeight.w600),
                 ),
                 const SizedBox(height: 16),
-                TextField(
+                NumberField(
                   controller: amountController,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  decoration: InputDecoration(labelText: l.udhrAmountReceived),
+                  label: l.udhrAmountReceived,
                 ),
                 const SizedBox(height: 12),
                 MdPickerField<String>(

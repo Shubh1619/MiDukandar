@@ -8,6 +8,7 @@ import type { Product } from "@/lib/types";
 import { formatQty } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { NumberInput } from "@/components/ui/number-input";
 import { Label } from "@/components/ui/label";
 import {
   Dialog,
@@ -74,11 +75,10 @@ export default function StockAdjustDialog({ product, setProduct, onChanged }: Pr
         <div className="space-y-3">
           <div className="space-y-1.5">
             <Label>Quantity change</Label>
-            <Input
-              type="number"
-              step="any"
+            <NumberInput
+              allowNegative
               value={qty}
-              onChange={(e) => setQty(e.target.value)}
+              onChange={(v) => setQty(v)}
               placeholder="e.g. -5 to remove, +10 to add"
               autoFocus
             />

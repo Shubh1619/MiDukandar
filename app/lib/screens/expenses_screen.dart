@@ -5,6 +5,7 @@ import '../l10n/generated/app_localizations.dart';
 import '../models/app_models.dart';
 import '../services/api_service.dart';
 import '../widgets/app_dialogs.dart';
+import '../widgets/md_inputs.dart';
 
 class ExpensesScreen extends StatefulWidget {
   const ExpensesScreen({super.key, required this.apiService, this.onCreate, this.onUpdate, this.onDelete});
@@ -83,10 +84,9 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                   decoration: InputDecoration(labelText: l.expnCategoryOptional),
                 ),
                 const SizedBox(height: 12),
-                TextField(
+                NumberField(
                   controller: amountController,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  decoration: InputDecoration(labelText: l.amount),
+                  label: l.amount,
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
@@ -174,10 +174,9 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                   decoration: InputDecoration(labelText: l.expnCategoryOptional),
                 ),
                 const SizedBox(height: 12),
-                TextField(
+                NumberField(
                   controller: amountController,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  decoration: InputDecoration(labelText: l.amount),
+                  label: l.amount,
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(

@@ -7,6 +7,7 @@ import '../models/app_models.dart';
 import '../services/api_service.dart';
 import '../theme/md_design.dart';
 import '../widgets/app_dialogs.dart';
+import '../widgets/md_inputs.dart';
 
 class InventoryScreen extends StatefulWidget {
   const InventoryScreen({
@@ -112,12 +113,10 @@ class _InventoryScreenState extends State<InventoryScreen> {
                   onSelectionChanged: (s) => setDialogState(() => addMode = s.first),
                 ),
                 const SizedBox(height: 12),
-                TextField(
+                NumberField(
                   controller: qtyController,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  decoration: InputDecoration(
-                    labelText: l.invnQuantity,
-                  ),
+                  allowNegative: true,
+                  label: l.invnQuantity,
                 ),
                 const SizedBox(height: 12),
                 TextField(

@@ -7,6 +7,7 @@ import { apiFetch, ApiError } from "@/lib/api";
 import type { Product, ProductSummary } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { NumberInput } from "@/components/ui/number-input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -197,22 +198,22 @@ export default function ProductFormDialog({ open, setOpen, editing, onSaved, onD
           </div>
           <div className="space-y-1.5">
             <Label>Purchase price (₹)</Label>
-            <Input type="number" min={0} step="0.01" value={form.purchasePrice} onChange={(e) => set("purchasePrice", e.target.value)} placeholder="0" />
+            <NumberInput value={form.purchasePrice} onChange={(v) => set("purchasePrice", v)} placeholder="0" />
           </div>
           <div className="space-y-1.5">
             <Label>Selling price (₹) *</Label>
-            <Input type="number" min={0} step="0.01" value={form.sellingPrice} onChange={(e) => set("sellingPrice", e.target.value)} placeholder="0" />
+            <NumberInput value={form.sellingPrice} onChange={(v) => set("sellingPrice", v)} placeholder="0" />
           </div>
           <div className="space-y-1.5">
             <Label>MRP (₹)</Label>
-            <Input type="number" min={0} step="0.01" value={form.mrp} onChange={(e) => set("mrp", e.target.value)} placeholder="Optional" />
+            <NumberInput value={form.mrp} onChange={(v) => set("mrp", v)} placeholder="Optional" />
           </div>
           <div className="space-y-1.5">
             <Label>GST %</Label>
             <div className="flex gap-1.5">
-              <Input
-                type="number" min={0} max={100} step="0.01"
-                value={form.gstPercent} onChange={(e) => set("gstPercent", e.target.value)}
+              <NumberInput
+                max={100}
+                value={form.gstPercent} onChange={(v) => set("gstPercent", v)}
                 placeholder="0" className="flex-1"
               />
               <div className="flex gap-1">
@@ -235,7 +236,7 @@ export default function ProductFormDialog({ open, setOpen, editing, onSaved, onD
           </div>
           <div className="space-y-1.5">
             <Label>Low stock warning at</Label>
-            <Input type="number" min={0} step="0.01" value={form.minStock} onChange={(e) => set("minStock", e.target.value)} placeholder="0" />
+            <NumberInput value={form.minStock} onChange={(v) => set("minStock", v)} placeholder="0" />
           </div>
           <div className="space-y-1.5">
             <Label>Supplier</Label>
@@ -249,7 +250,7 @@ export default function ProductFormDialog({ open, setOpen, editing, onSaved, onD
           {!editing && (
             <div className="space-y-1.5 sm:col-span-2">
               <Label>Opening stock</Label>
-              <Input type="number" min={0} step="0.01" value={form.openingStock} onChange={(e) => set("openingStock", e.target.value)} placeholder="0" />
+              <NumberInput value={form.openingStock} onChange={(v) => set("openingStock", v)} placeholder="0" />
             </div>
           )}
           <div className="space-y-1.5 sm:col-span-2">

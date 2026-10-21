@@ -8,6 +8,7 @@ import { formatINR } from "@/lib/format";
 import type { Supplier, SupplierPaymentMode } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { NumberInput } from "@/components/ui/number-input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -89,12 +90,9 @@ export function PaymentDialog({ open, onOpenChange, supplier, onSaved }: Props) 
         <div className="grid gap-3">
           <div className="space-y-1.5">
             <Label>{t("amount")} *</Label>
-            <Input
-              type="number"
-              min={0}
-              step="any"
+            <NumberInput
               value={amount}
-              onChange={(e) => setAmount(e.target.value)}
+              onChange={(v) => setAmount(v)}
               placeholder="0"
             />
             {Number(amount) > outstanding && (

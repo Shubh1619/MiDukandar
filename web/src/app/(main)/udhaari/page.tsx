@@ -19,6 +19,7 @@ import type {
 } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { NumberInput } from "@/components/ui/number-input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -643,7 +644,7 @@ function UdhaariPageInner() {
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="space-y-1.5">
                 <Label>{t("amount")} *</Label>
-                <Input type="number" min={0} value={amount} onChange={(e) => setAmount(e.target.value)} />
+                <NumberInput value={amount} onChange={(v) => setAmount(v)} />
               </div>
               <div className="space-y-1.5">
                 <Label>{t("entryDate")}</Label>
@@ -678,7 +679,7 @@ function UdhaariPageInner() {
             {payStatus === "PARTIAL" && (
               <div className="space-y-1.5">
                 <Label>{t("amountReceived")}</Label>
-                <Input type="number" min={0} value={initialPaid} onChange={(e) => setInitialPaid(e.target.value)} />
+                <NumberInput value={initialPaid} onChange={(v) => setInitialPaid(v)} />
               </div>
             )}
             <div className="space-y-1.5">
@@ -802,7 +803,7 @@ function UdhaariPageInner() {
           <div className="space-y-3">
             <div className="space-y-1.5">
               <Label>{t("amount")} *</Label>
-              <Input type="number" min={0} value={payAmount} onChange={(e) => setPayAmount(e.target.value)} />
+              <NumberInput value={payAmount} onChange={(v) => setPayAmount(v)} />
             </div>
             <div className="space-y-1.5">
               <Label>{t("paymentMode")}</Label>

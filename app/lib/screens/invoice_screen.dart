@@ -141,18 +141,17 @@ class _InvoiceScreenState extends State<InvoiceScreen> {
                 Row(
                   children: [
                     Expanded(
-                      child: TextField(
+                      child: NumberField(
                         controller: qtyController,
-                        keyboardType: const TextInputType.numberWithOptions(decimal: false),
-                        decoration: InputDecoration(labelText: l.billQty),
+                        decimals: 0,
+                        label: l.billQty,
                       ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
-                      child: TextField(
+                      child: NumberField(
                         controller: amountController,
-                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                        decoration: InputDecoration(labelText: l.billUnitPrice),
+                        label: l.billUnitPrice,
                       ),
                     ),
                   ],
@@ -161,10 +160,9 @@ class _InvoiceScreenState extends State<InvoiceScreen> {
                 Row(
                   children: [
                     Expanded(
-                      child: TextField(
+                      child: NumberField(
                         controller: paidController,
-                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                        decoration: InputDecoration(labelText: l.billPaidAmount),
+                        label: l.billPaidAmount,
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -557,10 +555,9 @@ class _InvoiceScreenState extends State<InvoiceScreen> {
                 Row(
                   children: [
                     Expanded(
-                      child: TextField(
+                      child: NumberField(
                         controller: paidController,
-                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                        decoration: InputDecoration(labelText: l.billPaidAmount),
+                        label: l.billPaidAmount,
                       ),
                     ),
                     const SizedBox(width: 12),

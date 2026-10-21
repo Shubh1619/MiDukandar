@@ -10,6 +10,7 @@ import { PAYMENT_STATUS_BADGE } from "@/lib/badges";
 import type { Purchase, PurchaseDetail, Product } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { NumberInput } from "@/components/ui/number-input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -274,8 +275,8 @@ export default function PurchasesPage() {
                       </option>
                     ))}
                   </select>
-                  <Input type="number" min={0} value={line.qty} onChange={(e) => updateLine(index, { qty: e.target.value })} placeholder="Qty" />
-                  <Input type="number" min={0} value={line.unitPrice} onChange={(e) => updateLine(index, { unitPrice: e.target.value })} placeholder="Price" />
+                  <NumberInput value={line.qty} onChange={(v) => updateLine(index, { qty: v })} placeholder="Qty" />
+                  <NumberInput value={line.unitPrice} onChange={(v) => updateLine(index, { unitPrice: v })} placeholder="Price" />
                   <Button variant="ghost" size="icon" onClick={() => setLines((prev) => prev.filter((_, i) => i !== index))}>
                     <Trash2 className="size-4 text-destructive" />
                   </Button>
@@ -305,7 +306,7 @@ export default function PurchasesPage() {
           </DialogHeader>
           <div className="space-y-1.5">
             <Label>{t("amount")}</Label>
-            <Input type="number" value={payAmount} onChange={(e) => setPayAmount(e.target.value)} />
+            <NumberInput value={payAmount} onChange={(v) => setPayAmount(v)} />
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setPaying(null)}>{t("cancel")}</Button>

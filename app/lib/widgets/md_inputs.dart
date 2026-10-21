@@ -239,3 +239,91 @@ class MobileNumberFieldState extends State<MobileNumberField> {
     );
   }
 }
+
+/// Normalises a raw numeric field value: drops non-numeric characters, strips
+/// leading zeros ("01" -> "1"), keeps a single decimal separator with at most
+/// [decimals] places, converts a lone "." to "0.", and preserves an optional
+/// single leading minus. Pure so it can be unit-tested without a widget tree.
+String normalizeNumberText(String raw, {bool allowNegative = false, int decimals = 2}) {
+  var s = raw;
+  final negative = allowNegative && s.startsWith('-');
+  s = s.replaceAll('-', '');
+
+  final parts = s.split('.');
+  var intPart = parts[0].replaceAll(RegExp(r'\D'), '');
+  var decPart = parts.length > 1 ? parts.sublist(1).join().replaceAll(RegExp(r'\D'), '') : '';
+
+  decPart = decimals == 0 ? '' : (decPart.length > decimals ? decPart.substring(0, decimals) : decPart);
+
+  intPart = intPart.replaceFirst(RegExp(r'^0+(?=\d)'), '');
+
+  final hadSeparator = parts.length > 1;
+  var normalized = intPart;
+  if ((hadSeparator || decPart.isNotEmpty) && decimals > 0) {
+    normalized = '${intPart.isEmpty ? '0' : intPart}.$decPart';
+  }
+
+  if (negative && normalized.isNotEmpty) normalized = '-$normalized';
+  return normalized;
+}
+
+/// Text input formatter that applies [normalizeNumberText] as the user types,
+/// so a leading zero never survives into the controller (the "01" bug).
+class NumberTextInputFormatter extends TextInputFormatter {
+  NumberTextInputFormatter({this.allowNegative = false, this.decimals = 2});
+
+  final bool allowNegative;
+  final int decimals;
+
+  @override
+  TextEditingValue formatEditUpdate(TextEditingValue oldValue, TextEditingValue newValue) {
+    final normalized = normalizeNumberText(newValue.text, allowNegative: allowNegative, decimals: decimals);
+    if (normalized == newValue.text) return newValue;
+    return TextEditingValue(
+      text: normalized,
+      selection: TextSelection.collapsed(offset: normalized.length),
+    );
+  }
+}
+
+/// Shared numeric input used everywhere a number is collected (amounts, qty,
+/// rates, GST %). Fixes the "01" entry bug by normalising on every keystroke,
+/// blocks non-numeric characters, and allows an optional single leading minus.
+class NumberField extends StatelessWidget {
+  const NumberField({
+    super.key,
+    required this.controller,
+    this.label,
+    this.hint,
+    this.allowNegative = false,
+    this.decimals = 2,
+    this.onChanged,
+    this.prefixIcon,
+    this.enabled = true,
+  });
+
+  final TextEditingController controller;
+  final String? label;
+  final String? hint;
+  final bool allowNegative;
+  final int decimals;
+  final ValueChanged<String>? onChanged;
+  final IconData? prefixIcon;
+  final bool enabled;
+
+  @override
+  Widget build(BuildContext context) {
+    return TextField(
+      controller: controller,
+      enabled: enabled,
+      keyboardType: TextInputType.numberWithOptions(decimal: decimals > 0, signed: allowNegative),
+      inputFormatters: [NumberTextInputFormatter(allowNegative: allowNegative, decimals: decimals)],
+      onChanged: onChanged,
+      decoration: InputDecoration(
+        labelText: label,
+        hintText: hint,
+        prefixIcon: prefixIcon != null ? Icon(prefixIcon, size: 20, color: MdColors.navy400) : null,
+      ),
+    );
+  }
+}

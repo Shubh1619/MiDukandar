@@ -6,6 +6,7 @@ import '../l10n/status_labels.dart';
 import '../models/app_models.dart';
 import '../services/api_service.dart';
 import '../widgets/app_dialogs.dart';
+import '../widgets/md_inputs.dart';
 
 class PurchaseScreen extends StatefulWidget {
   const PurchaseScreen({super.key, required this.apiService, this.onCreate, this.onPay});
@@ -68,10 +69,9 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
               decoration: InputDecoration(labelText: l.purchSupplierName),
             ),
             const SizedBox(height: 12),
-            TextField(
+            NumberField(
               controller: totalController,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              decoration: InputDecoration(labelText: l.purchTotalAmount),
+              label: l.purchTotalAmount,
             ),
             const SizedBox(height: 16),
             Row(
@@ -147,10 +147,9 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
                   style: const TextStyle(fontWeight: FontWeight.w600),
                 ),
                 const SizedBox(height: 12),
-                TextField(
+                NumberField(
                   controller: amountController,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  decoration: InputDecoration(labelText: l.amount),
+                  label: l.amount,
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(

@@ -9,6 +9,7 @@ import { formatINR } from "@/lib/format";
 import type { Customer, PaymentMode, Product, SaleDetail } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { NumberInput } from "@/components/ui/number-input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -412,19 +413,19 @@ export function InvoiceFormDialog({ onClose, onSaved, editing, held }: Props) {
                     <div className="grid grid-cols-4 gap-2">
                       <label className="space-y-1">
                         <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{t("qty")}</span>
-                        <Input type="number" min={0} step="any" value={line.qty} onChange={(e) => updateLine(line.key, { qty: e.target.value })} />
+                        <NumberInput value={line.qty} onChange={(v) => updateLine(line.key, { qty: v })} />
                       </label>
                       <label className="space-y-1">
                         <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{t("unitPrice")}</span>
-                        <Input type="number" min={0} step="any" value={line.unitPrice} onChange={(e) => updateLine(line.key, { unitPrice: e.target.value })} />
+                        <NumberInput value={line.unitPrice} onChange={(v) => updateLine(line.key, { unitPrice: v })} />
                       </label>
                       <label className="space-y-1">
                         <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{t("discount")}</span>
-                        <Input type="number" min={0} step="any" value={line.discount} onChange={(e) => updateLine(line.key, { discount: e.target.value })} />
+                        <NumberInput value={line.discount} onChange={(v) => updateLine(line.key, { discount: v })} />
                       </label>
                       <label className="space-y-1">
                         <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{t("gstPercent")}</span>
-                        <Input type="number" min={0} step="any" value={line.gst} onChange={(e) => updateLine(line.key, { gst: e.target.value })} />
+                        <NumberInput max={100} value={line.gst} onChange={(v) => updateLine(line.key, { gst: v })} />
                       </label>
                     </div>
                     <p className="text-right text-xs text-muted-foreground">
@@ -451,7 +452,7 @@ export function InvoiceFormDialog({ onClose, onSaved, editing, held }: Props) {
                     <SelectItem value="PERCENT">%</SelectItem>
                   </SelectContent>
                 </Select>
-                <Input type="number" min={0} step="any" value={billDiscount} onChange={(e) => setBillDiscount(e.target.value)} />
+                <NumberInput max={100} value={billDiscount} onChange={(v) => setBillDiscount(v)} />
               </div>
             </div>
             <div className="space-y-1.5">
@@ -509,12 +510,9 @@ export function InvoiceFormDialog({ onClose, onSaved, editing, held }: Props) {
               </div>
               <div className="space-y-1.5">
                 <Label>{t("paidNow")}</Label>
-                <Input
-                  type="number"
-                  min={0}
-                  step="any"
+                <NumberInput
                   value={paidAmount}
-                  onChange={(e) => setPaidAmount(e.target.value)}
+                  onChange={(v) => setPaidAmount(v)}
                   placeholder="0"
                 />
               </div>

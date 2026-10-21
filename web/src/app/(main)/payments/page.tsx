@@ -11,6 +11,7 @@ import type { Payment, Customer } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { NumberInput } from "@/components/ui/number-input";
 import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
@@ -189,7 +190,7 @@ export default function PaymentsPage() {
             </div>
             <div className="space-y-1.5">
               <Label>{t("amount")}</Label>
-              <Input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} />
+              <NumberInput value={amount} onChange={(v) => setAmount(v)} />
             </div>
             <div className="space-y-1.5">
               <Label>Mode</Label>

@@ -6,6 +6,7 @@ import { apiFetch, ApiError } from "@/lib/api";
 import type { ExpenseCategory, ExpensePaymentMode, RecurringExpense } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { NumberInput } from "@/components/ui/number-input";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -128,14 +129,11 @@ export function RecurringExpenseDialog({
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label htmlFor="rec-amount">Amount (₹) *</Label>
-              <Input
+              <NumberInput
                 id="rec-amount"
-                type="number"
-                step="0.01"
-                min="0.01"
                 placeholder="0.00"
                 value={amount}
-                onChange={(e) => setAmount(e.target.value)}
+                onChange={(v) => setAmount(v)}
               />
             </div>
 

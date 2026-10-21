@@ -9,6 +9,7 @@ import { formatINR } from "@/lib/format";
 import type { Product, PurchaseOrderDetail } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { NumberInput } from "@/components/ui/number-input";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -222,15 +223,15 @@ export function PurchaseOrderFormDialog({ open, onOpenChange, supplierId = "", s
                     <div className="grid grid-cols-3 gap-2">
                       <label className="space-y-1">
                         <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{t("qty")}</span>
-                        <Input type="number" min={0} step="any" value={line.qty} onChange={(e) => updateLine(line.key, { qty: e.target.value })} />
+                        <NumberInput value={line.qty} onChange={(v) => updateLine(line.key, { qty: v })} />
                       </label>
                       <label className="space-y-1">
                         <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{t("rate")}</span>
-                        <Input type="number" min={0} step="any" value={line.rate} onChange={(e) => updateLine(line.key, { rate: e.target.value })} />
+                        <NumberInput value={line.rate} onChange={(v) => updateLine(line.key, { rate: v })} />
                       </label>
                       <label className="space-y-1">
                         <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{t("gstPercent")}</span>
-                        <Input type="number" min={0} step="any" value={line.taxRate} onChange={(e) => updateLine(line.key, { taxRate: e.target.value })} />
+                        <NumberInput max={100} value={line.taxRate} onChange={(v) => updateLine(line.key, { taxRate: v })} />
                       </label>
                     </div>
                     <p className="text-right text-xs text-muted-foreground">{formatINR(lineTotal(line))}</p>

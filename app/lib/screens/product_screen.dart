@@ -7,6 +7,7 @@ import '../models/app_models.dart';
 import '../services/api_service.dart';
 import '../theme/md_design.dart';
 import '../widgets/app_dialogs.dart';
+import '../widgets/md_inputs.dart';
 
 class ProductScreen extends StatefulWidget {
   const ProductScreen({
@@ -123,10 +124,10 @@ class _ProductScreenState extends State<ProductScreen> {
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: TextField(
+                  child: NumberField(
                     controller: stockController,
-                    keyboardType: const TextInputType.numberWithOptions(decimal: false),
-                    decoration: InputDecoration(labelText: l.prodOpeningStock),
+                    decimals: 0,
+                    label: l.prodOpeningStock,
                   ),
                 ),
               ],
@@ -135,18 +136,16 @@ class _ProductScreenState extends State<ProductScreen> {
             Row(
               children: [
                 Expanded(
-                  child: TextField(
+                  child: NumberField(
                     controller: priceController,
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                    decoration: InputDecoration(labelText: l.prodSellingPrice),
+                    label: l.prodSellingPrice,
                   ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: TextField(
+                  child: NumberField(
                     controller: purchaseController,
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                    decoration: InputDecoration(labelText: l.prodPurchasePrice),
+                    label: l.prodPurchasePrice,
                   ),
                 ),
               ],
@@ -155,18 +154,16 @@ class _ProductScreenState extends State<ProductScreen> {
             Row(
               children: [
                 Expanded(
-                  child: TextField(
+                  child: NumberField(
                     controller: minStockController,
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                    decoration: InputDecoration(labelText: l.prodMinStock),
+                    label: l.prodMinStock,
                   ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: TextField(
+                  child: NumberField(
                     controller: gstController,
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                    decoration: InputDecoration(labelText: l.prodGstPercent),
+                    label: l.prodGstPercent,
                   ),
                 ),
               ],
@@ -269,10 +266,9 @@ class _ProductScreenState extends State<ProductScreen> {
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: TextField(
+                  child: NumberField(
                     controller: gstController,
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                    decoration: InputDecoration(labelText: l.prodGstPercent),
+                    label: l.prodGstPercent,
                   ),
                 ),
               ],
@@ -281,27 +277,24 @@ class _ProductScreenState extends State<ProductScreen> {
             Row(
               children: [
                 Expanded(
-                  child: TextField(
+                  child: NumberField(
                     controller: priceController,
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                    decoration: InputDecoration(labelText: l.prodSellingPrice),
+                    label: l.prodSellingPrice,
                   ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: TextField(
+                  child: NumberField(
                     controller: purchaseController,
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                    decoration: InputDecoration(labelText: l.prodPurchasePrice),
+                    label: l.prodPurchasePrice,
                   ),
                 ),
               ],
             ),
             const SizedBox(height: 12),
-            TextField(
+            NumberField(
               controller: minStockController,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              decoration: InputDecoration(labelText: l.prodMinStock),
+              label: l.prodMinStock,
             ),
             const SizedBox(height: 20),
             Row(
@@ -378,10 +371,10 @@ class _ProductScreenState extends State<ProductScreen> {
                   onSelectionChanged: (s) => setDialogState(() => isAddition = s.first),
                 ),
                 const SizedBox(height: 12),
-                TextField(
+                NumberField(
                   controller: qtyController,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  decoration: InputDecoration(labelText: l.prodQuantity),
+                  allowNegative: true,
+                  label: l.prodQuantity,
                 ),
                 const SizedBox(height: 12),
                 TextField(
