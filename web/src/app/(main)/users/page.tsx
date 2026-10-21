@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Check, Copy, Edit2, Loader2, MailPlus, Power, PowerOff, Save, Search, ShieldCheck, Trash2, UserPlus } from "lucide-react";
 import { apiFetch, ApiError } from "@/lib/api";
+import { useAuth } from "@/lib/auth-store";
 import { formatDateTime } from "@/lib/format";
 import type { AppUser, PermissionFlag, PermissionMap, Role, RolePermissions, UserInvite } from "@/lib/types";
 import { Button } from "@/components/ui/button";
@@ -45,6 +46,7 @@ type EditForm = { id: string; name: string; role: Role; status: "active" | "inac
 const blankInvite: InviteForm = { name: "", email: "", phone: "", role: "CASHIER" };
 
 export default function UsersPage() {
+  const canManage = useAuth((s) => s.user?.role) === "OWNER";
   const [loading, setLoading] = useState(true);
   const [users, setUsers] = useState<AppUser[]>([]);
   const [invites, setInvites] = useState<UserInvite[]>([]);
@@ -195,7 +197,7 @@ export default function UsersPage() {
           <h1 className="font-display text-xl font-bold">Users & Roles</h1>
           <p className="text-xs text-muted-foreground">Manage staff accounts and tenant role permissions</p>
         </div>
-        <Button onClick={() => setInviteOpen(true)}><UserPlus className="size-4" /> Add User</Button>
+        {canManage ? <Button onClick={() => setInviteOpen(true)}><UserPlus className="size-4" /> Add User</Button> : null}
       </div>
 
       <Tabs defaultValue="users">
@@ -256,11 +258,15 @@ export default function UsersPage() {
                       <TableCell><Badge variant={u.isActive ? "default" : "secondary"}>{u.status}</Badge></TableCell>
                       <TableCell className="text-muted-foreground">{u.lastLogin ? formatDateTime(u.lastLogin) : "Never"}</TableCell>
                       <TableCell className="text-right">
-                        <div className="flex justify-end gap-1">
-                          <Button variant="ghost" size="icon" title="Edit" onClick={() => { setEdit({ id: u.id, name: u.name, role: u.role, status: u.status }); setEditOpen(true); }}><Edit2 className="size-4" /></Button>
-                          <Button variant="ghost" size="icon" title={u.isActive ? "Deactivate" : "Activate"} onClick={() => void toggleUser(u)}>{u.isActive ? <PowerOff className="size-4" /> : <Power className="size-4" />}</Button>
-                          <Button variant="ghost" size="icon" title="Remove" onClick={() => void removeUser(u)}><Trash2 className="size-4" /></Button>
-                        </div>
+                        {canManage ? (
+                          <div className="flex justify-end gap-1">
+                            <Button variant="ghost" size="icon" title="Edit" onClick={() => { setEdit({ id: u.id, name: u.name, role: u.role, status: u.status }); setEditOpen(true); }}><Edit2 className="size-4" /></Button>
+                            <Button variant="ghost" size="icon" title={u.isActive ? "Deactivate" : "Activate"} onClick={() => void toggleUser(u)}>{u.isActive ? <PowerOff className="size-4" /> : <Power className="size-4" />}</Button>
+                            <Button variant="ghost" size="icon" title="Remove" onClick={() => void removeUser(u)}><Trash2 className="size-4" /></Button>
+                          </div>
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
                       </TableCell>
                     </TableRow>
                   ))}
@@ -327,14 +333,14 @@ export default function UsersPage() {
                         <TableCell key={p.flag} className="text-center">
                           <Switch
                             checked={role.permissions[p.flag]}
-                            disabled={role.locked}
+                            disabled={role.locked || !canManage}
                             onCheckedChange={(checked) => updatePermission(role.role, p.flag, checked)}
                             aria-label={`${ROLE_LABEL[role.role]} ${p.label}`}
                           />
                         </TableCell>
                       ))}
                       <TableCell className="text-right">
-                        <Button size="sm" variant="outline" disabled={role.locked || saving} onClick={() => void saveRole(role.role, role.permissions)}>
+                        <Button size="sm" variant="outline" disabled={role.locked || saving || !canManage} onClick={() => void saveRole(role.role, role.permissions)}>
                           {saving ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />} Save
                         </Button>
                       </TableCell>
