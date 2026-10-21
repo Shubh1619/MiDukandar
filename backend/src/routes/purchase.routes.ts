@@ -10,6 +10,7 @@ import { createPurchase } from "../services/invoice.service.js";
 import { insertPayment } from "../services/payment.service.js";
 import { dec, dmax, money } from "../lib/money.js";
 import { logger } from "../lib/logger.js";
+import { invalidateDashboardCache } from "../lib/dashboard-cache.js";
 
 const purchaseLineSchema = lineItemSchema;
 
@@ -73,6 +74,7 @@ export async function purchaseRoutes(app: FastifyInstance) {
       );
 
       logger.info("purchase: created", { storeId, purchaseId: purchase?.id, purchaseNumber: purchase?.purchase_number });
+      invalidateDashboardCache(storeId);
       return reply.status(201).send({ purchase });
     },
   );
@@ -135,6 +137,7 @@ export async function purchaseRoutes(app: FastifyInstance) {
         });
       });
       logger.info("purchase: payment recorded", { storeId, purchaseId: id, amount: body.amount });
+      invalidateDashboardCache(storeId);
       return { ok: true };
     },
   );

@@ -1,6 +1,6 @@
 import type { DbClient } from "../db/pool.js";
 import { ledgerBalanceExpr } from "./ledger.service.js";
-import { getStockBalances, mapLow } from "./stock.service.js";
+import { getStockBalances } from "./stock.service.js";
 import { istDateKey } from "../lib/ist.js";
 
 type Tx = DbClient;
@@ -37,63 +37,67 @@ export async function getDashboardStats(
   const start = from ?? new Date(new Date().setHours(0, 0, 0, 0));
   const end = to ?? new Date(new Date().setHours(23, 59, 59, 999));
 
-  const [salesAgg, purchaseAgg, expensesAgg] = await Promise.all([
-    db.qOne<{ t: number; cogs: number; tx: number; d: number }>(
-      `SELECT COALESCE(SUM(s.paid_amount),0) AS t,
-              COALESCE(SUM(CASE WHEN s.total > 0 THEN s.paid_amount / s.total ELSE 0 END
-                         * COALESCE((SELECT SUM(p.purchase_price * si.qty)
-                                     FROM sale_items si
-                                     LEFT JOIN products p ON p.id = si.product_id
-                                     WHERE si.sale_id = s.id), 0)),0) AS cogs,
-              COALESCE(SUM(CASE WHEN s.total > 0 THEN s.paid_amount / s.total ELSE 0 END
-                         * s.tax_total),0) AS tx,
-              COALESCE(SUM(s.discount),0) AS d
-       FROM sales s WHERE s.store_id=$1 AND s.status='CONFIRMED' AND s.created_at BETWEEN $2 AND $3`,
-      [storeId, start, end],
-    ),
-    db.qOne<{ t: number }>(
-      `SELECT COALESCE(SUM(total),0) AS t FROM purchases WHERE store_id=$1 AND created_at BETWEEN $2 AND $3`,
-      [storeId, start, end],
-    ),
-    db.qOne<{ t: number }>(
-      `SELECT COALESCE(SUM(amount),0) AS t FROM expenses WHERE store_id=$1 AND expense_date BETWEEN $2::date AND $3::date`,
-      [storeId, istDateKey(start), istDateKey(end)],
-    ),
-  ]);
-
-  const [receivables, payables, lowStockCount] = await Promise.all([
-    db.qOne<{ r: number }>(
-      `SELECT COALESCE(${ledgerBalanceExpr()},0) AS r
-       FROM ledger_entries WHERE store_id=$1`,
-      [storeId],
-    ),
-    db.qOne<{ p: number }>(
-      `SELECT COALESCE(SUM(due_amount),0) AS p FROM purchases
-       WHERE store_id=$1 AND payment_status IN ('UNPAID','PARTIAL')`,
-      [storeId],
-    ),
-    countLowStockProducts(db, storeId),
-  ]);
+  // All eight reads run in a single round-trip wave. Previously the dashboard
+  // fired three sequential Promise.all batches (aggregates -> balances ->
+  // recent), serialising nine DB round-trips behind each other.
+  const [salesAgg, purchaseAgg, expensesAgg, receivables, payables, lowStockAgg, recentSales, recentPurchases, recentPayments] =
+    await Promise.all([
+      db.qOne<{ t: number; cogs: number; tx: number; d: number }>(
+        `SELECT COALESCE(SUM(s.paid_amount),0) AS t,
+                COALESCE(SUM(CASE WHEN s.total > 0 THEN s.paid_amount / s.total ELSE 0 END
+                           * COALESCE((SELECT SUM(p.purchase_price * si.qty)
+                                       FROM sale_items si
+                                       LEFT JOIN products p ON p.id = si.product_id
+                                       WHERE si.sale_id = s.id), 0)),0) AS cogs,
+                COALESCE(SUM(CASE WHEN s.total > 0 THEN s.paid_amount / s.total ELSE 0 END
+                           * s.tax_total),0) AS tx,
+                COALESCE(SUM(s.discount),0) AS d
+         FROM sales s WHERE s.store_id=$1 AND s.status='CONFIRMED' AND s.created_at BETWEEN $2 AND $3`,
+        [storeId, start, end],
+      ),
+      db.qOne<{ t: number }>(
+        `SELECT COALESCE(SUM(total),0) AS t FROM purchases WHERE store_id=$1 AND created_at BETWEEN $2 AND $3`,
+        [storeId, start, end],
+      ),
+      db.qOne<{ t: number }>(
+        `SELECT COALESCE(SUM(amount),0) AS t FROM expenses WHERE store_id=$1 AND expense_date BETWEEN $2::date AND $3::date`,
+        [storeId, istDateKey(start), istDateKey(end)],
+      ),
+      db.qOne<{ r: number }>(
+        `SELECT COALESCE(${ledgerBalanceExpr()},0) AS r
+         FROM ledger_entries WHERE store_id=$1`,
+        [storeId],
+      ),
+      db.qOne<{ p: number }>(
+        `SELECT COALESCE(SUM(due_amount),0) AS p FROM purchases
+         WHERE store_id=$1 AND payment_status IN ('UNPAID','PARTIAL')`,
+        [storeId],
+      ),
+      countLowStockProducts(db, storeId),
+      db.q<RecentTransaction>(
+        `SELECT s.id, 'SALE' AS type, s.invoice_number AS number,
+                COALESCE(c.name,'Walk-in') AS party, s.total AS amount, s.payment_mode AS mode, s.created_at
+         FROM sales s LEFT JOIN customers c ON c.id = s.customer_id
+         WHERE s.store_id=$1 AND s.status='CONFIRMED' ORDER BY s.created_at DESC LIMIT 6`,
+        [storeId],
+      ),
+      db.q<RecentTransaction>(
+        `SELECT id, 'PURCHASE' AS type, purchase_number AS number, supplier_name AS party, total AS amount, NULL AS mode, created_at
+         FROM purchases WHERE store_id=$1 ORDER BY created_at DESC LIMIT 4`,
+        [storeId],
+      ),
+      db.q<RecentTransaction>(
+        `SELECT p.id, 'PAYMENT' AS type, p.id::text AS number, COALESCE(c.name,'Payment') AS party, p.amount AS amount, p.mode AS mode, p.created_at
+         FROM payments p LEFT JOIN customers c ON c.id = p.customer_id
+         WHERE p.store_id=$1 ORDER BY p.created_at DESC LIMIT 4`,
+        [storeId],
+      ),
+    ]);
 
   const recent = [
-    ...(await db.q<RecentTransaction>(
-      `SELECT s.id, 'SALE' AS type, s.invoice_number AS number,
-              COALESCE(c.name,'Walk-in') AS party, s.total AS amount, s.payment_mode AS mode, s.created_at
-       FROM sales s LEFT JOIN customers c ON c.id = s.customer_id
-       WHERE s.store_id=$1 AND s.status='CONFIRMED' ORDER BY s.created_at DESC LIMIT 6`,
-      [storeId],
-    )),
-    ...(await db.q<RecentTransaction>(
-      `SELECT id, 'PURCHASE' AS type, purchase_number AS number, supplier_name AS party, total AS amount, NULL AS mode, created_at
-       FROM purchases WHERE store_id=$1 ORDER BY created_at DESC LIMIT 4`,
-      [storeId],
-    )),
-    ...(await db.q<RecentTransaction>(
-      `SELECT p.id, 'PAYMENT' AS type, p.id::text AS number, COALESCE(c.name,'Payment') AS party, p.amount AS amount, p.mode AS mode, p.created_at
-       FROM payments p LEFT JOIN customers c ON c.id = p.customer_id
-       WHERE p.store_id=$1 ORDER BY p.created_at DESC LIMIT 4`,
-      [storeId],
-    )),
+    ...recentSales,
+    ...recentPurchases,
+    ...recentPayments,
   ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
   const salesRev = salesAgg?.t ?? 0;
@@ -109,19 +113,27 @@ export async function getDashboardStats(
     todayProfit: round2(salesRev - salesCogs - salesTax - salesDiscounts - expensesCost),
     receivables: round2(receivables?.r ?? 0),
     payables: round2(payables?.p ?? 0),
-    lowStockCount: lowStockCount,
+    lowStockCount: lowStockAgg,
     recentTransactions: recent.slice(0, 8),
   };
 }
 
 async function countLowStockProducts(db: Tx, storeId: string): Promise<number> {
-  const rows = await db.q<{ id: string; min_stock: number }>(
-    `SELECT p.id, p.min_stock
-     FROM products p WHERE p.store_id=$1 AND p.is_archived=FALSE AND p.min_stock > 0`,
+  // Single aggregate: sum each product's movements once, then count the rows
+  // that fall below their minimum. Previously this loaded every low-stock
+  // candidate plus its full movement history into Node to total them in JS.
+  const row = await db.qOne<{ c: number }>(
+    `SELECT COUNT(*)::int AS c
+     FROM products p
+     LEFT JOIN (
+       SELECT product_id, SUM(qty) AS qty
+       FROM stock_movements WHERE store_id=$1 GROUP BY product_id
+     ) sm ON sm.product_id = p.id
+     WHERE p.store_id=$1 AND p.is_archived=FALSE AND p.min_stock > 0
+       AND COALESCE(sm.qty,0) < p.min_stock`,
     [storeId],
   );
-  const stocked = await mapLow(db, rows, storeId);
-  return stocked.filter((r) => r.isLow).length;
+  return row?.c ?? 0;
 }
 
 // ────────────────────────────────────────────────────────────────────────────

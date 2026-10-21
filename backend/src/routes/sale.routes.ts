@@ -9,6 +9,7 @@ import { ROLES } from "../middlewares/auth.types.js";
 import { createSale, reverseSale, updateSale, recordSalePayment } from "../services/invoice.service.js";
 import { generateInvoicePdf } from "../lib/pdf.js";
 import { logger } from "../lib/logger.js";
+import { invalidateDashboardCache } from "../lib/dashboard-cache.js";
 
 const saleLineSchema = lineItemBaseSchema
   .extend({
@@ -149,6 +150,7 @@ export async function saleRoutes(app: FastifyInstance) {
       );
 
       logger.info("sale: created", { storeId, saleId: sale?.id, invoiceNumber: sale?.invoice_number, by: getAuth(request).id });
+      invalidateDashboardCache(storeId);
       return reply.status(201).send({ sale });
     },
   );
@@ -184,6 +186,7 @@ export async function saleRoutes(app: FastifyInstance) {
         }),
       );
       logger.info("sale: updated", { storeId, saleId: id, invoiceNumber: sale?.invoice_number, by: getAuth(request).id });
+      invalidateDashboardCache(storeId);
       return { sale };
     },
   );
@@ -211,6 +214,7 @@ export async function saleRoutes(app: FastifyInstance) {
         }),
       );
       logger.info("sale: payment recorded", { storeId, saleId: id, invoiceNumber: sale?.invoice_number, amount: body.amount, by: getAuth(request).id });
+      invalidateDashboardCache(storeId);
       return { sale };
     },
   );

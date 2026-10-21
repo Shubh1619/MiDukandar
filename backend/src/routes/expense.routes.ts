@@ -21,6 +21,7 @@ import {
   deleteRecurringExpense,
   processDueRecurringExpenses,
 } from "../services/expense.service.js";
+import { invalidateDashboardCache } from "../lib/dashboard-cache.js";
 
 const expenseCategorySchema = z.object({
   name: z.string().min(1, "Name is required").max(60),
@@ -139,6 +140,7 @@ export async function expenseRoutes(app: FastifyInstance) {
         ...body,
         categoryId,
       });
+      invalidateDashboardCache(storeId);
       return reply.status(201).send({ expense });
     },
   );
@@ -158,6 +160,7 @@ export async function expenseRoutes(app: FastifyInstance) {
       const { id } = request.params as { id: string };
       const body = parse(createExpenseSchema.partial(), request.body);
       const expense = await updateExpense(qClient(), storeId, id, body);
+      invalidateDashboardCache(storeId);
       return { expense };
     },
   );
@@ -170,6 +173,7 @@ export async function expenseRoutes(app: FastifyInstance) {
       const { id } = request.params as { id: string };
       const deleted = await deleteExpense(qClient(), storeId, id);
       if (!deleted) throw ApiError.notFound("Expense not found.");
+      invalidateDashboardCache(storeId);
       return reply.send({ ok: true });
     },
   );

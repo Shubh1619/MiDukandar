@@ -7,6 +7,7 @@ import { authenticate, requireStore, requirePermission, getAuth, type Authentica
 import { getCustomerOutstanding, createLedgerEntry } from "../services/ledger.service.js";
 import { insertPayment } from "../services/payment.service.js";
 import { logger } from "../lib/logger.js";
+import { invalidateDashboardCache } from "../lib/dashboard-cache.js";
 
 export async function paymentRoutes(app: FastifyInstance) {
   const paymentSchema = z.object({
@@ -55,6 +56,7 @@ export async function paymentRoutes(app: FastifyInstance) {
       });
 
       logger.info("payment: received", { storeId, customerId: body.customerId, amount: body.amount });
+      invalidateDashboardCache(storeId);
       const outstanding = await getCustomerOutstanding(qClient(), body.customerId);
       return reply.status(201).send({ ok: true, balanceAfter: out, outstanding });
     },

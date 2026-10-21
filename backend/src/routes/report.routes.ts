@@ -14,6 +14,7 @@ import {
 import { q, qOne, qClient } from "../db/pool.js";
 import { boolFilter } from "./product.shared.js";
 import { istBoundary, istDayEnd, istDayStart } from "../lib/ist.js";
+import { dashboardCache } from "../lib/dashboard-cache.js";
 
 function resolveRange(from?: string, to?: string): { from: Date; to: Date } {
   // Day boundaries are IST, not the server's UTC day: a report for "today"
@@ -41,8 +42,11 @@ export async function reportRoutes(app: FastifyInstance) {
     const storeId = requireStore(request);
     const query = parse(dateRangeSchema, request.query);
     const { from, to } = resolveRange(query.from, query.to);
-    const stats = await getDashboardStats(qClient(), storeId, from, to);
-    return { stats, from: from.toISOString(), to: to.toISOString() };
+    const key = `${storeId}|${from.toISOString()}|${to.toISOString()}`;
+    return dashboardCache.wrap(key, async () => {
+      const stats = await getDashboardStats(qClient(), storeId, from, to);
+      return { stats, from: from.toISOString(), to: to.toISOString() };
+    });
   });
 
   // Sales report (date-wise rows with invoice drill-down)

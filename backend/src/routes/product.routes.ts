@@ -24,6 +24,7 @@ import { ROLES } from "../middlewares/auth.types.js";
 import { createStockMovement, mapLow } from "../services/stock.service.js";
 import { normalizeName } from "../services/product-import.service.js";
 import { logger } from "../lib/logger.js";
+import { invalidateDashboardCache } from "../lib/dashboard-cache.js";
 import { getModuleLimit } from "../lib/plans.js";
 import { productImportRoutes } from "./product-import.routes.js";
 import { productExportRoutes } from "./product-export.routes.js";
@@ -231,6 +232,7 @@ export async function productRoutes(app: FastifyInstance) {
 
         if (getAuth(request).role === "CASHIER") stripCostFields(product);
         logger.info("product: created", { storeId, productId: product.id });
+        invalidateDashboardCache(storeId);
         const [stocked, summary] = await Promise.all([
           mapLow(qClient(), [product]),
           computeSummary(storeId),
@@ -303,6 +305,7 @@ export async function productRoutes(app: FastifyInstance) {
         const product = await qOne<Row>(update.sql, update.params);
         if (!product) throw ApiError.notFound("Product not found");
         logger.info("product: updated", { storeId, productId: id });
+        invalidateDashboardCache(storeId);
         const [stocked, summary] = await Promise.all([
           mapLow(qClient(), [product]),
           computeSummary(storeId),
@@ -337,6 +340,7 @@ export async function productRoutes(app: FastifyInstance) {
       );
       if (res === 0) throw ApiError.notFound("Product not found");
       logger.info("product: archived", { storeId, productId: id, archived: toArchive, by: user.id });
+      invalidateDashboardCache(storeId);
       return { ok: true, archived: toArchive, summary: await computeSummary(storeId) };
     },
   );
@@ -368,6 +372,7 @@ export async function productRoutes(app: FastifyInstance) {
         [id],
       );
       logger.info("product: restored", { storeId, productId: id });
+      invalidateDashboardCache(storeId);
       const [stocked, summary] = await Promise.all([
         mapLow(qClient(), [product]),
         computeSummary(storeId),
@@ -390,6 +395,7 @@ export async function productRoutes(app: FastifyInstance) {
       }
       await qExec(`DELETE FROM products WHERE id = $1 AND store_id = $2 AND is_archived = TRUE`, [id, storeId]);
       logger.info("product: permanently deleted", { storeId, productId: id });
+      invalidateDashboardCache(storeId);
       return { ok: true, summary: await computeSummary(storeId) };
     },
   );
@@ -422,6 +428,7 @@ export async function productRoutes(app: FastifyInstance) {
         }),
       );
       logger.info("product: stock adjusted", { storeId, productId: id, qty: body.qty, balanceAfter });
+      invalidateDashboardCache(storeId);
       return { ok: true, balanceAfter };
     },
   );
