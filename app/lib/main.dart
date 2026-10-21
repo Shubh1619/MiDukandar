@@ -73,6 +73,7 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
   bool _isLoading = false;
   bool _showRegister = false;
   bool _expiryAlertShown = false;
+  bool _lowStockAlertShown = false;
   AuthUser? _user;
   Store? _store;
 
@@ -142,6 +143,7 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
               _isAuthenticated = true;
             });
             unawaited(_maybeShowExpiryAlert());
+            unawaited(_maybeShowLowStockAlert());
           }
         } on SessionExpiredException {
           await _apiService.logout();
@@ -189,6 +191,20 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
     }
   }
 
+  // Shows the low-stock alert once per app session, after login. A failed
+  // fetch is silent so it never blocks the dashboard.
+  Future<void> _maybeShowLowStockAlert() async {
+    if (_lowStockAlertShown || !mounted) return;
+    _lowStockAlertShown = true;
+    try {
+      final items = await _apiService.getLowStockItems();
+      if (!mounted || items.isEmpty) return;
+      await showLowStockAlertDialog(context, items);
+    } catch (_) {
+      // Silent: a low-stock-alert failure must not disturb the session.
+    }
+  }
+
   Future<String> _handleRequestOtp(String email) async {
     return _apiService.requestLoginOtp(email: email);
   }
@@ -213,6 +229,7 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
         _isAuthenticated = true;
       });
       unawaited(_maybeShowExpiryAlert());
+      unawaited(_maybeShowLowStockAlert());
     } on SessionExpiredException {
       await _signOut(showError: false);
       rethrow;

@@ -1118,6 +1118,14 @@ class ApiService {
     return 0;
   }
 
+  Future<List<LowStockProduct>> getLowStockItems() async {
+    final data = await _request('/api/inventory/stock/low');
+    final items = data['items'] is List ? data['items'] as List : const [];
+    return items
+        .map((json) => LowStockProduct.fromJson(json as Map<String, dynamic>))
+        .toList();
+  }
+
   Future<List<StockMovementLedger>> getStockMovements({
     String? productId,
     int limit = 50,

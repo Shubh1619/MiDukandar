@@ -129,6 +129,101 @@ Widget _expiryTile(ExpiringProduct p, bool expired) {
   );
 }
 
+/// Low-stock alert dialog: lists products whose balance has fallen to or below
+/// their minimum level. Shown once per app session from the auth gate.
+Future<void> showLowStockAlertDialog(BuildContext context, List<LowStockProduct> items) {
+  return showDialog<void>(
+    context: context,
+    builder: (dialogContext) {
+      return AlertDialog(
+        backgroundColor: MdColors.surface,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Padding(
+          padding: const EdgeInsets.only(top: 8),
+          child: Row(
+            children: [
+              const Icon(Icons.inventory_2_outlined, color: MdColors.amber500, size: 22),
+              const SizedBox(width: 10),
+              const Expanded(
+                child: Text(
+                  'Low stock alert',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: MdColors.navy900),
+                ),
+              ),
+            ],
+          ),
+        ),
+        content: SizedBox(
+          width: 360,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxHeight: MediaQuery.of(dialogContext).size.height * 0.5),
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    '${items.length} product${items.length == 1 ? '' : 's'} at or below the minimum level. Restock before running out.',
+                    style: const TextStyle(fontSize: 13, color: MdColors.mutedForeground, height: 1.4),
+                  ),
+                  const SizedBox(height: 10),
+                  ...items.map(_lowStockTile),
+                ],
+              ),
+            ),
+          ),
+        ),
+        actionsPadding: const EdgeInsets.fromLTRB(16, 4, 16, 14),
+        actions: [
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: MdColors.navy900, foregroundColor: Colors.white),
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Got it'),
+          ),
+        ],
+      );
+    },
+  );
+}
+
+Widget _lowStockTile(LowStockProduct p) {
+  return Container(
+    margin: const EdgeInsets.only(bottom: 6),
+    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+    decoration: BoxDecoration(
+      color: const Color(0xFFFFF7E6),
+      borderRadius: BorderRadius.circular(10),
+      border: Border.all(color: const Color(0xFFF3D9A4)),
+    ),
+    child: Row(
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                p.name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontWeight: FontWeight.w700, color: MdColors.navy900, fontSize: 14),
+              ),
+              const SizedBox(height: 2),
+              Text('${p.balance} left · minimum ${p.minStock}',
+                  style: const TextStyle(fontSize: 11.5, color: MdColors.mutedForeground)),
+            ],
+          ),
+        ),
+        const SizedBox(width: 8),
+        const Text(
+          'Low stock',
+          style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: MdColors.amber500),
+        ),
+      ],
+    ),
+  );
+}
+
 /// Shared popup API. Every screen routes its confirmations, form/input
 /// popups, success/error feedback and loading states through this class so the
 /// whole app uses one consistent popup system instead of ad-hoc Dialog /

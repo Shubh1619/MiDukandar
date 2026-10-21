@@ -23,6 +23,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatCard } from "@/components/shared/stat-card";
 import { ExpiryAlertDialog } from "@/components/shared/expiry-alert";
+import { LowStockAlertDialog } from "@/components/shared/low-stock-alert";
 import type { RecentTransaction, DashboardStats } from "@/lib/types";
 
 interface DashboardResponse {
@@ -130,6 +131,7 @@ export default function DashboardPage() {
   return (
     <div className="space-y-4">
       <ExpiryAlertDialog />
+      <LowStockAlertDialog />
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <h1 className="font-display text-xl font-bold text-navy-900">Dashboard</h1>

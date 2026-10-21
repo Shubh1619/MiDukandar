@@ -1024,6 +1024,31 @@ class InventoryStock {
   }
 }
 
+/// A product below its minimum stock level, as returned by the low-stock alert
+/// feed (/api/inventory/stock/low).
+class LowStockProduct {
+  const LowStockProduct({
+    required this.id,
+    required this.name,
+    required this.balance,
+    required this.minStock,
+  });
+
+  final String id;
+  final String name;
+  final num balance;
+  final num minStock;
+
+  factory LowStockProduct.fromJson(Map<String, dynamic> json) {
+    return LowStockProduct(
+      id: _firstValue(json, const ['id', 'productId', 'product_id']) ?? '',
+      name: _firstValue(json, const ['name', 'productName', 'product_name']) ?? '',
+      balance: _firstNumber(json, const ['balance', 'stock', 'currentStock'], fallback: 0),
+      minStock: _firstNumber(json, const ['minStock', 'min_stock'], fallback: 0),
+    );
+  }
+}
+
 class StockMovementLedger {
   const StockMovementLedger({
     required this.id,
