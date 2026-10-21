@@ -23,6 +23,7 @@ import {
 import { apiFetch, ApiError } from "@/lib/api";
 import { useAuth, type AuthUser, type StoreInfo } from "@/lib/auth-store";
 import { useSaAuth } from "@/lib/superadmin-store";
+import { scheduleSaRefresh } from "@/lib/superadmin-api";
 import { useCountdown } from "@/lib/use-countdown";
 import OtpInput from "./OtpInput";
 
@@ -220,6 +221,7 @@ export default function LoginClient() {
         });
         // No token to handle: the httpOnly `mz_sa` cookie is the credential.
         setSaSession(res.superadmin);
+        scheduleSaRefresh(res.expiresInSeconds);
         toast.success("Signed in");
         router.replace("/superadmin/dashboard");
       } catch (err) {

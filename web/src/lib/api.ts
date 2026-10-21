@@ -66,6 +66,7 @@ let accessToken: string | null = null;
 
 export function setAccessToken(token: string | null) {
   accessToken = token;
+  scheduleProactiveRefresh();
 }
 
 /**
@@ -82,6 +83,10 @@ function effectiveToken(): string | null {
 /** Clears in-memory token state plus any legacy localStorage leftovers. */
 export function clearSession() {
   accessToken = null;
+  if (proactiveTimer) {
+    clearTimeout(proactiveTimer);
+    proactiveTimer = null;
+  }
   if (typeof window !== "undefined") {
     window.localStorage.removeItem("mz_access");
     window.localStorage.removeItem("mz_refresh");
@@ -127,6 +132,7 @@ export function refreshAccessToken(): Promise<RefreshOutcome> {
           const data = (await res.json().catch(() => null)) as { accessToken?: string } | null;
           if (data?.accessToken) {
             accessToken = data.accessToken;
+            scheduleProactiveRefresh();
             return "success";
           }
           return "network-error";
@@ -139,6 +145,78 @@ export function refreshAccessToken(): Promise<RefreshOutcome> {
       });
   }
   return refreshPromise;
+}
+
+// ---------------------------------------------------------------------------
+// Proactive refresh
+// ---------------------------------------------------------------------------
+// The access token is short-lived (~15 min). Relying on a 401 to trigger the
+// refresh works but shows the user a transient failure on the very request
+// that discovers expiry. Instead we refresh BEFORE the token lapses:
+//   - a timer fires ~REFRESH_LEAD_MS before the token's `exp`, keeping the
+//     session warm for an actively-used tab;
+//   - returning to the tab (visibility/focus) refreshes immediately when the
+//     token is at/near expiry, so a tab left open overnight is never stale on
+//     the first click.
+// Refresh itself is single-flight, so overlapping triggers are harmless.
+
+const REFRESH_LEAD_MS = 60_000;
+
+function decodeJwtExpMs(token: string): number | null {
+  try {
+    const part = token.split(".")[1];
+    if (!part) return null;
+    const pad = part.length % 4 ? "=".repeat(4 - (part.length % 4)) : "";
+    const json = atob((part + pad).replace(/-/g, "+").replace(/_/g, "/"));
+    const payload = JSON.parse(json) as { exp?: number };
+    return typeof payload.exp === "number" ? payload.exp * 1000 : null;
+  } catch {
+    return null;
+  }
+}
+
+let proactiveTimer: ReturnType<typeof setTimeout> | null = null;
+
+/** Schedules a single refresh just before the current access token expires. */
+export function scheduleProactiveRefresh() {
+  if (typeof window === "undefined") return;
+  if (proactiveTimer) {
+    clearTimeout(proactiveTimer);
+    proactiveTimer = null;
+  }
+  // Impersonation tokens have no refresh path — never schedule for them.
+  if (getImpersonation() || !accessToken) return;
+  const expMs = decodeJwtExpMs(accessToken);
+  if (expMs == null) return;
+  const delay = Math.max(5_000, expMs - Date.now() - REFRESH_LEAD_MS);
+  proactiveTimer = setTimeout(() => {
+    proactiveTimer = null;
+    void refreshAccessToken().then((outcome) => {
+      if (outcome === "rejected") onSessionExpired();
+      else if (outcome === "success") scheduleProactiveRefresh();
+    });
+  }, delay);
+}
+
+/** Refreshes immediately if the token is missing/at/near expiry (used on resume). */
+function refreshIfStale() {
+  if (typeof window === "undefined" || getImpersonation()) return;
+  if (!accessToken) return;
+  const expMs = decodeJwtExpMs(accessToken);
+  if (expMs == null) return;
+  if (expMs - Date.now() <= REFRESH_LEAD_MS) {
+    void refreshAccessToken().then((outcome) => {
+      if (outcome === "rejected") onSessionExpired();
+      else if (outcome === "success") scheduleProactiveRefresh();
+    });
+  }
+}
+
+if (typeof window !== "undefined") {
+  window.addEventListener("focus", refreshIfStale);
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") refreshIfStale();
+  });
 }
 
 /** Refresh token invalid/expired/revoked → the session is over. */

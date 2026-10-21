@@ -66,6 +66,9 @@ export default function SettingsPage() {
   } | null>(null);
   const [refApplyCode, setRefApplyCode] = useState("");
   const [refBusy, setRefBusy] = useState(false);
+  const [sessions, setSessions] = useState<
+    { id: string; deviceInfo: string | null; createdAt: string; lastUsedAt: string | null; expiresAt: string; current: boolean }[]
+  >([]);
 
   const staff = useMemo(() => users.filter((u) => u.role !== "OWNER"), [users]);
 
@@ -89,11 +92,34 @@ export default function SettingsPage() {
     setInvites(data.invites);
   };
 
+  const loadSessions = async () => {
+    try {
+      const data = await apiFetch<{
+        sessions: { id: string; deviceInfo: string | null; createdAt: string; lastUsedAt: string | null; expiresAt: string; current: boolean }[];
+      }>("/api/auth/sessions");
+      setSessions(data.sessions);
+    } catch {
+      // Non-fatal: the session list is informational.
+    }
+  };
+
+  const revokeSession = async (id: string) => {
+    if (!window.confirm("Sign out this device? It will need to sign in again.")) return;
+    try {
+      await apiFetch(`/api/auth/sessions/${id}`, { method: "DELETE" });
+      await loadSessions();
+      toast.success("Device signed out");
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Failed to revoke session");
+    }
+  };
+
   useEffect(() => {
     void (async () => {
       try {
         const [storeData] = await Promise.all([apiFetch<{ store: Store }>("/api/store"), loadUsers()]);
         void loadReferral();
+        void loadSessions();
         const s = storeData.store;
         setStoreState(s);
         setForm({
@@ -398,6 +424,50 @@ export default function SettingsPage() {
                           <TableCell className="text-right">
                             <Button variant="ghost" size="sm" onClick={() => void resendInvite(i.id)}><RotateCw className="size-4" /> Resend</Button>
                             <Button variant="ghost" size="sm" onClick={() => void cancelInvite(i.id)}><X className="size-4" /> Cancel</Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <h2 className="text-sm font-semibold">Active devices</h2>
+              <p className="text-xs text-muted-foreground">
+                Sessions that stay signed in until you sign out or revoke them. Signing out a device ends it immediately.
+              </p>
+              <div className="rounded-lg border bg-card">
+                {sessions.length === 0 ? (
+                  <EmptyState message="No active sessions" className="py-6 text-center" />
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Device</TableHead>
+                        <TableHead>Last used</TableHead>
+                        <TableHead>Expires</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {sessions.map((s) => (
+                        <TableRow key={s.id}>
+                          <TableCell className="max-w-[280px]">
+                            <span className="truncate text-xs text-muted-foreground" title={s.deviceInfo ?? ""}>
+                              {s.deviceInfo ?? "Unknown device"}
+                            </span>
+                            {s.current && <Badge className="ml-2" variant="outline">This device</Badge>}
+                          </TableCell>
+                          <TableCell className="text-muted-foreground">
+                            {s.lastUsedAt ? formatDateTime(s.lastUsedAt) : formatDateTime(s.createdAt)}
+                          </TableCell>
+                          <TableCell className="text-muted-foreground">{formatDateTime(s.expiresAt)}</TableCell>
+                          <TableCell className="text-right">
+                            <Button variant="ghost" size="sm" onClick={() => void revokeSession(s.id)}>
+                              <PowerOff className="size-4" /> Sign out
+                            </Button>
                           </TableCell>
                         </TableRow>
                       ))}

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 
+import 'dart:async';
+
 import 'l10n/generated/app_localizations.dart';
 import 'l10n/locale_controller.dart';
 import 'models/app_models.dart';
@@ -64,7 +66,7 @@ class AuthGate extends StatefulWidget {
   State<AuthGate> createState() => _AuthGateState();
 }
 
-class _AuthGateState extends State<AuthGate> {
+class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
   late final ApiService _apiService;
   bool _isAuthenticated = false;
   bool _isBootstrapping = true;
@@ -86,8 +88,34 @@ class _AuthGateState extends State<AuthGate> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _apiService = ApiService();
     WidgetsBinding.instance.addPostFrameCallback((_) => _bootstrap());
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  // The access token is short-lived and the app may sit backgrounded for hours.
+  // On resume, silently exchange the persisted refresh token for a fresh access
+  // token and refresh the dashboard so the first tap after returning never hits
+  // an expired-token failure. A server rejection ends the session; a transient
+  // network failure leaves the existing session intact.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    if (state == AppLifecycleState.resumed && _isAuthenticated) {
+      unawaited(_refreshOnResume());
+    }
+  }
+
+  Future<void> _refreshOnResume() async {
+    final ok = await _apiService.restoreSession();
+    if (!ok) return;
+    await _loadDashboardStats();
   }
 
   Future<void> _bootstrap() async {

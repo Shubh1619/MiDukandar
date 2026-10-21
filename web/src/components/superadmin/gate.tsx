@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useSaAuth } from "@/lib/superadmin-store";
+import { scheduleSaRefresh } from "@/lib/superadmin-api";
 
 export default function SuperadminGate({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -11,6 +12,12 @@ export default function SuperadminGate({ children }: { children: React.ReactNode
   useEffect(() => {
     init();
   }, [init]);
+
+  useEffect(() => {
+    if (ready && user) {
+      scheduleSaRefresh();
+    }
+  }, [ready, user]);
 
   useEffect(() => {
     if (ready && !user) {

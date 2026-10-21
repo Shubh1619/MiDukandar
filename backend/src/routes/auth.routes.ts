@@ -319,9 +319,52 @@ export async function authRoutes(app: FastifyInstance) {
     return reply.send({ ok: true });
   });
 
-  // Me
-  app.get("/me", { preHandler: authenticate }, async (request: AuthenticatedRequest) => {
+  // Active sessions ("logged-in devices") for the current user. Every refresh
+  // token row is one signed-in device/browser; only live ones are listed.
+  app.get("/sessions", { preHandler: authenticate }, async (request: AuthenticatedRequest) => {
     const auth = getAuth(request);
+    const currentCookie = request.cookies?.[COOKIE];
+    const currentHash = currentCookie ? hashRefreshToken(currentCookie) : null;
+    const rows = await q<Row>(
+      `SELECT id, device_info, created_at, last_used_at, expires_at, token_hash
+         FROM refresh_tokens
+        WHERE user_id = $1 AND revoked = FALSE AND expires_at > now()
+        ORDER BY COALESCE(last_used_at, created_at) DESC
+        LIMIT 50`,
+      [auth.id],
+    );
+    return {
+      sessions: rows.map((r) => ({
+        id: r.id,
+        deviceInfo: r.device_info,
+        createdAt: r.created_at,
+        lastUsedAt: r.last_used_at,
+        expiresAt: r.expires_at,
+        current: currentHash != null && r.token_hash === currentHash,
+      })),
+    };
+  });
+
+  // Revoke one device session by id. Owners may revoke any of their own
+  // sessions; the current session can also be revoked this way (sign out).
+  app.delete(
+    "/sessions/:id",
+    { preHandler: authenticate },
+    async (request: AuthenticatedRequest, reply) => {
+      const auth = getAuth(request);
+      const { id } = parse(z.object({ id: z.string().uuid() }), request.params);
+      const owned = await qOne<Row>(
+        `SELECT id FROM refresh_tokens WHERE id = $1 AND user_id = $2`,
+        [id, auth.id],
+      );
+      if (!owned) throw ApiError.notFound("Session not found.");
+      await qExec(`UPDATE refresh_tokens SET revoked = TRUE WHERE id = $1`, [id]);
+      return reply.code(204).send();
+    },
+  );
+
+  // Me
+  app.get("/me", { preHandler: authenticate }, async (request: AuthenticatedRequest) => {    const auth = getAuth(request);
     const user = await qOne<Row & DbUser>(`SELECT * FROM users WHERE id = $1`, [auth.id]);
     if (!user) throw ApiError.notFound("User not found");
     const store = user.store_id

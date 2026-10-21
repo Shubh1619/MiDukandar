@@ -25,6 +25,8 @@ export interface Config {
   superAdminJwtSecret: string;
   superAdminAccessExpiresIn: string;
   superAdminCookieName: string;
+  superAdminRefreshTokenDays: number;
+  superAdminRefreshCookieName: string;
   superAdminImpersonationMinutes: number;
   mailMode: MailMode;
   brevoApiKey: string;
@@ -100,6 +102,8 @@ const EnvSchema = z.object({
   SUPERADMIN_JWT_SECRET: z.string().optional(),
   SUPERADMIN_ACCESS_EXPIRES_IN: z.string().optional(),
   SUPERADMIN_COOKIE_NAME: z.string().optional(),
+  SUPERADMIN_REFRESH_TOKEN_DAYS: positiveInt(30),
+  SUPERADMIN_REFRESH_COOKIE_NAME: z.string().optional(),
   SUPERADMIN_IMPERSONATION_MINUTES: positiveInt(30),
   OTP_EXPIRY_MINUTES: positiveInt(1),
   OTP_LENGTH: positiveInt(6),
@@ -271,6 +275,8 @@ export const config: Config = {
   superAdminJwtSecret: env.SUPERADMIN_JWT_SECRET ?? DEV_SUPERADMIN_SECRET,
   superAdminAccessExpiresIn: env.SUPERADMIN_ACCESS_EXPIRES_IN ?? "15m",
   superAdminCookieName: env.SUPERADMIN_COOKIE_NAME ?? "mz_sa",
+  superAdminRefreshTokenDays: env.SUPERADMIN_REFRESH_TOKEN_DAYS,
+  superAdminRefreshCookieName: env.SUPERADMIN_REFRESH_COOKIE_NAME ?? "mz_sa_refresh",
   superAdminImpersonationMinutes: env.SUPERADMIN_IMPERSONATION_MINUTES,
   mailMode,
   brevoApiKey: env.BREVO_API_KEY?.trim() ?? "",
