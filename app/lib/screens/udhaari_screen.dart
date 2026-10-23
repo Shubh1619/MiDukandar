@@ -230,7 +230,7 @@ class _UdhaariScreenState extends State<UdhaariScreen> {
                   )
                 : ListView.separated(
                     itemCount: _udhaari.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 10),
+                    separatorBuilder: (_, _) => const SizedBox(height: 10),
                     itemBuilder: (context, index) {
                       final u = _udhaari[index];
                       final isClear = u.balance.toDouble() <= 0;
@@ -577,7 +577,7 @@ class _UdhaariScreenState extends State<UdhaariScreen> {
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
                 itemCount: entries.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 8),
+                separatorBuilder: (_, _) => const SizedBox(height: 8),
                 itemBuilder: (_, i) {
                   final e = entries[i];
                   final paid = e.status.toLowerCase() == 'paid' || e.balance.toDouble() <= 0;

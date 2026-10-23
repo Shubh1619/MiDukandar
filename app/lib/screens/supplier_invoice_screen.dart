@@ -75,7 +75,7 @@ class _SupplierInvoiceScreenState extends State<SupplierInvoiceScreen> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 DropdownButtonFormField<String>(
-                  value: selectedSupplierId,
+                  initialValue: selectedSupplierId,
                   decoration: InputDecoration(labelText: l.purchSupplierName),
                   items: _suppliers
                       .map(
@@ -174,7 +174,7 @@ class _SupplierInvoiceScreenState extends State<SupplierInvoiceScreen> {
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
-                  value: mode,
+                  initialValue: mode,
                   decoration: InputDecoration(labelText: l.billMode),
                   items: const ['CASH', 'UPI', 'CARD']
                       .map((m) => DropdownMenuItem(value: m, child: Text(m == 'CASH' ? l.billModeCash : m == 'UPI' ? l.billModeUpi : l.billModeCard)))
@@ -286,7 +286,7 @@ class _SupplierInvoiceScreenState extends State<SupplierInvoiceScreen> {
                           )
                         : ListView.separated(
                             itemCount: _purchases.length,
-                            separatorBuilder: (_, __) => const SizedBox(height: 10),
+                            separatorBuilder: (_, _) => const SizedBox(height: 10),
                             itemBuilder: (context, index) {
                               final item = _purchases[index];
                       final isPaid = item.paymentStatus.toLowerCase() == 'paid' || item.dueAmount.toDouble() <= 0;

@@ -112,7 +112,7 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
                   )
                 : ListView.separated(
                     itemCount: _payments.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 10),
+                    separatorBuilder: (_, _) => const SizedBox(height: 10),
                     itemBuilder: (context, index) {
                       final p = _payments[index];
                       final isReceived = p.type.toUpperCase() == 'RECEIVED';

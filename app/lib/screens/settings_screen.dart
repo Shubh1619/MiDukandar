@@ -226,7 +226,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             const SizedBox(height: 12),
             MdCard(
               child: DropdownButtonFormField<String>(
-                value: _language,
+                initialValue: _language,
                 decoration:
                     InputDecoration(labelText: l.settingsAppLanguage),
                 items: _languageLabels.entries

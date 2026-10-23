@@ -199,7 +199,7 @@ class _AuthScreenState extends State<AuthScreen> {
                             'assets/logo.png',
                             height: 80,
                             fit: BoxFit.contain,
-                            errorBuilder: (_, __, ___) => const Icon(
+                            errorBuilder: (_, _, _) => const Icon(
                               Icons.storefront,
                               size: 56,
                               color: Color(0xFF1F4E79),
@@ -307,8 +307,9 @@ class _AuthScreenState extends State<AuthScreen> {
             validator: (value) {
               final v = (value ?? '').trim();
               if (v.isEmpty) return l.authEnterEmail;
-              if (!RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(v))
+              if (!RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(v)) {
                 return l.authInvalidEmail;
+              }
               return null;
             },
             onChanged: (_) {

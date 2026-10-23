@@ -427,7 +427,6 @@ class _AppShellState extends State<AppShell> {
   AppSection _section = AppSection.dashboard;
   bool _inventoryLowOnly = false;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
-  bool _drawerWasOpen = false;
 
   bool get _isOwner => widget.user?.role == 'OWNER';
 
@@ -753,26 +752,6 @@ class _AppShellState extends State<AppShell> {
     }
   }
 
-  Future<void> _handlePayPurchase(
-    Purchase item,
-    num amount,
-    String mode,
-  ) async {
-    try {
-      await widget.apiService.recordPurchasePayment(
-        item.id,
-        amount: amount,
-        mode: mode,
-      );
-    } catch (error) {
-      if (!mounted) return;
-      AppDialogs.showError(
-        context,
-        AppLocalizations.of(context)!.errRecordPayment(error.toString()),
-      );
-    }
-  }
-
   Future<void> _handleReverseInvoice(
     InvoiceRecord invoice,
     String reason,
@@ -930,7 +909,7 @@ class _AppShellState extends State<AppShell> {
       onPopInvokedWithResult: (didPop, result) async {
         if (didPop) return;
         final shouldPop = await _onWillPop();
-        if (shouldPop && mounted) {
+        if (shouldPop && context.mounted) {
           Navigator.of(context).pop();
         }
       },
@@ -1128,17 +1107,16 @@ case AppSection.purchases:
   }
 
   Future<void> _handleCreateSupplierInvoice(String supplierId, Map<String, dynamic> payload) async {
-    if (!context.mounted) return;
+    if (!mounted) return;
     AppDialogs.showLoading(context);
     try {
       await widget.apiService.createSupplierInvoice(supplierId, payload);
-      if (!context.mounted) return;
+      if (!mounted) return;
       AppDialogs.hideLoading(context);
-      if (!context.mounted) return;
       AppDialogs.showSuccess(context, 'Supplier invoice created successfully');
       _refreshCurrentSection();
     } catch (error) {
-      if (!context.mounted) return;
+      if (!mounted) return;
       AppDialogs.showError(context, 'Failed to create supplier invoice: ${error.toString()}');
     }
   }

@@ -731,7 +731,7 @@ class _InvoiceScreenState extends State<InvoiceScreen> {
                   )
                 : ListView.separated(
                     itemCount: filtered.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 12),
+                    separatorBuilder: (_, _) => const SizedBox(height: 12),
                     itemBuilder: (context, index) {
                       final invoice = filtered[index];
                       return Card(

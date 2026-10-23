@@ -27,8 +27,6 @@ class UsersScreen extends StatefulWidget {
 }
 
 class _UsersScreenState extends State<UsersScreen> {
-  bool _loading = true;
-  String? _error;
   List<AppUser> _users = const [];
 
   @override
@@ -38,23 +36,14 @@ class _UsersScreenState extends State<UsersScreen> {
   }
 
   Future<void> _load() async {
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
     try {
       final users = await widget.apiService.getUsers();
       if (!mounted) return;
       setState(() {
         _users = users;
-        _loading = false;
       });
     } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _error = e.toString();
-        _loading = false;
-      });
+      debugPrint('Failed to load users: $e');
     }
   }
 
@@ -96,7 +85,7 @@ class _UsersScreenState extends State<UsersScreen> {
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
-                  value: role,
+                  initialValue: role,
                   decoration: InputDecoration(labelText: l.userRole),
                   items: ['MANAGER', 'CASHIER', 'STAFF']
                       .map((r) => DropdownMenuItem(
@@ -264,7 +253,7 @@ class _UsersScreenState extends State<UsersScreen> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   DropdownButtonFormField<String>(
-                    value: role,
+                    initialValue: role,
                     decoration: InputDecoration(labelText: l.userRole),
                     items: ['MANAGER', 'CASHIER', 'STAFF']
                         .map((r) => DropdownMenuItem(value: r, child: Text(_roleLabel(l, r))))
@@ -296,6 +285,7 @@ class _UsersScreenState extends State<UsersScreen> {
         },
       );
       if (roleResult != null) {
+        if (!context.mounted) return;
         AppDialogs.showLoading(context);
         try {
           await widget.onRoleChange!(u.id, role);
@@ -304,6 +294,7 @@ class _UsersScreenState extends State<UsersScreen> {
         }
       }
     } else if (action == 'status' && canEdit && widget.onStatusChange != null) {
+      if (!context.mounted) return;
       AppDialogs.showLoading(context);
       try {
         await widget.onStatusChange!(u.id, !u.isActive);
@@ -391,7 +382,7 @@ class _UsersScreenState extends State<UsersScreen> {
                   )
                 : ListView.separated(
                     itemCount: _users.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 10),
+                    separatorBuilder: (_, _) => const SizedBox(height: 10),
                     itemBuilder: (context, index) {
                       final u = _users[index];
 final isCurrentUser = widget.user != null && (u.id == widget.user!.id || u.email.toLowerCase() == widget.user!.email.toLowerCase());

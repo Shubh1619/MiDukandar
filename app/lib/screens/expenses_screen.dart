@@ -20,8 +20,6 @@ class ExpensesScreen extends StatefulWidget {
 }
 
 class _ExpensesScreenState extends State<ExpensesScreen> {
-  bool _loading = true;
-  String? _error;
   List<Expense> _expenses = const [];
   ExpenseSummary _summary = const ExpenseSummary(thisMonth: 0, lastMonth: 0, byCategory: []);
 
@@ -32,10 +30,6 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
   }
 
   Future<void> _load() async {
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
     try {
       final results = await Future.wait([
         widget.apiService.getExpenses(),
@@ -46,14 +40,9 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
       setState(() {
         _expenses = results[0] as List<Expense>;
         _summary = results[1] as ExpenseSummary;
-        _loading = false;
       });
     } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _error = e.toString();
-        _loading = false;
-      });
+      debugPrint('Failed to load expenses: $e');
     }
   }
 
@@ -90,7 +79,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
-                  value: paymentMode,
+                  initialValue: paymentMode,
                   decoration: InputDecoration(labelText: l.expnPaymentMode),
                   items: const ['CASH', 'UPI', 'CARD', 'BANK']
                       .map((m) => DropdownMenuItem(value: m, child: Text(_paymentModeLabel(l, m))))
@@ -180,7 +169,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
-                  value: paymentMode,
+                  initialValue: paymentMode,
                   decoration: InputDecoration(labelText: l.expnPaymentMode),
                   items: const ['CASH', 'UPI', 'CARD', 'BANK']
                       .map((m) => DropdownMenuItem(value: m, child: Text(_paymentModeLabel(l, m))))
@@ -361,7 +350,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                   )
                 : ListView.separated(
                     itemCount: _expenses.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 10),
+                    separatorBuilder: (_, _) => const SizedBox(height: 10),
                     itemBuilder: (context, index) {
                       final item = _expenses[index];
                       return Card(

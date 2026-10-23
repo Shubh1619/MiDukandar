@@ -51,30 +51,6 @@ class TokenStorage {
   }
 }
 
-String _maskToken(String? token) {
-  if (token == null || token.isEmpty) return '<none>';
-  if (token.length <= 12) return '<len:${token.length}>';
-  return '<len:${token.length} ${token.substring(0, 4)}...${token.substring(token.length - 4)}>';
-}
-
-String _clip(String? value, [int max = 200]) {
-  if (value == null || value.isEmpty) return '';
-  return value.length <= max ? value : value.substring(0, max);
-}
-
-String _maskAuthHeader(String? header) {
-  if (header == null) return 'ABSENT';
-  final marker = 'Bearer ';
-  final idx = header.indexOf(marker);
-  if (idx < 0) return 'MALFORMED(${header.length} chars)';
-  return 'Bearer ${_maskToken(header.substring(idx + marker.length))}';
-}
-
-String _maskCookie(String? cookie) {
-  if (cookie == null) return 'ABSENT';
-  return cookie.replaceAll(RegExp('mz_refresh=[^;]+'), 'mz_refresh=<masked>');
-}
-
 enum _RefreshOutcome { success, rejected, networkError }
 
 String _extractRefreshTokenFromCookies(http.Response response) {

@@ -270,7 +270,7 @@ class _CustomerScreenState extends State<CustomerScreen> {
                       )
                     : ListView.separated(
                         itemCount: _customers.length,
-                        separatorBuilder: (_, __) => const SizedBox(height: 10),
+                        separatorBuilder: (_, _) => const SizedBox(height: 10),
                         itemBuilder: (context, index) {
                           final customer = _customers[index];
                 return Container(

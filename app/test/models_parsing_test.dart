@@ -6,7 +6,7 @@ import 'package:app/models/app_models.dart';
 ///
 /// - /api/expenses/summary returns thisMonthTotal / lastMonthTotal /
 ///   categoryBreakdown (NOT thisMonth / lastMonth / byCategory).
-/// - /api/udhaari/<customerId> entry rows carry `paid` and `remaining`
+/// - `/api/udhaari/<customerId>` entry rows carry `paid` and `remaining`
 ///   (NOT paidAmount / balance).
 void main() {
   group('ExpenseSummary', () {
