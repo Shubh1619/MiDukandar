@@ -2,12 +2,13 @@ import { z } from "zod";
 import { q, qClient } from "../db/pool.js";
 import { parse, paginationSchema } from "../lib/validate.js";
 import { authenticate, requireStore } from "../middlewares/auth.js";
+import { boolFilter } from "./product.shared.js";
 import { getCurrentStock } from "../services/report.service.js";
 export async function inventoryRoutes(app) {
     // Current stock (derived from movement ledger) + optional low-only filter
     app.get("/stock/current", { preHandler: authenticate }, async (request) => {
         const storeId = requireStore(request);
-        const query = parse(z.object({ lowOnly: z.coerce.boolean().default(false), search: z.string().optional() }), request.query);
+        const query = parse(z.object({ lowOnly: boolFilter(false), search: z.string().optional() }), request.query);
         const rows = await getCurrentStock(qClient(), storeId, { lowOnly: query.lowOnly, search: query.search });
         return { stock: rows };
     });

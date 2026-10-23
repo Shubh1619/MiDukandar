@@ -5,8 +5,9 @@ import { parse } from "../lib/validate.js";
 import { buildUpdate } from "../lib/db.js";
 import { authenticate, requireStore, requireRole, getAuth } from "../middlewares/auth.js";
 import { ROLES } from "../middlewares/auth.types.js";
-import { logger } from "../lib/logger.js";
+import { logger, maskEmail } from "../lib/logger.js";
 import { getModuleLimit, getPlanForBusiness } from "../lib/plans.js";
+import { assertNotLastOwner } from "./user.routes.js";
 async function withPlan(store) {
     if (!store?.id)
         return store;
@@ -110,7 +111,7 @@ export async function storeRoutes(app) {
                 ]);
             }
         });
-        logger.info("store: staff added", { storeId, email: body.email, role: body.role });
+        logger.info("store: staff added", { storeId, email: maskEmail(body.email), role: body.role });
         return reply.status(201).send({ ok: true });
     });
     // List staff
@@ -124,10 +125,15 @@ export async function storeRoutes(app) {
     app.patch("/staff/:id", { preHandler: [authenticate, requireRole(ROLES.OWNER)] }, async (request) => {
         const storeId = requireStore(request);
         const { id } = request.params;
-        const body = (request.body ?? {});
-        await qExec(`UPDATE users SET is_active = $1 WHERE id = $2 AND store_id = $3`, [
-            body.isActive ?? false, id, storeId,
+        const body = parse(z.object({ isActive: z.boolean() }), request.body);
+        if (!body.isActive)
+            await assertNotLastOwner(storeId, id);
+        const count = await qExec(`UPDATE users SET is_active = $1, updated_at = now() WHERE id = $2 AND store_id = $3`, [
+            body.isActive, id, storeId,
         ]);
-        return { ok: true };
+        if (!count)
+            throw ApiError.notFound("User not found.");
+        logger.info("store: staff status changed", { storeId, userId: id, isActive: body.isActive });
+        return { ok: true, isActive: body.isActive };
     });
 }

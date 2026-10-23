@@ -6,9 +6,19 @@ import { ApiError } from "../lib/api-error.js";
 import { parse } from "../lib/validate.js";
 import { authenticate, getAuth, requireStore, requireRole } from "../middlewares/auth.js";
 import { ROLES } from "../middlewares/auth.types.js";
-import { logger } from "../lib/logger.js";
+import { logger, maskEmail, maskPhone } from "../lib/logger.js";
+import { config } from "../config.js";
 import { getModuleLimit, hasModuleAccess } from "../lib/plans.js";
 const roleSchema = z.enum(["MANAGER", "CASHIER", "STAFF"]);
+// Build the invitee-facing accept URL. When APP_URL is configured (the web
+// origin) we return an absolute link so it can be copied/shared as-is; in
+// local development without APP_URL we fall back to the relative path, which
+// the web client resolves against its own origin.
+const inviteAcceptUrl = (token) => {
+    const base = config.appUrl.replace(/\/+$/, "");
+    const path = `/invite/accept?token=${token}`;
+    return base ? `${base}${path}` : path;
+};
 const userJson = (row) => ({
     id: row.id,
     name: row.name ?? "",
@@ -32,7 +42,7 @@ const inviteJson = (row) => ({
     createdAt: row.created_at,
     invitedByName: row.invited_by_name ?? null,
 });
-async function assertNotLastOwner(storeId, userId) {
+export async function assertNotLastOwner(storeId, userId) {
     const target = await qOne(`SELECT id, role, is_active FROM users WHERE id = $1 AND store_id = $2`, [userId, storeId]);
     if (!target)
         throw ApiError.notFound("User not found.");
@@ -76,11 +86,11 @@ export async function userRoutes(app) {
         const auth = getAuth(request);
         const body = parse(z.object({
             name: z.string().min(2).max(80),
-            email: z.string().email().optional().or(z.literal("")),
+            email: z.string().email(),
             phone: z.string().min(6).max(20).optional().or(z.literal("")),
             role: roleSchema,
-        }).refine((v) => Boolean(v.email || v.phone), "Email or phone is required."), request.body);
-        const email = body.email ? body.email.trim().toLowerCase() : null;
+        }), request.body);
+        const email = body.email.trim().toLowerCase();
         const phone = body.phone ? body.phone.trim() : null;
         const staffLimit = await getModuleLimit(storeId, "USERS_ROLES");
         if (staffLimit != null && staffLimit > 0) {
@@ -99,8 +109,8 @@ export async function userRoutes(app) {
         const invite = await qOne(`INSERT INTO user_invites (store_id, name, email, phone, role, invite_token, invited_by, expires_at)
          VALUES ($1, $2, $3, $4, $5, $6, $7, now() + interval '48 hours')
          RETURNING *`, [storeId, body.name.trim(), email, phone, body.role, token, auth.id]);
-        logger.info("users: invite created", { storeId, email, phone, role: body.role });
-        const inviteLink = `/invite/accept?token=${token}`;
+        logger.info("users: invite created", { storeId, email: maskEmail(email), phone: maskPhone(phone), role: body.role });
+        const inviteLink = inviteAcceptUrl(token);
         return reply.status(201).send({ invite: inviteJson(invite), inviteLink });
     });
     app.post("/invite/accept", async (request, reply) => {
@@ -176,7 +186,7 @@ export async function userRoutes(app) {
          RETURNING *`, [token, id, storeId]);
         if (!invite)
             throw ApiError.notFound("Invite not found.");
-        return { invite: inviteJson(invite), inviteLink: `/invite/accept?token=${token}` };
+        return { invite: inviteJson(invite), inviteLink: inviteAcceptUrl(token) };
     });
     app.delete("/invite/:id", { preHandler: [authenticate, requireRole(ROLES.OWNER)] }, async (request, reply) => {
         const storeId = requireStore(request);

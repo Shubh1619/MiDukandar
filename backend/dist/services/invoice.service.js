@@ -498,6 +498,16 @@ export async function updateSale(db, storeId, saleId, input) {
     const udhaar = partial
         ? { dueDate: toYmd(existing.due_date) }
         : input.udhaar;
+    // An omitted field means "unchanged" (the same convention `lines`, `discount`
+    // and `udhaar` already follow). Writing `input.x ?? null` instead would clear
+    // the customer link, wipe the notes and, with `input.paidAmount ?? 0`/the
+    // mode changing, reset the settlement of an invoice the caller only meant to
+    // partially touch. Payment history is only rebuilt when its inputs change.
+    const touchesPayment = input.paymentMode !== undefined || input.paidAmount !== undefined;
+    const paymentMode = input.paymentMode ?? existing.payment_mode;
+    const preservedPaid = existing.due_amount <= 0 || existing.payment_mode === "CREDIT"
+        ? Number(existing.paid_amount)
+        : undefined;
     for (const it of oldItems) {
         if (!it.product_id)
             continue;
@@ -530,8 +540,10 @@ export async function updateSale(db, storeId, saleId, input) {
     await assertStock(db, lines, pMap);
     const { items, subtotal, taxTotal, lineDiscounts } = priceLines(lines, pMap);
     const { billDiscount, grantTotal } = billTotals(subtotal, taxTotal, lineDiscounts, discount, discountType);
-    const { paidAmount, dueAmount } = splitPayment(grantTotal, input.paymentMode, input.paidAmount);
-    const customerId = await resolveCustomer(db, storeId, input, input.createdById);
+    const { paidAmount, dueAmount } = splitPayment(grantTotal, paymentMode, input.paidAmount ?? preservedPaid);
+    const customerId = input.customerId !== undefined || input.customer !== undefined
+        ? await resolveCustomer(db, storeId, input, input.createdById)
+        : (existing.customer_id ?? undefined);
     const updated = await db.qOne(`UPDATE sales
         SET customer_id = $1, subtotal = $2, discount = $3, discount_type = $4, tax_total = $5,
             total = $6, paid_amount = $7, due_amount = $8, payment_mode = $9, due_date = $10, notes = $11,
@@ -546,9 +558,9 @@ export async function updateSale(db, storeId, saleId, input) {
         grantTotal,
         paidAmount,
         dueAmount,
-        input.paymentMode,
-        input.paymentMode === "CREDIT" ? udhaar?.dueDate || null : null,
-        input.notes ?? null,
+        paymentMode,
+        udhaar?.dueDate || null,
+        input.notes !== undefined ? input.notes : existing.notes,
         saleId,
         storeId,
     ]);
@@ -597,20 +609,22 @@ export async function updateSale(db, storeId, saleId, input) {
         });
         await linkUdhaariEntry(db, storeId, customerId, existing, dueAmount, udhaar, input.createdById);
     }
-    await db.q(`DELETE FROM payments WHERE sale_id = $1`, [saleId]);
-    if (input.paymentMode !== "CREDIT" && paidAmount > 0) {
-        await insertPayment(db, {
-            storeId,
-            customerId: customerId ?? null,
-            saleId,
-            amount: paidAmount,
-            type: "RECEIVED",
-            mode: input.paymentMode,
-            referenceType: "SALE",
-            referenceId: saleId,
-            note: `Payment for ${existing.invoice_number}`,
-            createdById: input.createdById,
-        });
+    if (touchesPayment) {
+        await db.q(`DELETE FROM payments WHERE sale_id = $1`, [saleId]);
+        if (paymentMode !== "CREDIT" && paidAmount > 0) {
+            await insertPayment(db, {
+                storeId,
+                customerId: customerId ?? null,
+                saleId,
+                amount: paidAmount,
+                type: "RECEIVED",
+                mode: paymentMode,
+                referenceType: "SALE",
+                referenceId: saleId,
+                note: `Payment for ${existing.invoice_number}`,
+                createdById: input.createdById,
+            });
+        }
     }
     return updated;
 }

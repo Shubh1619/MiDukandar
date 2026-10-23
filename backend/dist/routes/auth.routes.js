@@ -6,13 +6,18 @@ import { requestOtp, verifyOtp } from "../lib/otp.js";
 import { ApiError } from "../lib/api-error.js";
 import { parse } from "../lib/validate.js";
 import { authenticate, getAuth } from "../middlewares/auth.js";
-import { logger } from "../lib/logger.js";
+import { logger, maskEmail } from "../lib/logger.js";
 import { defaultPermissionsFor } from "./role.routes.js";
+import { resolveReferralCode } from "./referral.routes.js";
 import { getPlanForBusiness } from "../lib/plans.js";
+import { PERMISSION_FLAGS } from "../lib/permissions.js";
+import { APP_PAGES, getDisabledAccessKeys, getGrantedAccessKeys } from "../lib/pages.js";
+import { rateLimited } from "../lib/route-rate-limit.js";
+import { getPlatformSettings } from "../lib/platform-settings.js";
 const REFRESH_DAYS_MS = config.refreshTokenDays * 24 * 60 * 60 * 1000;
 // Window during which a just-rotated (revoked) refresh token is still
-// accepted, so concurrent refreshes from multiple tabs — or a mobile retry
-// after a timed-out first attempt — rotate again instead of being rejected.
+// accepted, so concurrent refreshes from multiple tabs � or a mobile retry
+// after a timed-out first attempt � rotate again instead of being rejected.
 // Explicit logouts and the recovery/PIN-reset revocation do NOT set a grace
 // window, so they stay immediate.
 const REFRESH_GRACE_MS = 60_000;
@@ -69,8 +74,11 @@ export async function authRoutes(app) {
     const loginKindSchema = z.object({ identifier: z.string().min(3).max(320) });
     // Tells the unified login page which flow to use after the user types an
     // identifier: platform superadmins sign in with email+password, everyone
-    // else continues with the OTP flow.
-    app.post("/login-kind", async (request) => {
+    // else continues with the OTP flow. It answers "superadmin" or "tenant", so
+    // an unauthenticated caller can enumerate which addresses are platform
+    // admins; 30 probes per minute per IP keeps that useless without slowing a
+    // real user down.
+    app.post("/login-kind", rateLimited(30, 60_000), async (request) => {
         const { identifier } = parse(loginKindSchema, request.body);
         const value = identifier.trim().toLowerCase();
         if (value.includes("@")) {
@@ -80,8 +88,10 @@ export async function authRoutes(app) {
         }
         return { kind: "tenant" };
     });
-    // Step 1 - request OTP
-    app.post("/otp/request", async (request, reply) => {
+    // Step 1 - request OTP. lib/otp.ts already caps deliveries per email (5 per
+    // 10 minutes); this per-IP cap is the second layer, stopping an attacker who
+    // rotates through many victim addresses from burning sender quota.
+    app.post("/otp/request", rateLimited(10, 600_000), async (request, reply) => {
         const { email, purpose } = parse(requestOtpSchema, request.body);
         if (purpose === "LOGIN") {
             const existing = await qOne(`SELECT id FROM users WHERE email = $1`, [email.trim().toLowerCase()]);
@@ -92,8 +102,10 @@ export async function authRoutes(app) {
         const result = await requestOtp(email, purpose);
         return reply.send(result);
     });
-    // Step 2 - verify OTP → issue access token (body) + refresh token (httpOnly cookie)
-    app.post("/otp/verify", async (request, reply) => {
+    // Step 2 - verify OTP ? issue access token (body) + refresh token (httpOnly cookie).
+    // A code is limited to 5 guesses per issuance inside lib/otp.ts; this per-IP
+    // limit stops spraying the same short code across many emails from one host.
+    app.post("/otp/verify", rateLimited(15, 600_000), async (request, reply) => {
         const { email, otp, purpose } = parse(verifyOtpSchema, request.body);
         await verifyOtp(email, otp, purpose);
         const normalized = email.trim().toLowerCase();
@@ -101,7 +113,7 @@ export async function authRoutes(app) {
         if (!user) {
             const [created] = await q(`INSERT INTO users (email, name) VALUES ($1, $2) RETURNING *`, [normalized, normalized.split("@")[0]]);
             user = created;
-            logger.info("auth: new user registered via OTP", { email: normalized });
+            logger.info("auth: new user registered via OTP", { email: maskEmail(normalized) });
         }
         if (!user.is_active)
             throw ApiError.forbidden("Account is inactive.");
@@ -111,12 +123,15 @@ export async function authRoutes(app) {
         setRefreshCookie(reply, refreshToken);
         return reply.send({
             accessToken,
-            expiresInSeconds: 15 * 60,
+            expiresInSeconds: config.jwtAccessExpiresInSeconds,
             user: toUserJson(user),
         });
     });
     // Registration - creates the account + store together, no OTP required.
-    app.post("/register", async (request, reply) => {
+    // No verification stands between a caller and a new store, so this is the
+    // cheapest way to mass-create tenants and referral-credit fraud; 10 per hour
+    // per IP still clears an office or a shared NAT signing up several people.
+    app.post("/register", rateLimited(10, 3_600_000), async (request, reply) => {
         const registerSchema = z.object({
             email: z.string().email(),
             ownerName: z.string().min(2).max(80),
@@ -131,26 +146,33 @@ export async function authRoutes(app) {
             currency: z.string().max(8).optional().default("INR"),
             language: z.string().max(8).optional().default("hi"),
             invoicePrefix: z.string().max(10).optional().default("INV"),
+            referralCode: z.string().min(4).max(32).optional(),
         });
         const body = parse(registerSchema, request.body);
         const email = body.email.trim().toLowerCase();
+        // The superadmin console's signup switch; without this gate the toggle was
+        // cosmetic and new tenants could always self-register.
+        if (!(await getPlatformSettings()).signup_enabled) {
+            throw ApiError.forbidden("New signups are temporarily disabled. Please try again later.");
+        }
         const existing = await qOne(`SELECT id FROM users WHERE email = $1`, [email]);
         if (existing) {
             throw ApiError.conflict("An account with this email already exists. Sign in instead.");
         }
+        const referrerId = await resolveReferralCode(body.referralCode);
         const { store } = await withTx(async (db) => {
             const [user] = await db.q(`INSERT INTO users (email, name) VALUES ($1, $2) RETURNING *`, [email, body.ownerName.trim()]);
             const [store] = await db.q(`INSERT INTO stores
            (name, type, address, city, state, pincode, phone, gst, currency, language, invoice_prefix,
-            plan_id, plan_status, trial_ends_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11,
+            referred_by_store_id, plan_id, plan_status, trial_ends_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12,
                  (SELECT id FROM plans WHERE is_default = TRUE AND status = 'ACTIVE' LIMIT 1),
                  'TRIAL',
                  (SELECT CASE WHEN trial_days > 0 THEN now() + trial_days * interval '1 day' END
                     FROM plans WHERE is_default = TRUE AND status = 'ACTIVE' LIMIT 1))
          RETURNING *`, [
                 body.name, body.type, body.address, body.city, body.state, body.pincode, body.phone,
-                body.gst || null, body.currency, body.language, body.invoicePrefix,
+                body.gst || null, body.currency, body.language, body.invoicePrefix, referrerId,
             ]);
             await db.query(`UPDATE users SET store_id = $1, role = 'OWNER' WHERE id = $2`, [store.id, user.id]);
             return { user, store };
@@ -158,13 +180,21 @@ export async function authRoutes(app) {
         logger.info("auth: registration complete", { email, storeId: store.id });
         return reply.status(201).send({ ok: true, email, storeId: store.id });
     });
-    // Step 3 - refresh token rotation + sliding expiry
-    app.post("/refresh", async (request, reply) => {
+    // Step 3 - refresh token rotation + sliding expiry. Tokens are 48 random
+    // bytes, so guessing is hopeless, but the endpoint is unauthenticated and a
+    // tight per-IP cap also bounds how fast a stolen token can be replayed from
+    // another host before it is rotated away. 60/minute covers several devices
+    // refreshing on the same network.
+    app.post("/refresh", rateLimited(60, 60_000), async (request, reply) => {
         const cookieToken = request.cookies?.[COOKIE];
         const { refreshToken: bodyToken } = parse(refreshSchema, request.body ?? {});
         const raw = bodyToken ?? cookieToken;
         if (!raw) {
-            logger.warn("auth: refresh rejected - no refresh token provided", { ip: request.ip });
+            // Not a warning: a first visit, a cleared cookie jar, a logged-out tab or
+            // any caller without a session hits this routinely, and at warn level it
+            // buried the rejections that do matter (token_not_found/revoked/expired,
+            // which stay at warn below).
+            logger.info("auth: refresh rejected - no refresh token provided", { ip: request.ip });
             throw ApiError.unauthorized("Session expired. Please sign in again.");
         }
         const tokenHash = hashRefreshToken(raw);
@@ -223,7 +253,7 @@ export async function authRoutes(app) {
         // installed mobile builds keep working.
         return reply.send({
             accessToken,
-            expiresInSeconds: 15 * 60,
+            expiresInSeconds: config.jwtAccessExpiresInSeconds,
             user: toUserJson(user),
         });
     });
@@ -255,10 +285,18 @@ export async function authRoutes(app) {
             ? await qOne(`SELECT permissions FROM roles_permissions WHERE store_id = $1 AND role = $2`, [user.store_id, roleKey])
             : null;
         const plan = user.store_id ? await getPlanForBusiness(String(user.store_id)) : null;
+        const disabled = user.store_id ? await getDisabledAccessKeys(String(user.store_id)) : new Set();
+        const granted = user.store_id ? await getGrantedAccessKeys(String(user.store_id)) : new Set();
+        const pageKeys = APP_PAGES.map((page) => page.key);
         return {
             user: {
                 ...toUserJson(user),
                 permissions: user.role === "OWNER" ? defaultPermissionsFor("OWNER") : rolePermissions?.permissions ?? defaultPermissionsFor(roleKey),
+                access: {
+                    disabledPages: pageKeys.filter((key) => disabled.has(key)),
+                    disabledFeatures: PERMISSION_FLAGS.filter((flag) => disabled.has(flag)),
+                    grantedPages: pageKeys.filter((key) => granted.has(key)),
+                },
             },
             store: store && plan ? { ...store, planDetails: plan } : store,
             plan,

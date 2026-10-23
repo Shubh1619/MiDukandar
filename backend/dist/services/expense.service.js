@@ -1,4 +1,5 @@
 import { ApiError } from "../lib/api-error.js";
+import { istDateKey } from "../lib/ist.js";
 export const DEFAULT_CATEGORIES = ["Rent", "Electricity", "Salary", "Transport", "Misc"];
 const round2 = (n) => Math.round((n + Number.EPSILON) * 100) / 100;
 /** Ensures default categories exist for the given store */
@@ -159,8 +160,8 @@ export async function createExpense(db, storeId, createdById, data) {
         throw ApiError.badRequest("Expense title is required.");
     if (!data.amount || data.amount <= 0)
         throw ApiError.badRequest("Amount must be greater than 0.");
-    const expDate = data.expenseDate ? data.expenseDate : new Date().toISOString().split("T")[0];
-    const todayStr = new Date().toISOString().split("T")[0];
+    const expDate = data.expenseDate ? data.expenseDate : istDateKey();
+    const todayStr = istDateKey();
     if (expDate > todayStr) {
         throw ApiError.badRequest("Expense date cannot be in the future beyond today.");
     }
@@ -201,7 +202,7 @@ export async function updateExpense(db, storeId, id, data) {
     let expenseDate = existing.expenseDate;
     if (data.expenseDate !== undefined) {
         expenseDate = data.expenseDate;
-        const todayStr = new Date().toISOString().split("T")[0];
+        const todayStr = istDateKey();
         if (expenseDate > todayStr) {
             throw ApiError.badRequest("Expense date cannot be in the future beyond today.");
         }
@@ -216,21 +217,24 @@ export async function updateExpense(db, storeId, id, data) {
      WHERE id = $8 AND store_id = $9`, [title, round2(amount), categoryId, expenseDate, paymentMode, note, attachmentUrl, id, storeId]);
     return getExpenseById(db, storeId, id);
 }
-/** Delete expense record */
+/** Delete expense record. Returns false when no row matched the id/store. */
 export async function deleteExpense(db, storeId, id) {
-    const r = await db.q(`DELETE FROM expenses WHERE id = $1 AND store_id = $2`, [id, storeId]);
-    return true;
+    const r = await db.query(`DELETE FROM expenses WHERE id = $1 AND store_id = $2`, [id, storeId]);
+    return (r.rowCount ?? 0) > 0;
 }
 /** Get expense metrics summary (Today, Month, vs Last Month, Top Category, Breakdown) */
 export async function getExpenseSummary(db, storeId) {
     const now = new Date();
-    const year = now.getFullYear();
-    const month = now.getMonth();
-    const startThisMonth = new Date(year, month, 1).toISOString().split("T")[0];
-    const endThisMonth = new Date(year, month + 1, 0).toISOString().split("T")[0];
-    const startLastMonth = new Date(year, month - 1, 1).toISOString().split("T")[0];
-    const endLastMonth = new Date(year, month, 0).toISOString().split("T")[0];
-    const todayStr = now.toISOString().split("T")[0];
+    // "Today"/"this month" are IST calendar concepts; deriving them from the UTC
+    // date shifted the window by 5h30m for every store.
+    const istNow = new Date(now.getTime() + 330 * 60 * 1000);
+    const year = istNow.getUTCFullYear();
+    const month = istNow.getUTCMonth();
+    const startThisMonth = new Date(Date.UTC(year, month, 1)).toISOString().split("T")[0];
+    const endThisMonth = new Date(Date.UTC(year, month + 1, 0)).toISOString().split("T")[0];
+    const startLastMonth = new Date(Date.UTC(year, month - 1, 1)).toISOString().split("T")[0];
+    const endLastMonth = new Date(Date.UTC(year, month, 0)).toISOString().split("T")[0];
+    const todayStr = istDateKey();
     const [todayAgg, thisMonthAgg, lastMonthAgg] = await Promise.all([
         db.qOne(`SELECT COALESCE(SUM(amount), 0) AS total FROM expenses WHERE store_id = $1 AND expense_date = $2::date`, [storeId, todayStr]),
         db.qOne(`SELECT COALESCE(SUM(amount), 0) AS total FROM expenses WHERE store_id = $1 AND expense_date BETWEEN $2::date AND $3::date`, [storeId, startThisMonth, endThisMonth]),
@@ -355,12 +359,33 @@ export async function updateRecurringExpense(db, storeId, id, data) {
     return updatedList.find((item) => item.id === id);
 }
 export async function deleteRecurringExpense(db, storeId, id) {
-    await db.q(`DELETE FROM recurring_expenses WHERE id = $1 AND store_id = $2`, [id, storeId]);
-    return true;
+    const r = await db.query(`DELETE FROM recurring_expenses WHERE id = $1 AND store_id = $2`, [id, storeId]);
+    return (r.rowCount ?? 0) > 0;
 }
-/** Auto-process due recurring expenses and create actual expense entries */
+/** Advance a YYYY-MM-DD date by one period, clamped to the target month's last day. */
+function nextPeriodDate(currentDate, frequency) {
+    const [y, m, d] = currentDate.split("-").map(Number);
+    if (frequency === "WEEKLY") {
+        return new Date(Date.UTC(y, m - 1, d + 7)).toISOString().slice(0, 10);
+    }
+    const base = new Date(Date.UTC(y, m - 1, 1));
+    base.setUTCMonth(base.getUTCMonth() + 1);
+    const y2 = base.getUTCFullYear();
+    const m2 = base.getUTCMonth() + 1;
+    const lastDay = new Date(Date.UTC(y2, m2, 0)).getUTCDate();
+    const d2 = Math.min(d, lastDay);
+    return `${y2}-${String(m2).padStart(2, "0")}-${String(d2).padStart(2, "0")}`;
+}
+/**
+ * Auto-process due recurring expenses and create actual expense entries.
+ *
+ * Callers must run this inside a transaction: the due rows are taken with
+ * `FOR UPDATE SKIP LOCKED`, so two concurrent runs (two list loads, or a list
+ * load racing the manual process-due endpoint) can never materialise the same
+ * period twice.
+ */
 export async function processDueRecurringExpenses(db, storeId) {
-    const todayStr = new Date().toISOString().split("T")[0];
+    const todayStr = istDateKey();
     const params = [todayStr];
     let storeFilter = "";
     if (storeId) {
@@ -371,7 +396,8 @@ export async function processDueRecurringExpenses(db, storeId) {
             to_char(next_due_date, 'YYYY-MM-DD') AS next_due_date,
             payment_mode, created_by_id
      FROM recurring_expenses
-     WHERE is_active = TRUE AND next_due_date <= $1::date${storeFilter}`, params);
+     WHERE is_active = TRUE AND next_due_date <= $1::date${storeFilter}
+     FOR UPDATE SKIP LOCKED`, params);
     let createdCount = 0;
     for (const row of dueRows) {
         // 1. Create real expense entry for the due date
@@ -385,15 +411,7 @@ export async function processDueRecurringExpenses(db, storeId) {
         });
         createdCount++;
         // 2. Compute next due date
-        const currentDate = new Date(row.next_due_date);
-        if (row.frequency === "WEEKLY") {
-            currentDate.setDate(currentDate.getDate() + 7);
-        }
-        else {
-            // MONTHLY
-            currentDate.setMonth(currentDate.getMonth() + 1);
-        }
-        const newNextDue = currentDate.toISOString().split("T")[0];
+        const newNextDue = nextPeriodDate(row.next_due_date, row.frequency);
         // 3. Update next_due_date in recurring_expenses
         await db.q(`UPDATE recurring_expenses SET next_due_date = $1::date, updated_at = now() WHERE id = $2`, [newNextDue, row.id]);
     }

@@ -1,16 +1,23 @@
 import { ledgerBalanceExpr } from "./ledger.service.js";
 import { getStockBalances, mapLow } from "./stock.service.js";
+import { istDateKey } from "../lib/ist.js";
 const round2 = (n) => Math.round((n + Number.EPSILON) * 100) / 100;
 export async function getDashboardStats(db, storeId, from, to) {
     const start = from ?? new Date(new Date().setHours(0, 0, 0, 0));
     const end = to ?? new Date(new Date().setHours(23, 59, 59, 999));
-    const [salesAgg, purchasesAgg, expensesAgg] = await Promise.all([
-        db.qOne(`SELECT COALESCE(SUM(paid_amount),0) AS t,
-              COALESCE(SUM(CASE WHEN total > 0 THEN subtotal * (paid_amount / total) ELSE 0 END),0) AS s,
-              COALESCE(SUM(CASE WHEN total > 0 THEN tax_total * (paid_amount / total) ELSE 0 END),0) AS tx
-       FROM sales WHERE store_id=$1 AND status='CONFIRMED' AND created_at BETWEEN $2 AND $3`, [storeId, start, end]),
+    const [salesAgg, purchaseAgg, expensesAgg] = await Promise.all([
+        db.qOne(`SELECT COALESCE(SUM(s.paid_amount),0) AS t,
+              COALESCE(SUM(CASE WHEN s.total > 0 THEN s.paid_amount / s.total ELSE 0 END
+                         * COALESCE((SELECT SUM(p.purchase_price * si.qty)
+                                     FROM sale_items si
+                                     LEFT JOIN products p ON p.id = si.product_id
+                                     WHERE si.sale_id = s.id), 0)),0) AS cogs,
+              COALESCE(SUM(CASE WHEN s.total > 0 THEN s.paid_amount / s.total ELSE 0 END
+                         * s.tax_total),0) AS tx,
+              COALESCE(SUM(s.discount),0) AS d
+       FROM sales s WHERE s.store_id=$1 AND s.status='CONFIRMED' AND s.created_at BETWEEN $2 AND $3`, [storeId, start, end]),
         db.qOne(`SELECT COALESCE(SUM(total),0) AS t FROM purchases WHERE store_id=$1 AND created_at BETWEEN $2 AND $3`, [storeId, start, end]),
-        db.qOne(`SELECT COALESCE(SUM(amount),0) AS t FROM expenses WHERE store_id=$1 AND expense_date BETWEEN $2::date AND $3::date`, [storeId, start.toISOString().split("T")[0], end.toISOString().split("T")[0]]),
+        db.qOne(`SELECT COALESCE(SUM(amount),0) AS t FROM expenses WHERE store_id=$1 AND expense_date BETWEEN $2::date AND $3::date`, [storeId, istDateKey(start), istDateKey(end)]),
     ]);
     const [receivables, payables, lowStockCount] = await Promise.all([
         db.qOne(`SELECT COALESCE(${ledgerBalanceExpr()},0) AS r
@@ -31,14 +38,15 @@ export async function getDashboardStats(db, storeId, from, to) {
        WHERE p.store_id=$1 ORDER BY p.created_at DESC LIMIT 4`, [storeId])),
     ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     const salesRev = salesAgg?.t ?? 0;
-    const salesCost = salesAgg?.s ?? 0;
+    const salesCogs = salesAgg?.cogs ?? 0;
     const salesTax = salesAgg?.tx ?? 0;
+    const salesDiscounts = salesAgg?.d ?? 0;
     const expensesCost = expensesAgg?.t ?? 0;
     return {
         todaySales: round2(salesRev),
-        todayPurchases: round2(purchasesAgg?.t ?? 0),
+        todayPurchases: round2(purchaseAgg?.t ?? 0),
         todayExpenses: round2(expensesCost),
-        todayProfit: round2(salesRev - salesCost - salesTax - expensesCost),
+        todayProfit: round2(salesRev - salesCogs - salesTax - salesDiscounts - expensesCost),
         receivables: round2(receivables?.r ?? 0),
         payables: round2(payables?.p ?? 0),
         lowStockCount: lowStockCount,
@@ -182,7 +190,7 @@ export async function getStockMovementReport(db, storeId, from, to, opts = {}) {
         searchClause += ` AND p.category = $${params.length}`;
     }
     const products = await db.q(`SELECT id, name, sku, category, unit, purchase_price
-     FROM products WHERE store_id=$1 AND is_archived=FALSE${searchClause} ORDER BY lower(name)`, params);
+     FROM products p WHERE store_id=$1 AND is_archived=FALSE${searchClause} ORDER BY lower(name)`, params);
     if (products.length === 0)
         return [];
     const productIds = products.map((p) => p.id);
@@ -230,13 +238,18 @@ export async function getStockMovementReport(db, storeId, from, to, opts = {}) {
     });
 }
 export async function getGstReport(db, storeId, from, to) {
-    // Per-sale, per-rate tax aggregation from sale_items
+    // Per-sale, per-rate tax aggregation from sale_items. GST is charged on the
+    // discounted value, so taxable_value derives from the stored line_total and
+    // tax_amount (line_total = taxable + tax for line-level GST) rather than
+    // (unit_price - discount) * qty, which includes tax and ignores the bill
+    // discount.
     const itemRows = await db.q(`SELECT s.invoice_number,
             to_char(s.created_at AT TIME ZONE 'Asia/Kolkata','YYYY-MM-DD') AS sale_date,
             COALESCE(c.name,'Walk-in') AS customer_name,
             c.gst AS gstin,
             COALESCE(si.gst_percent, 0) AS gst_percent,
-            COALESCE(SUM((si.unit_price - si.discount) * si.qty), 0) AS taxable_value,
+            COALESCE(SUM(CASE WHEN si.tax_amount > 0 THEN si.line_total - si.tax_amount
+                              ELSE si.line_total END), 0) AS taxable_value,
             COALESCE(SUM(si.tax_amount), 0) AS tax_amount,
             COALESCE(SUM(si.line_total), 0) AS total
      FROM sales s

@@ -4,6 +4,9 @@ import { logger } from "../lib/logger.js";
 // NUMERIC/OID 1700 → number; INT8/OID 20 → number (counts, sequences)
 pg.types.setTypeParser(1700, (v) => (v === null ? null : parseFloat(v)));
 pg.types.setTypeParser(20, (v) => (v === null ? null : Number(v)));
+// DATE/OID 1082 → keep the raw "YYYY-MM-DD". pg's default parser builds a Date
+// at LOCAL midnight, which a UTC/IST offset then shifts a day when serialized.
+pg.types.setTypeParser(1082, (v) => (v === null ? null : v));
 export const pool = new pg.Pool({
     connectionString: config.databaseUrl,
     max: 10,

@@ -39,8 +39,12 @@ function buildExportRows(rows) {
     });
 }
 function queryTitle(request) {
+    // Query params are strings, so `q.archived === true` is never true and the
+    // archived export was always titled "Product Report". Match how the filename
+    // and subtitle branches read the flag.
     const q = request.query;
-    return "archived" in q && q.archived === true ? "Archived Product Report" : "Product Report";
+    const archived = q.archived === true || q.archived === "true";
+    return archived ? "Archived Product Report" : "Product Report";
 }
 export async function productExportRoutes(app) {
     // CSV / Excel template download

@@ -118,25 +118,57 @@ export async function getPlanForBusiness(businessId, db = qClient()) {
 }
 export async function hasModuleAccess(businessId, moduleKey, db = qClient()) {
     const key = normalizeModuleKey(moduleKey);
-    try {
-        const row = await db.qOne(`SELECT pm.enabled
+    // Pages the superadmin can unlock beyond the plan (see lib/pages.ts). Imported
+    // lazily: pages.ts imports back from this module, so a top-level import here
+    // would create an ESM cycle where pagesForModule is undefined at call time.
+    const { pagesForModule } = await import("./pages.js");
+    const pageKeys = pagesForModule(key).map((page) => page.key);
+    const run = async (withGrants) => {
+        const row = await db.qOne(`SELECT pm.enabled AS included,
+              (
+                (COALESCE(p.price_monthly, 0) = 0 AND COALESCE(p.price_yearly, 0) = 0)
+                OR (
+                  s.plan_status IN ('TRIAL', 'ACTIVE')
+                  AND (s.plan_status <> 'TRIAL' OR s.trial_ends_at IS NULL OR s.trial_ends_at > now())
+                )
+              ) AS billing_ok,
+              ${withGrants
+            ? `EXISTS (
+                  SELECT 1 FROM store_page_access spa
+                   WHERE spa.store_id = s.id
+                     AND spa.enabled = TRUE
+                     AND spa.access_key = ANY($3::text[])
+                 )`
+            : "FALSE"} AS granted
          FROM stores s
          JOIN plans p ON p.id = s.plan_id OR (s.plan_id IS NULL AND p.is_default = TRUE)
-         JOIN plan_modules pm ON pm.plan_id = p.id AND pm.module_key = $2
+         LEFT JOIN plan_modules pm ON pm.plan_id = p.id AND pm.module_key = $2
         WHERE s.id = $1
           AND s.status = 'ACTIVE'
           AND p.status = 'ACTIVE'
-          AND (
-            (COALESCE(p.price_monthly, 0) = 0 AND COALESCE(p.price_yearly, 0) = 0)
-            OR (
-              s.plan_status IN ('TRIAL', 'ACTIVE')
-              AND (s.plan_status <> 'TRIAL' OR s.trial_ends_at IS NULL OR s.trial_ends_at > now())
-            )
-          )
-        LIMIT 1`, [businessId, key]);
-        return row?.enabled === true;
+        LIMIT 1`, withGrants ? [businessId, key, pageKeys] : [businessId, key]);
+        if (!row)
+            return false;
+        const billingOk = (row.billing_ok ?? row.billingOk) === true;
+        const included = (row.included ?? row.enabled) === true;
+        const granted = row.granted === true;
+        return billingOk && (included || granted);
+    };
+    try {
+        return await run(true);
     }
     catch (error) {
+        if (error.code === "42P01") {
+            // store_page_access table absent (pre-migration): plan check only.
+            try {
+                return await run(false);
+            }
+            catch (retryError) {
+                if (dbIsUnavailable(retryError))
+                    return false;
+                throw retryError;
+            }
+        }
         if (dbIsUnavailable(error))
             return false;
         throw error;

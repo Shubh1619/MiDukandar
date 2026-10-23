@@ -39,12 +39,14 @@ const saleSchema = z.object({
     notes: z.string().max(300).optional(),
 });
 /**
- * Edit schema. A partial edit may omit `lines` (and discount / due date): the
- * sale's stored values are then preserved. When `lines` *is* supplied the whole
- * sale is re-priced, matching the create contract.
+ * Edit schema. A partial edit may omit `lines`, `paymentMode`, `paidAmount`,
+ * `discount` and `notes`: `updateSale` then preserves each stored value instead
+ * of clearing it. When `lines` *is* supplied the whole sale is re-priced,
+ * matching the create contract.
  */
 const saleUpdateSchema = saleSchema.extend({
     lines: z.array(saleLineSchema).min(1).optional(),
+    paymentMode: z.enum(["CASH", "UPI", "CARD", "CREDIT"]).optional(),
     discount: z.coerce.number().min(0).optional(),
     discountType: z.enum(["FLAT", "PERCENT"]).optional(),
 });
@@ -283,7 +285,8 @@ export async function saleRoutes(app) {
     app.post("/hold", { preHandler: [authenticate, requireRole(ROLES.OWNER, ROLES.CASHIER)] }, async (request, reply) => {
         const storeId = requireStore(request);
         const body = parse(heldBillSchema, request.body);
-        const [held] = await q(`INSERT INTO held_bills (store_id, bill_number, payload, created_by_id) VALUES ($1, $2, $3, $4) RETURNING *`, [storeId, `HLD-${Date.now()}`, JSON.stringify(body.payload), getAuth(request).id]);
+        const billNumber = body.label?.trim() ? body.label.trim() : `HLD-${Date.now()}`;
+        const [held] = await q(`INSERT INTO held_bills (store_id, bill_number, payload, created_by_id) VALUES ($1, $2, $3, $4) RETURNING *`, [storeId, billNumber, JSON.stringify(body.payload), getAuth(request).id]);
         return reply.status(201).send({ heldBill: held });
     });
     // ---- List held bills ----

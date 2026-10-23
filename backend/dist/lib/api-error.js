@@ -33,4 +33,7 @@ export class ApiError extends Error {
     static conflictCode(message, code, details) {
         return new ApiError(409, code, message, details);
     }
+    static serviceUnavailableCode(message, code, details) {
+        return new ApiError(503, code, message, details);
+    }
 }

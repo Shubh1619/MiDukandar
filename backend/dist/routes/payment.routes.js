@@ -2,7 +2,7 @@ import { z } from "zod";
 import { q, qOne, withTx, qClient } from "../db/pool.js";
 import { ApiError } from "../lib/api-error.js";
 import { parse, paginationSchema } from "../lib/validate.js";
-import { authenticate, requireStore, getAuth } from "../middlewares/auth.js";
+import { authenticate, requireStore, requirePermission, getAuth } from "../middlewares/auth.js";
 import { getCustomerOutstanding, createLedgerEntry } from "../services/ledger.service.js";
 import { insertPayment } from "../services/payment.service.js";
 import { logger } from "../lib/logger.js";
@@ -14,7 +14,7 @@ export async function paymentRoutes(app) {
         note: z.string().max(200).optional().default(""),
     });
     // Record a payment received from a customer (reduces udhaari)
-    app.post("/receive", { preHandler: authenticate }, async (request, reply) => {
+    app.post("/receive", { preHandler: [authenticate, requirePermission("can_manage_udhaari")] }, async (request, reply) => {
         const storeId = requireStore(request);
         const body = parse(paymentSchema, request.body);
         const customer = await qOne(`SELECT * FROM customers WHERE id = $1 AND store_id = $2`, [

@@ -162,6 +162,7 @@ class Product {
     this.mrp,
     this.gstPercent,
     this.minStock,
+    this.expiryDate,
   });
 
   final String id;
@@ -177,6 +178,7 @@ class Product {
   final num? mrp;
   final num? gstPercent;
   final num? minStock;
+  final String? expiryDate;
 
   factory Product.fromJson(Map<String, dynamic> json) {
     return Product(
@@ -199,6 +201,7 @@ class Product {
       minStock: json['minStock'] != null || json['min_stock'] != null
           ? _firstNumber(json, const ['minStock', 'min_stock'])
           : null,
+      expiryDate: _firstValue(json, const ['expiryDate', 'expiry_date']),
     );
   }
 }

@@ -3,7 +3,8 @@ import { q, qOne, qExec, withTx, qClient } from "../db/pool.js";
 import { ApiError } from "../lib/api-error.js";
 import { parse, paginationSchema } from "../lib/validate.js";
 import { buildUpdate } from "../lib/db.js";
-import { authenticate, requireStore } from "../middlewares/auth.js";
+import { authenticate, requireStore, requirePermission } from "../middlewares/auth.js";
+import { boolFilter } from "./product.shared.js";
 import { getCustomerOutstanding, setupCustomerOpeningBalance } from "../services/ledger.service.js";
 import { logger } from "../lib/logger.js";
 const customerSchema = z.object({
@@ -21,7 +22,7 @@ export async function customerRoutes(app) {
     // List
     app.get("/", { preHandler: authenticate }, async (request) => {
         const storeId = requireStore(request);
-        const query = parse(paginationSchema.extend({ search: z.string().optional(), withBalance: z.coerce.boolean().default(false) }), request.query);
+        const query = parse(paginationSchema.extend({ search: z.string().optional(), withBalance: boolFilter(false) }), request.query);
         const conditions = ["store_id = $1"];
         const params = [storeId];
         if (query.search) {
@@ -39,7 +40,7 @@ export async function customerRoutes(app) {
         return { total: Number(totalRow?.c ?? 0), page: query.page, limit: query.limit, customers: rows };
     });
     // Create
-    app.post("/", { preHandler: authenticate }, async (request, reply) => {
+    app.post("/", { preHandler: [authenticate, requirePermission("can_manage_customers")] }, async (request, reply) => {
         const storeId = requireStore(request);
         const body = parse(customerSchema, request.body);
         const userId = getAuth(request).id;
@@ -82,7 +83,7 @@ export async function customerRoutes(app) {
         return { customer: { ...customer, outstanding }, ledger, sales };
     });
     // Update
-    app.put("/:id", { preHandler: authenticate }, async (request) => {
+    app.put("/:id", { preHandler: [authenticate, requirePermission("can_manage_customers")] }, async (request) => {
         const storeId = requireStore(request);
         const { id } = request.params;
         const body = parse(customerSchema.partial(), request.body);
@@ -105,7 +106,7 @@ export async function customerRoutes(app) {
         return { customer: { ...customer, outstanding } };
     });
     // Delete (hard delete; ledger + udhaari cascade, sales/payments keep history with nulled customer)
-    app.delete("/:id", { preHandler: authenticate }, async (request, reply) => {
+    app.delete("/:id", { preHandler: [authenticate, requirePermission("can_manage_customers")] }, async (request, reply) => {
         const storeId = requireStore(request);
         const { id } = request.params;
         const existing = await qOne(`SELECT id, name FROM customers WHERE id = $1 AND store_id = $2`, [id, storeId]);

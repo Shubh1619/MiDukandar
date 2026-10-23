@@ -5,6 +5,7 @@ import { parse } from "../lib/validate.js";
 import { logSuperadminAction } from "../lib/superadmin-audit.js";
 import { requireSuperAdmin, getSuperadmin } from "../middlewares/superadmin.js";
 import { q, qOne, qExec } from "../db/pool.js";
+import { invalidatePlatformSettings } from "../lib/platform-settings.js";
 const STATUS = ["ACTIVE", "SUSPENDED"];
 const billingQuerySchema = z.object({
     planId: z.string().uuid().optional(),
@@ -99,7 +100,7 @@ export async function superadminRoutes(app) {
     // ---------- TENANT SUSPEND / ACTIVATE ----------
     const statusSchema = z.object({
         action: z.enum(["SUSPEND", "ACTIVATE"]),
-        reason: z.string().min(3).max(500),
+        reason: z.string().trim().min(3).max(500).optional(),
     });
     app.patch("/tenants/:id/status", async (request) => {
         const { id } = parse(tenantIdParams, request.params);
@@ -110,7 +111,7 @@ export async function superadminRoutes(app) {
         if (body.action === "SUSPEND") {
             if (store.status === "SUSPENDED")
                 throw ApiError.conflict("Tenant is already suspended.");
-            await qExec(`UPDATE stores SET status = 'SUSPENDED', suspended_at = now(), suspended_reason = $2, updated_at = now() WHERE id = $1`, [id, body.reason]);
+            await qExec(`UPDATE stores SET status = 'SUSPENDED', suspended_at = now(), suspended_reason = $2, updated_at = now() WHERE id = $1`, [id, body.reason ?? null]);
         }
         else {
             if (store.status !== "SUSPENDED")
@@ -119,18 +120,19 @@ export async function superadminRoutes(app) {
         }
         await logSuperadminAction(request, body.action === "SUSPEND" ? "TENANT_SUSPEND" : "TENANT_ACTIVATE", {
             targetTenantId: id,
-            reason: body.reason,
+            reason: body.reason ?? null,
         });
         return { ok: true, id, status: body.action === "SUSPEND" ? "SUSPENDED" : "ACTIVE" };
     });
     // ---------- IMPERSONATE ----------
     const impersonateSchema = z.object({
-        reason: z.string().min(3).max(500),
+        reason: z.string().trim().min(3).max(500).optional(),
     });
     app.post("/tenants/:id/impersonate", async (request) => {
         const sa = getSuperadmin(request);
         const { id } = parse(tenantIdParams, request.params);
-        const { reason } = parse(impersonateSchema, request.body);
+        const body = parse(impersonateSchema, request.body);
+        const { reason } = body;
         const store = await qOne(`SELECT id, name, status FROM stores WHERE id = $1`, [id]);
         if (!store)
             throw ApiError.notFound("Tenant not found.");
@@ -152,19 +154,19 @@ export async function superadminRoutes(app) {
             imp: true,
             impersonatedBy: sa.id,
             impersonatedByName: sa.name,
-            reason,
+            reason: reason ?? null,
             impExpiresAt: new Date(Date.now() + minutes * 60_000).toISOString(),
         }, { expiresIn: minutes * 60 });
         await logSuperadminAction(request, "TENANT_IMPERSONATE", {
             targetTenantId: store.id,
             targetUserId: user.id,
-            reason,
+            reason: reason ?? null,
         });
         return {
             ok: true,
             accessToken,
             expiresInSeconds: minutes * 60,
-            reason,
+            reason: reason ?? null,
             tenant: { id: store.id, name: store.name },
             user: {
                 id: user.id,
@@ -221,6 +223,9 @@ export async function superadminRoutes(app) {
          ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_by = EXCLUDED.updated_by, updated_at = now()`, [key, value, sa.id]);
             applied[key] = value;
         }
+        // Drop the read cache so the change is live on the very next request
+        // instead of after the cache window.
+        invalidatePlatformSettings();
         await logSuperadminAction(request, "SETTINGS_UPDATE", { reason: Object.keys(applied).join(",") });
         return { ok: true, applied };
     });

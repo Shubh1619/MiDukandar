@@ -28,6 +28,16 @@ function lineToRs(item) {
     const lineTotal = round2(gross + (gross * taxRate) / 100);
     return { lineTotal, qty: String(qty), rate: String(rate) };
 }
+async function nextPoNumber(tx, storeId) {
+    const rows = await tx.q(`SELECT po_number FROM purchase_orders WHERE store_id = $1`, [storeId]);
+    let maxSeq = 0;
+    for (const row of rows) {
+        const match = /^PO-(\d+)$/.exec(String(row.po_number));
+        if (match)
+            maxSeq = Math.max(maxSeq, Number(match[1]));
+    }
+    return `PO-${String(maxSeq + 1).padStart(4, "0")}`;
+}
 export async function purchaseOrderRoutes(app) {
     // List with filters
     app.get("/", { preHandler: authenticate }, async (request) => {
@@ -82,13 +92,12 @@ export async function purchaseOrderRoutes(app) {
             if (!supplier)
                 throw ApiError.notFoundCode("Supplier not found.", "SUPPLIER_NOT_FOUND");
             const products = await tx.q(`SELECT id FROM products WHERE store_id = $1 AND id = ANY($2::uuid[])`, [storeId, body.lines.map((l) => l.productId)]);
-            if (products.length !== body.lines.length) {
+            const knownProducts = new Set(products.map((p) => p.id));
+            if (body.lines.some((l) => !knownProducts.has(l.productId))) {
                 throw ApiError.badRequestCode("One or more products are not in this store.", "PRODUCT_NOT_FOUND");
             }
-            const cnt = await tx.qOne(`SELECT COUNT(*) AS c FROM purchase_orders WHERE store_id = $1`, [
-                storeId,
-            ]);
-            const poNumber = `PO-${String((cnt?.c ?? 0) + 1).padStart(4, "0")}`;
+            await tx.q(`SELECT id FROM stores WHERE id = $1 FOR UPDATE`, [storeId]);
+            const poNumber = await nextPoNumber(tx, storeId);
             const totals = body.lines.map((l) => lineToRs(l));
             const totalAmount = round2(totals.reduce((acc, t) => acc + t.lineTotal, 0));
             const po = await tx.qOne(`INSERT INTO purchase_orders
@@ -151,7 +160,8 @@ export async function purchaseOrderRoutes(app) {
             let lines = null;
             if (body.lines) {
                 const products = await tx.q(`SELECT id FROM products WHERE store_id = $1 AND id = ANY($2::uuid[])`, [storeId, body.lines.map((l) => l.productId)]);
-                if (products.length !== body.lines.length) {
+                const knownProducts = new Set(products.map((p) => p.id));
+                if (body.lines.some((l) => !knownProducts.has(l.productId))) {
                     throw ApiError.badRequestCode("One or more products are not in this store.", "PRODUCT_NOT_FOUND");
                 }
                 lines = body.lines;

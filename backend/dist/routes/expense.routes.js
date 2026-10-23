@@ -1,5 +1,6 @@
 import { z } from "zod";
-import { qClient } from "../db/pool.js";
+import { qClient, withTx } from "../db/pool.js";
+import { ApiError } from "../lib/api-error.js";
 import { parse, paginationSchema } from "../lib/validate.js";
 import { authenticate, requireStore, requireRole, getAuth } from "../middlewares/auth.js";
 import { ROLES } from "../middlewares/auth.types.js";
@@ -23,61 +24,45 @@ const createRecurringSchema = z.object({
     amount: z.coerce.number().positive("Amount must be greater than 0"),
     categoryId: z.string().nullable().optional(),
     frequency: z.enum(["MONTHLY", "WEEKLY"]).default("MONTHLY"),
-    nextDueDate: z.string(),
+    nextDueDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "nextDueDate must be YYYY-MM-DD"),
     paymentMode: z.enum(["CASH", "UPI", "CARD", "BANK"]).default("CASH"),
 });
-export async function expenseRoutes(app) {
-    // --- CATEGORIES ---
-    app.get("/categories", { preHandler: authenticate }, async (request) => {
+/**
+ * Category handlers, bound by `expenseRoutes` (legacy `/categories` paths) and
+ * by `expenseCategoryRoutes` (the REST-correct `/` and `/:id` paths too).
+ */
+function registerCategoryRoutes(app, restful) {
+    const list = async (request) => {
         const storeId = requireStore(request);
         const categories = await listExpenseCategories(qClient(), storeId);
         return { categories };
-    });
-    app.post("/categories", { preHandler: [authenticate, requireRole(ROLES.OWNER, ROLES.MANAGER)] }, async (request, reply) => {
+    };
+    const create = async (request, reply) => {
         const storeId = requireStore(request);
         const body = parse(expenseCategorySchema, request.body);
         const category = await createExpenseCategory(qClient(), storeId, body.name);
         return reply.status(201).send({ category });
-    });
-    app.delete("/categories/:id", { preHandler: [authenticate, requireRole(ROLES.OWNER, ROLES.MANAGER)] }, async (request, reply) => {
+    };
+    const remove = async (request, reply) => {
         const storeId = requireStore(request);
         const { id } = request.params;
         const res = await deleteExpenseCategory(qClient(), storeId, id);
         return reply.send(res);
-    });
-    // --- RECURRING EXPENSES ---
-    app.get("/recurring", { preHandler: authenticate }, async (request) => {
-        const storeId = requireStore(request);
-        // Automatically process due items when loading recurring expenses
-        await processDueRecurringExpenses(qClient(), storeId);
-        const recurring = await listRecurringExpenses(qClient(), storeId);
-        return { recurring };
-    });
-    app.post("/recurring", { preHandler: [authenticate, requireRole(ROLES.OWNER, ROLES.MANAGER)] }, async (request, reply) => {
-        const storeId = requireStore(request);
-        const auth = getAuth(request);
-        const body = parse(createRecurringSchema, request.body);
-        const recurring = await createRecurringExpense(qClient(), storeId, auth.id, body);
-        return reply.status(201).send({ recurring });
-    });
-    app.patch("/recurring/:id", { preHandler: [authenticate, requireRole(ROLES.OWNER, ROLES.MANAGER)] }, async (request) => {
-        const storeId = requireStore(request);
-        const { id } = request.params;
-        const body = parse(createRecurringSchema.partial().extend({ isActive: z.boolean().optional() }), request.body);
-        const recurring = await updateRecurringExpense(qClient(), storeId, id, body);
-        return { recurring };
-    });
-    app.delete("/recurring/:id", { preHandler: [authenticate, requireRole(ROLES.OWNER, ROLES.MANAGER)] }, async (request, reply) => {
-        const storeId = requireStore(request);
-        const { id } = request.params;
-        await deleteRecurringExpense(qClient(), storeId, id);
-        return reply.send({ ok: true });
-    });
-    app.post("/recurring/process-due", { preHandler: [authenticate, requireRole(ROLES.OWNER, ROLES.MANAGER)] }, async (request) => {
-        const storeId = requireStore(request);
-        const res = await processDueRecurringExpenses(qClient(), storeId);
-        return res;
-    });
+    };
+    const writeGuard = { preHandler: [authenticate, requireRole(ROLES.OWNER, ROLES.MANAGER)] };
+    app.get("/categories", { preHandler: authenticate }, list);
+    app.post("/categories", writeGuard, create);
+    app.delete("/categories/:id", writeGuard, remove);
+    if (restful) {
+        app.get("/", { preHandler: authenticate }, list);
+        app.post("/", writeGuard, create);
+        app.delete("/:id", writeGuard, remove);
+    }
+}
+export async function expenseRoutes(app) {
+    // --- CATEGORIES (legacy `/categories` paths; the REST-shaped `/` and `/:id`
+    // expense handlers below own those paths in this plugin) ---
+    registerCategoryRoutes(app, false);
     // --- EXPENSES SUMMARY ---
     app.get("/summary", { preHandler: authenticate }, async (request) => {
         const storeId = requireStore(request);
@@ -135,29 +120,47 @@ export async function expenseRoutes(app) {
     app.delete("/:id", { preHandler: [authenticate, requireRole(ROLES.OWNER, ROLES.MANAGER)] }, async (request, reply) => {
         const storeId = requireStore(request);
         const { id } = request.params;
-        await deleteExpense(qClient(), storeId, id);
+        const deleted = await deleteExpense(qClient(), storeId, id);
+        if (!deleted)
+            throw ApiError.notFound("Expense not found.");
         return reply.send({ ok: true });
     });
 }
 /**
+ * Dedicated router for the `/api/expense-categories` prefix.
+ *
+ * Mounting the whole `expenseRoutes` plugin there bound its bare `"/"` and
+ * `"/:id"` handlers to one-time expenses, so `GET /api/expense-categories`
+ * listed expenses and `POST /api/expense-categories` created one instead of a
+ * category. Only the category handlers belong here; the web client's
+ * `/categories` paths stay supported for compatibility.
+ */
+export async function expenseCategoryRoutes(app) {
+    registerCategoryRoutes(app, true);
+}
+/**
  * Dedicated router for the `/api/recurring-expenses` prefix.
  *
- * The generic `expenseRoutes` plugin is also mounted under `/api/expenses` and
- * `/api/expense-categories`, but its bare `"/"` and `"/:id"` handlers operate on
- * one-time expenses. Mounting that plugin under `/api/recurring-expenses` meant
- * `POST /api/recurring-expenses` hit `createExpense` (Zod stripped
- * `frequency`/`nextDueDate`), and `PATCH`/`DELETE /api/recurring-expenses/:id`
- * acted on one-time rows. This router binds those bare paths to the recurring
- * table so the `/recurring-expenses` contract matches its name.
+ * The generic `expenseRoutes` plugin is mounted under `/api/expenses`, where its
+ * bare `"/"` and `"/:id"` handlers operate on one-time expenses. Mounting that
+ * plugin under `/api/recurring-expenses` meant `POST /api/recurring-expenses`
+ * hit `createExpense` (Zod stripped `frequency`/`nextDueDate`), and
+ * `PATCH`/`DELETE /api/recurring-expenses/:id` acted on one-time rows. This
+ * router binds those bare paths to the recurring table so the
+ * `/recurring-expenses` contract matches its name.
  */
 export async function recurringExpenseRoutes(app) {
-    // List recurring expenses (also materialises any due items)
-    app.get("/recurring", { preHandler: authenticate }, async (request) => {
+    // List recurring expenses (also materialises any due items). The collection
+    // is exposed both at the resource root and at the legacy `/recurring` path so
+    // existing clients keep working.
+    const listRecurring = async (request) => {
         const storeId = requireStore(request);
-        await processDueRecurringExpenses(qClient(), storeId);
+        await withTx((tx) => processDueRecurringExpenses(tx, storeId));
         const recurring = await listRecurringExpenses(qClient(), storeId);
         return { recurring };
-    });
+    };
+    app.get("/", { preHandler: authenticate }, listRecurring);
+    app.get("/recurring", { preHandler: authenticate }, listRecurring);
     // Create recurring expense
     app.post("/", { preHandler: [authenticate, requireRole(ROLES.OWNER, ROLES.MANAGER)] }, async (request, reply) => {
         const storeId = requireStore(request);
@@ -178,13 +181,15 @@ export async function recurringExpenseRoutes(app) {
     app.delete("/:id", { preHandler: [authenticate, requireRole(ROLES.OWNER, ROLES.MANAGER)] }, async (request, reply) => {
         const storeId = requireStore(request);
         const { id } = request.params;
-        await deleteRecurringExpense(qClient(), storeId, id);
+        const deleted = await deleteRecurringExpense(qClient(), storeId, id);
+        if (!deleted)
+            throw ApiError.notFound("Recurring expense not found.");
         return reply.send({ ok: true });
     });
     // Manually process due items
     app.post("/recurring/process-due", { preHandler: [authenticate, requireRole(ROLES.OWNER, ROLES.MANAGER)] }, async (request) => {
         const storeId = requireStore(request);
-        const res = await processDueRecurringExpenses(qClient(), storeId);
+        const res = await withTx((tx) => processDueRecurringExpenses(tx, storeId));
         return res;
     });
 }

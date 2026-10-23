@@ -1,7 +1,10 @@
 import { qOne } from "../db/pool.js";
 import { ApiError } from "../lib/api-error.js";
 import { hasModuleAccess } from "../lib/plans.js";
+import { getDisabledAccessKeys, isFlagDisabled, isModuleDisabled } from "../lib/pages.js";
+import { getPlatformSettings } from "../lib/platform-settings.js";
 import { logger } from "../lib/logger.js";
+import { defaultPermissionsFor, permissionRoleKey } from "../lib/permissions.js";
 /**
  * Verifies the Bearer access token and attaches `request.auth`.
  * Runs on every protected route — this is the front door of the API.
@@ -51,6 +54,34 @@ export async function authenticate(request, reply) {
         });
         throw ApiError.unauthorized("Invalid or expired access token.");
     }
+    // Suspended / non-active businesses must not keep API access. The access
+    // token is otherwise valid, so check the store's live status on every
+    // request (a single indexed primary-key lookup). Platform superadmins are
+    // unaffected because they never reach this middleware — their routes use
+    // the separate mz_sa cookie guard.
+    if (request.auth?.storeId) {
+        // Maintenance mode (set from the superadmin console) takes the whole tenant
+        // API offline while leaving superadmin routes reachable so it can be turned
+        // back off. Settings are cached for a few seconds, so this is not a query
+        // per request.
+        const settings = await getPlatformSettings();
+        if (settings.maintenance_mode) {
+            logger.warn("authz: denied", { ...base, userId: request.auth.id, reason: "maintenance_mode" });
+            throw ApiError.serviceUnavailableCode("MiDukandar is under maintenance. Please try again shortly.", "MAINTENANCE_MODE");
+        }
+        const store = await qOne(`SELECT status FROM stores WHERE id = $1`, [request.auth.storeId]);
+        const status = store?.status ?? null;
+        if (status && status !== "ACTIVE") {
+            logger.warn("authz: denied", {
+                ...base,
+                userId: request.auth.id,
+                storeId: request.auth.storeId,
+                status,
+                reason: "store_not_active",
+            });
+            throw ApiError.forbidden("This business account is suspended. Contact support for help restoring access.");
+        }
+    }
     void reply;
 }
 export function getAuth(request) {
@@ -86,23 +117,65 @@ export function requireRole(...roles) {
         }
     };
 }
-export function checkPermission(module, action = "manage") {
+/**
+ * Permission-flag guard. Owner always passes; every other role's configured
+ * flag is read from `roles_permissions` for the store. When no row exists the
+ * role's documented default applies (never a permissive fallback), so a
+ * missing row cannot silently grant access.
+ */
+export function requirePermission(flag) {
     return async (request) => {
         const user = getAuth(request);
+        if (user.storeId) {
+            const disabled = await getDisabledAccessKeys(user.storeId);
+            if (isFlagDisabled(disabled, flag)) {
+                logger.warn("authz: denied", {
+                    path: request.url,
+                    userId: user.id,
+                    role: user.role,
+                    flag,
+                    reason: "blocked_by_store_access_override",
+                });
+                throw ApiError.forbidden("This feature has been disabled for this business.");
+            }
+        }
         if (user.role === "OWNER")
             return;
         const storeId = requireStore(request);
-        const flag = `can_${action}_${module}`;
-        const row = await qOne(`SELECT permissions FROM roles_permissions WHERE store_id = $1 AND role = $2`, [storeId, user.role === "STOCK_MANAGER" ? "STAFF" : user.role]);
-        const permissions = (row?.permissions ?? {});
-        if (permissions[flag] !== true) {
+        const roleKey = permissionRoleKey(user.role);
+        const row = await qOne(`SELECT permissions FROM roles_permissions WHERE store_id = $1 AND role = $2`, [storeId, roleKey]);
+        const stored = (row?.permissions ?? {});
+        const allowed = typeof stored[flag] === "boolean" ? stored[flag] : defaultPermissionsFor(roleKey)[flag];
+        if (allowed !== true) {
+            logger.warn("authz: denied", {
+                path: request.url,
+                userId: user.id,
+                role: user.role,
+                flag,
+                reason: "blocked_by_permission_flag",
+            });
             throw ApiError.forbidden("You do not have permission to perform this action.");
         }
     };
 }
+export function checkPermission(module, action = "manage") {
+    return requirePermission(`can_${action}_${module}`);
+}
 export function requireModuleAccess(moduleKey) {
     return async (request) => {
         const storeId = requireStore(request);
+        const disabled = await getDisabledAccessKeys(storeId);
+        if (isModuleDisabled(disabled, moduleKey)) {
+            const user = getAuth(request);
+            logger.warn("authz: denied", {
+                path: request.url,
+                userId: user.id,
+                role: user.role,
+                moduleKey,
+                reason: "blocked_by_store_access_override",
+            });
+            throw ApiError.forbidden("This module has been disabled for this business.");
+        }
         if (!(await hasModuleAccess(storeId, moduleKey))) {
             const user = getAuth(request);
             logger.warn("authz: denied", {

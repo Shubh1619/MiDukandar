@@ -4,70 +4,9 @@ import { ApiError } from "../lib/api-error.js";
 import { parse } from "../lib/validate.js";
 import { authenticate, requireStore, requireRole } from "../middlewares/auth.js";
 import { ROLES } from "../middlewares/auth.types.js";
-export const PERMISSION_FLAGS = [
-    "can_manage_invoices",
-    "can_manage_products",
-    "can_manage_customers",
-    "can_manage_udhaari",
-    "can_manage_suppliers",
-    "can_manage_expenses",
-    "can_view_reports",
-    "can_manage_settings",
-    "can_manage_users",
-];
-const DEFAULT_PERMISSIONS = {
-    OWNER: {
-        can_manage_invoices: true,
-        can_manage_products: true,
-        can_manage_customers: true,
-        can_manage_udhaari: true,
-        can_manage_suppliers: true,
-        can_manage_expenses: true,
-        can_view_reports: true,
-        can_manage_settings: true,
-        can_manage_users: true,
-    },
-    MANAGER: {
-        can_manage_invoices: true,
-        can_manage_products: true,
-        can_manage_customers: true,
-        can_manage_udhaari: true,
-        can_manage_suppliers: true,
-        can_manage_expenses: true,
-        can_view_reports: true,
-        can_manage_settings: false,
-        can_manage_users: false,
-    },
-    CASHIER: {
-        can_manage_invoices: true,
-        can_manage_products: false,
-        can_manage_customers: true,
-        can_manage_udhaari: true,
-        can_manage_suppliers: false,
-        can_manage_expenses: false,
-        can_view_reports: false,
-        can_manage_settings: false,
-        can_manage_users: false,
-    },
-    STAFF: {
-        can_manage_invoices: false,
-        can_manage_products: true,
-        can_manage_customers: false,
-        can_manage_udhaari: false,
-        can_manage_suppliers: false,
-        can_manage_expenses: false,
-        can_view_reports: false,
-        can_manage_settings: false,
-        can_manage_users: false,
-    },
-};
+import { DEFAULT_PERMISSIONS, PERMISSION_FLAGS, defaultPermissionsFor, } from "../lib/permissions.js";
+export { PERMISSION_FLAGS, DEFAULT_PERMISSIONS, defaultPermissionsFor };
 export const MANAGED_ROLES = ["OWNER", "MANAGER", "CASHIER", "STAFF"];
-function isManagedRole(role) {
-    return MANAGED_ROLES.includes(role);
-}
-export function defaultPermissionsFor(role) {
-    return isManagedRole(role) ? { ...DEFAULT_PERMISSIONS[role] } : { ...DEFAULT_PERMISSIONS.STAFF };
-}
 function normalizePermissions(role, input) {
     const base = defaultPermissionsFor(role);
     if (!input || typeof input !== "object")

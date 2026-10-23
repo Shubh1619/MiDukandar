@@ -96,6 +96,7 @@ class _ProductScreenState extends State<ProductScreen> {
     final stockController = TextEditingController(text: '0');
     final minStockController = TextEditingController(text: '0');
     final gstController = TextEditingController(text: '0');
+    final expiryController = TextEditingController();
 
     final result = await AppDialogs.showFormSheet<Map<String, dynamic>>(
       context,
@@ -168,6 +169,12 @@ class _ProductScreenState extends State<ProductScreen> {
                 ),
               ],
             ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: expiryController,
+              decoration: const InputDecoration(labelText: 'Expiry date (YYYY-MM-DD)'),
+              keyboardType: TextInputType.datetime,
+            ),
             const SizedBox(height: 20),
             Row(
               children: [
@@ -196,6 +203,7 @@ class _ProductScreenState extends State<ProductScreen> {
                         'openingStock': num.tryParse(stockController.text.trim()) ?? 0,
                         'gstPercent': num.tryParse(gstController.text.trim()) ?? 0,
                         'minStock': num.tryParse(minStockController.text.trim()) ?? 0,
+                        if (expiryController.text.trim().isNotEmpty) 'expiryDate': expiryController.text.trim(),
                       };
                       Navigator.pop(sheetContext, payload);
                     },
@@ -218,6 +226,7 @@ class _ProductScreenState extends State<ProductScreen> {
     stockController.dispose();
     minStockController.dispose();
     gstController.dispose();
+    expiryController.dispose();
     if (result != null && widget.onCreate != null) {
       if (!context.mounted) return;
       AppDialogs.showLoading(context);
@@ -238,6 +247,7 @@ class _ProductScreenState extends State<ProductScreen> {
     final purchaseController = TextEditingController(text: (product.purchasePrice ?? product.sellingPrice).toString());
     final gstController = TextEditingController(text: (product.gstPercent ?? 0).toString());
     final minStockController = TextEditingController(text: (product.minStock ?? 0).toString());
+    final expiryController = TextEditingController(text: product.expiryDate?.toString().substring(0, product.expiryDate!.toString().length >= 10 ? 10 : product.expiryDate!.toString().length) ?? '');
 
     final result = await AppDialogs.showFormSheet<Map<String, dynamic>>(
       context,
@@ -296,6 +306,12 @@ class _ProductScreenState extends State<ProductScreen> {
               controller: minStockController,
               label: l.prodMinStock,
             ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: expiryController,
+              decoration: const InputDecoration(labelText: 'Expiry date (YYYY-MM-DD)'),
+              keyboardType: TextInputType.datetime,
+            ),
             const SizedBox(height: 20),
             Row(
               children: [
@@ -310,7 +326,7 @@ class _ProductScreenState extends State<ProductScreen> {
                   flex: 2,
                   child: FilledButton(
                     onPressed: () {
-                      Navigator.pop(sheetContext, {
+                      final payload = {
                         'name': nameController.text.trim().isNotEmpty ? nameController.text.trim() : product.name,
                         'category': categoryController.text.trim().isNotEmpty ? categoryController.text.trim() : 'General',
                         'unit': unitController.text.trim().isNotEmpty ? unitController.text.trim() : product.unit,
@@ -318,7 +334,13 @@ class _ProductScreenState extends State<ProductScreen> {
                         'purchasePrice': num.tryParse(purchaseController.text.trim()) ?? product.purchasePrice ?? product.sellingPrice,
                         'gstPercent': num.tryParse(gstController.text.trim()) ?? 0,
                         'minStock': num.tryParse(minStockController.text.trim()) ?? 0,
-                      });
+                      };
+                      if (expiryController.text.trim().isEmpty) {
+                        payload['expiryDate'] = null;
+                      } else {
+                        payload['expiryDate'] = expiryController.text.trim();
+                      }
+                      Navigator.pop(sheetContext, payload);
                     },
                     child: Text(l.save),
                   ),
@@ -336,6 +358,7 @@ class _ProductScreenState extends State<ProductScreen> {
     purchaseController.dispose();
     gstController.dispose();
     minStockController.dispose();
+    expiryController.dispose();
     if (result != null && widget.onUpdate != null) {
       await widget.onUpdate!(product.id, result);
     }
@@ -498,6 +521,25 @@ class _ProductScreenState extends State<ProductScreen> {
                 _DetailStat(label: l.statusInStock, value: '${product.stock}'),
               ],
             ),
+            if (product.expiryDate != null && product.expiryDate!.toString().isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: MdColors.navy50,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: MdColors.border),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.event, size: 18, color: MdColors.navy700),
+                    const SizedBox(width: 8),
+                    Text('Expiry: ${product.expiryDate.toString().substring(0, 10)}', style: const TextStyle(fontWeight: FontWeight.w600)),
+                  ],
+                ),
+              ),
+            ],
             const SizedBox(height: 16),
             Row(
               children: [
@@ -739,6 +781,13 @@ class _ProductScreenState extends State<ProductScreen> {
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                   ),
+                                  if (product.expiryDate != null && product.expiryDate!.toString().isNotEmpty) ...[
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      'Exp: ${product.expiryDate.toString().substring(0, 10)}',
+                                      style: const TextStyle(fontSize: 10, color: MdColors.mutedForeground),
+                                    ),
+                                  ],
                                 ],
                               ),
                             ),

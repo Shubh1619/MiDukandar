@@ -3,7 +3,7 @@ import { q, qOne, qExec, withTx, qClient } from "../db/pool.js";
 import { ApiError } from "../lib/api-error.js";
 import { parse, paginationSchema } from "../lib/validate.js";
 import { buildUpdate } from "../lib/db.js";
-import { authenticate, requireStore, requireRole, getAuth, } from "../middlewares/auth.js";
+import { authenticate, requireStore, requireRole, requirePermission, getAuth, } from "../middlewares/auth.js";
 import { ROLES } from "../middlewares/auth.types.js";
 import { createStockMovement, mapLow } from "../services/stock.service.js";
 import { normalizeName } from "../services/product-import.service.js";
@@ -15,6 +15,12 @@ import { applyRoleCost, computeSummary, fetchFilteredRows, filterSchema, isUniqu
 // ---------------------------------------------------------------------------
 // Schemas
 // ---------------------------------------------------------------------------
+const idParamSchema = z.object({ id: z.string().uuid() });
+// Optional ISO date (YYYY-MM-DD). Empty string clears the value to NULL.
+const optionalDate = z
+    .string()
+    .optional()
+    .refine((v) => v === undefined || v.trim() === "" || !Number.isNaN(Date.parse(v)), { message: "Invalid date. Use an ISO date such as 2026-01-31." });
 const productSchema = z.object({
     name: z.string().min(1).max(150),
     barcode: z.string().max(64).optional().default(""),
@@ -30,6 +36,7 @@ const productSchema = z.object({
     imageUrl: z.string().max(500).optional().default(""),
     openingStock: z.coerce.number().min(0).optional().default(0),
     description: z.string().max(2000).optional().default(""),
+    expiryDate: optionalDate,
 });
 async function findDuplicate(db, storeId, input, excludeId) {
     for (const archived of [false, true]) {
@@ -43,10 +50,11 @@ async function findDuplicate(db, storeId, input, excludeId) {
             orParams.push(input.sku);
             orClauses.push(`sku = $${orParams.length + 2}`);
         }
-        if (!input.sku && !input.barcode) {
-            orParams.push(normalizeName(input.name));
-            orClauses.push(`sku IS NULL AND barcode IS NULL AND lower(trim(regexp_replace(name, '\\s+', ' ', 'g'))) = $${orParams.length + 2}`);
-        }
+        // Name is always a conflict trigger (case/whitespace-insensitive), matching
+        // the documented "same name → conflict" rule, regardless of whether the
+        // new or existing row carries a SKU/barcode.
+        orParams.push(normalizeName(input.name));
+        orClauses.push(`lower(trim(regexp_replace(name, '\\s+', ' ', 'g'))) = $${orParams.length + 2}`);
         if (orClauses.length === 0)
             return null;
         const params = [storeId, archived, ...orParams];
@@ -114,7 +122,7 @@ export async function productRoutes(app) {
         return { categories: rows.map((r) => r.category).filter(Boolean) };
     });
     // Add product (+ optional opening stock movement)
-    app.post("/", { preHandler: [authenticate, requireRole(ROLES.OWNER, ROLES.MANAGER, ROLES.STOCK_MANAGER, ROLES.CASHIER)] }, async (request, reply) => {
+    app.post("/", { preHandler: [authenticate, requireRole(ROLES.OWNER, ROLES.MANAGER, ROLES.STOCK_MANAGER), requirePermission("can_manage_products")] }, async (request, reply) => {
         const storeId = requireStore(request);
         const body = parse(productSchema, request.body);
         const userId = getAuth(request).id;
@@ -132,13 +140,14 @@ export async function productRoutes(app) {
             const product = await withTx(async (tx) => {
                 const created = await tx.qOne(`INSERT INTO products
                (store_id, name, barcode, sku, category, unit, purchase_price, selling_price, mrp,
-                gst_percent, min_stock, supplier, image_url, description)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+                gst_percent, min_stock, supplier, image_url, description, expiry_date)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
              RETURNING *`, [
                     storeId, scrubNul(body.name), scrubNul(body.barcode), scrubNul(body.sku), scrubNul(body.category),
                     scrubNul(body.unit) ?? "pc", String(body.purchasePrice), String(body.sellingPrice),
                     body.mrp != null ? String(body.mrp) : null, String(body.gstPercent), String(body.minStock),
                     scrubNul(body.supplier), scrubNul(body.imageUrl), scrubNul(body.description),
+                    scrubNul(body.expiryDate),
                 ]);
                 if (!created)
                     throw new Error("Product insert failed");
@@ -175,7 +184,7 @@ export async function productRoutes(app) {
     // Single product + recent movements
     app.get("/:id", { preHandler: authenticate }, async (request) => {
         const storeId = requireStore(request);
-        const { id } = request.params;
+        const { id } = parse(idParamSchema, request.params);
         const product = await qOne(`SELECT p.*, u.name AS archived_by_name
       FROM products p LEFT JOIN users u ON u.id = p.archived_by_id
       WHERE p.id = $1 AND p.store_id = $2`, [id, storeId]);
@@ -194,9 +203,9 @@ export async function productRoutes(app) {
         };
     });
     // Update product
-    app.put("/:id", { preHandler: [authenticate, requireRole(ROLES.OWNER, ROLES.MANAGER, ROLES.STOCK_MANAGER)] }, async (request) => {
+    app.put("/:id", { preHandler: [authenticate, requireRole(ROLES.OWNER, ROLES.MANAGER, ROLES.STOCK_MANAGER), requirePermission("can_manage_products")] }, async (request) => {
         const storeId = requireStore(request);
-        const { id } = request.params;
+        const { id } = parse(idParamSchema, request.params);
         const body = parse(productSchema.omit({ openingStock: true, imageUrl: true }).partial(), request.body);
         const existing = await qOne(`SELECT * FROM products WHERE id = $1 AND store_id = $2`, [id, storeId]);
         if (!existing)
@@ -241,9 +250,9 @@ export async function productRoutes(app) {
         }
     });
     // Archive / unarchive (soft delete with metadata)
-    app.patch("/:id/archive", { preHandler: [authenticate, requireRole(ROLES.OWNER, ROLES.MANAGER)] }, async (request) => {
+    app.patch("/:id/archive", { preHandler: [authenticate, requireRole(ROLES.OWNER, ROLES.MANAGER), requirePermission("can_manage_products")] }, async (request) => {
         const storeId = requireStore(request);
-        const { id } = request.params;
+        const { id } = parse(idParamSchema, request.params);
         const body = (request.body ?? {});
         const toArchive = body.archived ?? true;
         const user = getAuth(request);
@@ -258,9 +267,9 @@ export async function productRoutes(app) {
         return { ok: true, archived: toArchive, summary: await computeSummary(storeId) };
     });
     // Restore archived product (with duplicate-conflict check)
-    app.post("/:id/restore", { preHandler: [authenticate, managerOnly] }, async (request) => {
+    app.post("/:id/restore", { preHandler: [authenticate, managerOnly, requirePermission("can_manage_products")] }, async (request) => {
         const storeId = requireStore(request);
-        const { id } = request.params;
+        const { id } = parse(idParamSchema, request.params);
         const product = await qOne(`SELECT * FROM products WHERE id = $1 AND store_id = $2`, [id, storeId]);
         if (!product)
             throw ApiError.notFound("Product not found");
@@ -284,7 +293,7 @@ export async function productRoutes(app) {
     // Permanent delete - only archived products, OWNER only
     app.delete("/:id", { preHandler: [authenticate, requireRole(ROLES.OWNER)] }, async (request) => {
         const storeId = requireStore(request);
-        const { id } = request.params;
+        const { id } = parse(idParamSchema, request.params);
         const product = await qOne(`SELECT id, is_archived FROM products WHERE id = $1 AND store_id = $2`, [id, storeId]);
         if (!product)
             throw ApiError.notFound("Product not found");
@@ -296,9 +305,9 @@ export async function productRoutes(app) {
         return { ok: true, summary: await computeSummary(storeId) };
     });
     // Stock adjustment (ADJUSTMENT movement)
-    app.post("/:id/adjust", { preHandler: [authenticate, requireRole(ROLES.OWNER, ROLES.MANAGER, ROLES.STOCK_MANAGER)] }, async (request) => {
+    app.post("/:id/adjust", { preHandler: [authenticate, requireRole(ROLES.OWNER, ROLES.MANAGER, ROLES.STOCK_MANAGER), requirePermission("can_manage_products")] }, async (request) => {
         const storeId = requireStore(request);
-        const { id } = request.params;
+        const { id } = parse(idParamSchema, request.params);
         const body = parse(z.object({ qty: z.coerce.number(), reason: z.string().max(300).optional().default("Manual adjustment") }), request.body);
         const product = await qOne(`SELECT id, is_archived FROM products WHERE id = $1 AND store_id = $2`, [id, storeId]);
         if (!product)

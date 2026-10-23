@@ -3,29 +3,18 @@ import { parse, dateRangeSchema } from "../lib/validate.js";
 import { authenticate, requireStore } from "../middlewares/auth.js";
 import { getDashboardStats, getSalesReport, getPurchaseReport, getCurrentStock, getGstReport, getPnlReport, getStockMovementReport, } from "../services/report.service.js";
 import { qClient } from "../db/pool.js";
+import { boolFilter } from "./product.shared.js";
+import { istBoundary, istDayEnd, istDayStart } from "../lib/ist.js";
 function resolveRange(from, to) {
-    let fromDate;
-    let toDate;
-    if (from) {
-        fromDate = new Date(from);
-        fromDate.setHours(0, 0, 0, 0);
-    }
-    else {
-        fromDate = new Date();
-        fromDate.setHours(0, 0, 0, 0);
-    }
-    if (to) {
-        toDate = new Date(to);
-        toDate.setHours(23, 59, 59, 999);
-    }
-    else {
-        toDate = new Date();
-        toDate.setHours(23, 59, 59, 999);
-    }
+    // Day boundaries are IST, not the server's UTC day: a report for "today"
+    // must cover 00:00–23:59:59.999 IST, otherwise early-morning transactions
+    // fall into the previous UTC day.
+    const fromDate = from ? istBoundary(from, false) : istDayStart();
+    const toDate = to ? istBoundary(to, true) : istDayEnd();
     return { from: fromDate, to: toDate };
 }
 const stockQuerySchema = z.object({
-    lowOnly: z.coerce.boolean().default(false),
+    lowOnly: boolFilter(false),
     search: z.string().optional(),
 });
 const stockMovementQuerySchema = dateRangeSchema.extend({
