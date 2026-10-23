@@ -1,19 +1,21 @@
 /// Central runtime configuration for the Flutter app.
 ///
-/// The API base URL is injected at build/run time and is never hardcoded:
+/// By default the app talks to the hosted API at [productionBaseUrl]. The URL
+/// can be overridden at build/run time (e.g. for local development):
 ///
 ///   flutter run --dart-define=API_URL=http://localhost:4000
-///   flutter run --dart-define=API_URL=https://<service>.onrender.com   # Render
+///   flutter run --dart-define=API_URL=http://10.0.2.2:4000   # Android emulator
 ///
-/// When `API_URL` is not supplied, [baseUrl] falls back to [localBaseUrl].
-/// Android emulators cannot reach the host via `localhost`; use
-/// [androidEmulatorBaseUrl] (`--dart-define=API_URL=http://10.0.2.2:4000`).
+/// When `API_URL` is not supplied, [baseUrl] falls back to [productionBaseUrl].
 class AppConfig {
   AppConfig._();
 
   static const String _configuredApiUrl = String.fromEnvironment('API_URL');
 
-  /// Desktop / web / iOS-simulator default.
+  /// Hosted backend (Render).
+  static const String productionBaseUrl = 'https://midukandar.onrender.com';
+
+  /// Desktop / web / iOS-simulator local default (opt-in via `API_URL`).
   static const String localBaseUrl = 'http://localhost:4000';
 
   /// The host machine as seen from inside the Android emulator.
@@ -21,7 +23,7 @@ class AppConfig {
 
   static String get baseUrl {
     final configured = _configuredApiUrl.trim();
-    return normalize(configured.isEmpty ? localBaseUrl : configured);
+    return normalize(configured.isEmpty ? productionBaseUrl : configured);
   }
 
   static String normalize(String value) {

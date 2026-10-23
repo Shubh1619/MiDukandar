@@ -647,15 +647,24 @@ class ExpenseSummary {
   final List<ExpenseCategoryTotal> byCategory;
 
   factory ExpenseSummary.fromJson(Map<String, dynamic> json) {
-    final raw =
-        (json['byCategory'] as List<dynamic>? ??
-                json['by_category'] as List<dynamic>? ??
-                const [])
-            .map((e) => ExpenseCategoryTotal.fromJson(e as Map<String, dynamic>))
-            .toList();
+    // The backend returns thisMonthTotal / lastMonthTotal / categoryBreakdown;
+    // older/alternate payloads used thisMonth / lastMonth / byCategory. Read
+    // every alias so the summary cards and category chips are never silently 0.
+    final breakdown =
+        json['categoryBreakdown'] as List<dynamic>? ??
+            json['category_breakdown'] as List<dynamic>? ??
+            json['byCategory'] as List<dynamic>? ??
+            json['by_category'] as List<dynamic>? ??
+            const [];
+    final raw = breakdown
+        .whereType<Map<String, dynamic>>()
+        .map(ExpenseCategoryTotal.fromJson)
+        .toList();
     return ExpenseSummary(
-      thisMonth: _firstNumber(json, const ['thisMonth', 'this_month'], fallback: 0),
-      lastMonth: _firstNumber(json, const ['lastMonth', 'last_month'], fallback: 0),
+      thisMonth: _firstNumber(
+          json, const ['thisMonthTotal', 'this_month_total', 'thisMonth', 'this_month'], fallback: 0),
+      lastMonth: _firstNumber(
+          json, const ['lastMonthTotal', 'last_month_total', 'lastMonth', 'last_month'], fallback: 0),
       byCategory: raw,
     );
   }
@@ -851,8 +860,10 @@ class UdhaariEntry {
       id: _firstValue(json, const ['id']) ?? '',
       customerId: _firstValue(json, const ['customerId', 'customer_id']),
       amount: _firstNumber(json, const ['amount'], fallback: 0),
-      paidAmount: _firstNumber(json, const ['paidAmount', 'paid_amount'], fallback: 0),
-      balance: _firstNumber(json, const ['balance'], fallback: 0),
+      paidAmount: _firstNumber(
+          json, const ['paid', 'paidAmount', 'paid_amount'], fallback: 0),
+      balance: _firstNumber(
+          json, const ['remaining', 'balance'], fallback: 0),
       status: _firstValue(json, const ['status']) ?? 'PENDING',
       entryDate: _firstValue(json, const ['entryDate', 'entry_date']),
       dueDate: _firstValue(json, const ['dueDate', 'due_date']),

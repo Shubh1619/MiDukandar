@@ -65,9 +65,10 @@ Widget _buildShell({
 }
 
 void main() {
-  test('AppConfig defaults to the local API URL and normalizes URLs', () {
-    // No --dart-define=API_URL in tests, so the local default is used.
-    expect(AppConfig.baseUrl, AppConfig.localBaseUrl);
+  test('AppConfig defaults to the production API URL and normalizes URLs', () {
+    // No --dart-define=API_URL in tests, so the production default is used.
+    expect(AppConfig.baseUrl, AppConfig.productionBaseUrl);
+    expect(AppConfig.productionBaseUrl, 'https://midukandar.onrender.com');
     expect(AppConfig.localBaseUrl, 'http://localhost:4000');
     expect(AppConfig.normalize('https://example.com///'), 'https://example.com');
     expect(AppConfig.normalize('  https://example.com/  '), 'https://example.com');

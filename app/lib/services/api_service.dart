@@ -582,8 +582,9 @@ class ApiService {
             'phone': inv['phone']?.toString(),
             'role': inv['role']?.toString() ?? 'CASHIER',
             'isActive': false,
-            'invitedAt':
-                inv['invitedAt']?.toString() ?? inv['created_at']?.toString(),
+            'invitedAt': inv['invitedAt']?.toString() ??
+                inv['createdAt']?.toString() ??
+                inv['created_at']?.toString(),
           }),
         );
       }
