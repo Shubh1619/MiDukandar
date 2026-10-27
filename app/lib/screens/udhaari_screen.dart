@@ -9,6 +9,7 @@ import '../services/device_sms_delivery.dart';
 import '../theme/md_design.dart';
 import '../widgets/app_dialogs.dart';
 import '../widgets/md_inputs.dart';
+import '../widgets/sim_picker.dart';
 
 class UdhaariScreen extends StatefulWidget {
   const UdhaariScreen({
@@ -69,15 +70,6 @@ class _UdhaariScreenState extends State<UdhaariScreen> {
         _loading = false;
       });
     }
-  }
-
-  Future<void> _loadCounts() async {
-    try {
-      final result = await widget.apiService.getUdhaariReminders(scope: 'all');
-      if (mounted) {
-        setState(() => _counts = result.counts);
-      }
-    } catch (_) {}
   }
 
   String _modeLabel(AppLocalizations l, String mode) {
@@ -481,7 +473,9 @@ class _UdhaariScreenState extends State<UdhaariScreen> {
       response = widget.onCreate != null
           ? await widget.onCreate!(result)
           : await widget.apiService.createUdhaari(result);
-      _loadCounts();
+      // The balance list is derived from the entries, so reload it (not just
+      // the reminder counts) or the new row looks like it was never saved.
+      _load();
     } finally {
       if (context.mounted) AppDialogs.hideLoading(context);
     }
@@ -493,8 +487,10 @@ class _UdhaariScreenState extends State<UdhaariScreen> {
     if (response == null || !context.mounted) return;
     final pending = response['pendingSms'];
     if (pending is Map) {
-      await DeviceSmsDelivery(apiService: widget.apiService)
-          .handle(Map<String, dynamic>.from(pending));
+      await DeviceSmsDelivery(
+        apiService: widget.apiService,
+        chooseSim: (sims) => showSimPicker(context, sims),
+      ).handle(Map<String, dynamic>.from(pending));
     }
   }
 

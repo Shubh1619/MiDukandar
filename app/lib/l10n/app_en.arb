@@ -818,6 +818,16 @@
   "smsUsageCount": "{used} / {limit} used · {remaining} left",
   "smsResetNote": "Resets at midnight IST. Once the daily allowance is used, further udhaari entries are not texted.",
   "smsDeviceNote": "Sent from this phone's SIM. Entries created on another device or on the web are not texted.",
+  "smsChooseSimTitle": "Which SIM should send the SMS?",
+  "smsChooseSimBody": "Pick the SIM that has SMS recharge. This phone remembers it for udhaari messages.",
+  "smsSimSlot": "SIM {slot}",
+  "@smsSimSlot": {
+    "placeholders": {
+      "slot": {
+        "type": "int"
+      }
+    }
+  },
   "smsRecentTitle": "Recent messages",
   "smsEmpty": "No SMS sent yet",
   "smsManagerOnly": "Only the owner or a manager can change this setting.",

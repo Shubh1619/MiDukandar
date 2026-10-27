@@ -1102,6 +1102,18 @@ class AppLocalizationsMr extends AppLocalizations {
       'या फोनच्या सिमवरून पाठवले जाते. दुसऱ्या डिव्हाइसवर किंवा वेबवर तयार केलेल्या नोंदींसाठी संदेश जात नाही.';
 
   @override
+  String get smsChooseSimTitle => 'एसएमएस कोणत्या सिमवरून पाठवायचा?';
+
+  @override
+  String get smsChooseSimBody =>
+      'ज्या सिममध्ये एसएमएस रिचार्ज आहे ती निवडा. हा फोन उधारी संदेशांसाठी ती लक्षात ठेवेल.';
+
+  @override
+  String smsSimSlot(int slot) {
+    return 'सिम $slot';
+  }
+
+  @override
   String get smsRecentTitle => 'अलीकडील संदेश';
 
   @override

@@ -2080,6 +2080,24 @@ abstract class AppLocalizations {
   /// **'Sent from this phone\'s SIM. Entries created on another device or on the web are not texted.'**
   String get smsDeviceNote;
 
+  /// No description provided for @smsChooseSimTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Which SIM should send the SMS?'**
+  String get smsChooseSimTitle;
+
+  /// No description provided for @smsChooseSimBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick the SIM that has SMS recharge. This phone remembers it for udhaari messages.'**
+  String get smsChooseSimBody;
+
+  /// No description provided for @smsSimSlot.
+  ///
+  /// In en, this message translates to:
+  /// **'SIM {slot}'**
+  String smsSimSlot(int slot);
+
   /// No description provided for @smsRecentTitle.
   ///
   /// In en, this message translates to:

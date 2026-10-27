@@ -1100,6 +1100,18 @@ class AppLocalizationsEn extends AppLocalizations {
       'Sent from this phone\'s SIM. Entries created on another device or on the web are not texted.';
 
   @override
+  String get smsChooseSimTitle => 'Which SIM should send the SMS?';
+
+  @override
+  String get smsChooseSimBody =>
+      'Pick the SIM that has SMS recharge. This phone remembers it for udhaari messages.';
+
+  @override
+  String smsSimSlot(int slot) {
+    return 'SIM $slot';
+  }
+
+  @override
   String get smsRecentTitle => 'Recent messages';
 
   @override

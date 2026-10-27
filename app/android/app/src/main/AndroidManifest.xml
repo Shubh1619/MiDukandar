@@ -2,6 +2,9 @@
     <uses-permission android:name="android.permission.INTERNET"/>
     <!-- Udhaari SMS is sent from the shop's own SIM (SMS_MODE=device). -->
     <uses-permission android:name="android.permission.SEND_SMS"/>
+    <!-- Dual-SIM phones: needed to list the active SIMs so the owner can pick
+         the one that has SMS recharge. Sending itself only needs SEND_SMS. -->
+    <uses-permission android:name="android.permission.READ_PHONE_STATE"/>
     <application
         android:label="MiDukandar"
         android:name="${applicationName}"
