@@ -12,6 +12,7 @@ const poLineSchema = z.object({
   productId: z.string().min(1),
   quantity: z.coerce.number().positive(),
   rate: z.coerce.number().min(0).default(0),
+  mrp: z.coerce.number().min(0).default(0),
   taxRate: z.coerce.number().min(0).max(100).default(0),
 });
 
@@ -25,13 +26,19 @@ const poSchema = z.object({
 
 const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
 
-function lineToRs(item: { quantity: number; rate: number; taxRate: number }): { lineTotal: number; qty: string; rate: string } {
+function lineToRs(item: { quantity: number; rate: number; mrp: number; taxRate: number }): {
+  lineTotal: number;
+  qty: string;
+  rate: string;
+  mrp: string;
+} {
   const qty = Number(item.quantity);
   const rate = Number(item.rate);
+  const mrp = Number(item.mrp);
   const taxRate = Number(item.taxRate);
   const gross = qty * rate;
   const lineTotal = round2(gross + (gross * taxRate) / 100);
-  return { lineTotal, qty: String(qty), rate: String(rate) };
+  return { lineTotal, qty: String(qty), rate: String(rate), mrp: String(mrp) };
 }
 
 async function nextPoNumber(tx: DbClient, storeId: string): Promise<string> {
@@ -150,9 +157,9 @@ export async function purchaseOrderRoutes(app: FastifyInstance) {
           const line = body.lines[i];
           const t = totals[i];
           await tx.q(
-            `INSERT INTO purchase_order_items (po_id, product_id, quantity, rate, tax_rate, line_total)
-             VALUES ($1, $2, $3, $4, $5, $6)`,
-            [po?.id, line.productId, t.qty, t.rate, String(line.taxRate), String(t.lineTotal)],
+            `INSERT INTO purchase_order_items (po_id, product_id, quantity, rate, mrp, tax_rate, line_total)
+             VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+            [po?.id, line.productId, t.qty, t.rate, t.mrp, String(line.taxRate), String(t.lineTotal)],
           );
         }
         return po;
@@ -252,9 +259,9 @@ export async function purchaseOrderRoutes(app: FastifyInstance) {
             const line = lines[i];
             const t = totals![i];
             await tx.q(
-              `INSERT INTO purchase_order_items (po_id, product_id, quantity, rate, tax_rate, line_total)
-               VALUES ($1, $2, $3, $4, $5, $6)`,
-              [id, line.productId, t.qty, t.rate, String(line.taxRate), String(t.lineTotal)],
+              `INSERT INTO purchase_order_items (po_id, product_id, quantity, rate, mrp, tax_rate, line_total)
+               VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+              [id, line.productId, t.qty, t.rate, t.mrp, String(line.taxRate), String(t.lineTotal)],
             );
           }
         }
