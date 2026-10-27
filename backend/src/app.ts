@@ -23,6 +23,7 @@ import { purchaseRoutes } from "./routes/purchase.routes.js";
 import { inventoryRoutes } from "./routes/inventory.routes.js";
 import { paymentRoutes } from "./routes/payment.routes.js";
 import { udhaariRoutes } from "./routes/udhaari.routes.js";
+import { smsRoutes } from "./routes/sms.routes.js";
 import { reportRoutes } from "./routes/report.routes.js";
 import { webhookRoutes } from "./routes/webhook.routes.js";
 import { healthRoutes } from "./routes/health.routes.js";
@@ -332,6 +333,7 @@ function registerRoutes(app: FastifyInstance) {
   app.register(inventoryRoutes, { prefix: "/api/inventory" });
   app.register(paymentRoutes, { prefix: "/api/payments" });
   app.register(udhaariRoutes, { prefix: "/api/udhaari" });
+  app.register(smsRoutes, { prefix: "/api/sms" });
   app.register(reportRoutes, { prefix: "/api/reports" });
   app.register(userRoutes, { prefix: "/api/users" });
   app.register(roleRoutes, { prefix: "/api/roles" });

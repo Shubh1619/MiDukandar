@@ -16,6 +16,7 @@ export interface PlatformSettings {
   maintenance_mode: boolean;
   signup_enabled: boolean;
   smtp_paused: boolean;
+  sms_paused: boolean;
   default_otp_expiry_minutes: number | null;
   default_otp_length: number | null;
 }
@@ -24,6 +25,7 @@ const DEFAULTS: PlatformSettings = {
   maintenance_mode: false,
   signup_enabled: true,
   smtp_paused: false,
+  sms_paused: false,
   default_otp_expiry_minutes: null,
   default_otp_length: null,
 };
@@ -38,6 +40,7 @@ function coerce(raw: Record<string, unknown>): PlatformSettings {
     maintenance_mode: bool(raw.maintenance_mode, DEFAULTS.maintenance_mode),
     signup_enabled: bool(raw.signup_enabled, DEFAULTS.signup_enabled),
     smtp_paused: bool(raw.smtp_paused, DEFAULTS.smtp_paused),
+    sms_paused: bool(raw.sms_paused, DEFAULTS.sms_paused),
     default_otp_expiry_minutes: num(raw.default_otp_expiry_minutes),
     default_otp_length: num(raw.default_otp_length),
   };

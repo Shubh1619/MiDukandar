@@ -26,6 +26,7 @@ const SETTINGS_WHITELIST = new Set([
   "maintenance_mode",
   "signup_enabled",
   "smtp_paused",
+  "sms_paused",
   "default_otp_expiry_minutes",
   "default_otp_length",
 ]);

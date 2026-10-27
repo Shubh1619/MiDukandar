@@ -54,6 +54,16 @@ services:
       BREVO_API_KEY: ${BREVO_API_KEY:-}
       BREVO_SENDER_EMAIL: ${BREVO_SENDER_EMAIL:-noreply@midukandar.com}
       BREVO_SENDER_NAME: ${BREVO_SENDER_NAME:-MiDukandar}
+      # SMS: `log` prints messages to the console; msg91/fast2sms send via the
+      # gateway. SMS_MODE defaults to `log` everywhere so an existing deploy
+      # keeps booting without DLT credentials.
+      SMS_MODE: ${SMS_MODE:-log}
+      SMS_API_KEY: ${SMS_API_KEY:-}
+      SMS_SENDER_ID: ${SMS_SENDER_ID:-}
+      SMS_DLT_TEMPLATE_ID: ${SMS_DLT_TEMPLATE_ID:-}
+      SMS_DLT_ENTITY_ID: ${SMS_DLT_ENTITY_ID:-}
+      SMS_DAILY_FREE_LIMIT: ${SMS_DAILY_FREE_LIMIT:-100}
+      SMS_TIMEOUT_MS: ${SMS_TIMEOUT_MS:-5000}
       OTP_EXPIRY_MINUTES: 1
       OTP_LENGTH: 6
       # OTP_MASTER is a universal OTP override: anyone who knows it can log in as

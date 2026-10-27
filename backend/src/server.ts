@@ -3,6 +3,7 @@ import { buildApp } from "./app.js";
 import { config, startupSummary } from "./config.js";
 import { logger } from "./lib/logger.js";
 import { pool } from "./db/pool.js";
+import { startSmsSweeper } from "./services/sms.service.js";
 
 async function currentMigrationVersion(): Promise<string> {
   try {
@@ -17,9 +18,11 @@ async function currentMigrationVersion(): Promise<string> {
 
 async function main() {
   const app = buildApp({ logger: true });
+  const stopSmsSweeper = startSmsSweeper();
 
   const shutdown = async () => {
     logger.info("shutdown: starting");
+    stopSmsSweeper();
     await app.close();
     await pool.end();
     process.exit(0);

@@ -16,6 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { TableSkeleton } from "@/components/shared/table-skeleton";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -42,10 +43,24 @@ const blankInvite: InviteForm = { name: "", email: "", phone: "", role: "CASHIER
 export default function SettingsPage() {
   const { t, setLocale } = useI18n();
   const setAuthStore = useAuth((s) => s.setStore);
+  const user = useAuth((s) => s.user);
+  const canManageSms = user?.role === "OWNER" || user?.role === "MANAGER";
   const [store, setStoreState] = useState<Store | null>(null);
   const [storeLoading, setStoreLoading] = useState(true);
   const [savingStore, setSavingStore] = useState(false);
   const [savingLanguage, setSavingLanguage] = useState(false);
+  const [sms, setSms] = useState<{
+    date: string;
+    used: number;
+    limit: number;
+    remaining: number;
+    enabled: boolean;
+    mode: string;
+  } | null>(null);
+  const [smsMessages, setSmsMessages] = useState<
+    { id: string; customerName: string | null; toPhone: string; status: string; errorCode: string | null; createdAt: string }[]
+  >([]);
+  const [smsBusy, setSmsBusy] = useState(false);
   const [form, setForm] = useState({
     name: "", type: "", address: "", city: "", state: "", pincode: "",
     phone: "", gst: "", currency: "INR", language: "hi", invoicePrefix: "INV",
@@ -114,12 +129,54 @@ export default function SettingsPage() {
     }
   };
 
+  const loadSms = async () => {
+    try {
+      const usage = await apiFetch<{
+        date: string;
+        used: number;
+        limit: number;
+        remaining: number;
+        enabled: boolean;
+        mode: string;
+      }>("/api/sms/usage");
+      setSms(usage);
+      // The delivery log is restricted to users who can manage settings;
+      // other staff still see the usage meter.
+      if (canManageSms) {
+        const log = await apiFetch<{
+          messages: { id: string; customerName: string | null; toPhone: string; status: string; errorCode: string | null; createdAt: string }[];
+        }>("/api/sms/messages?limit=5");
+        setSmsMessages(log.messages);
+      }
+    } catch {
+      // Non-fatal: SMS is an optional channel and its panel must not stop
+      // the rest of the settings page from loading.
+    }
+  };
+
+  const toggleSms = async (enabled: boolean) => {
+    setSmsBusy(true);
+    try {
+      const data = await apiFetch<{ ok: boolean; enabled: boolean }>("/api/sms/settings", {
+        method: "PATCH",
+        body: { enabled },
+      });
+      setSms((s) => (s ? { ...s, enabled: data.enabled } : s));
+      toast.success(enabled ? "Udhaari SMS enabled" : "Udhaari SMS disabled");
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Failed to update SMS settings");
+    } finally {
+      setSmsBusy(false);
+    }
+  };
+
   useEffect(() => {
     void (async () => {
       try {
         const [storeData] = await Promise.all([apiFetch<{ store: Store }>("/api/store"), loadUsers()]);
         void loadReferral();
         void loadSessions();
+        void loadSms();
         const s = storeData.store;
         setStoreState(s);
         setForm({
@@ -290,6 +347,7 @@ export default function SettingsPage() {
           <TabsTrigger value="store">{t("storeDetails")}</TabsTrigger>
           <TabsTrigger value="staff">{t("staff")}</TabsTrigger>
           <TabsTrigger value="language">{t("language")}</TabsTrigger>
+          <TabsTrigger value="sms">SMS</TabsTrigger>
           <TabsTrigger value="legal">Legal</TabsTrigger>
           <TabsTrigger value="referral">Refer</TabsTrigger>
         </TabsList>
@@ -497,6 +555,105 @@ export default function SettingsPage() {
               </button>
             ))}
             {store ? <p className="pt-1 text-xs text-muted-foreground">This tenant default syncs with the language toggle in the header.</p> : null}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="sms">
+          <div className="max-w-2xl space-y-4">
+            <div className="rounded-lg border bg-card p-5">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <h2 className="font-display text-base font-bold">Udhaari SMS</h2>
+                  <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+                    Text the customer when a udhaari entry is created, so they always know what they owe.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  {sms ? <Badge variant="outline">{sms.mode === "log" ? "Log only" : sms.mode}</Badge> : null}
+                  <Switch
+                    checked={Boolean(sms?.enabled)}
+                    disabled={!canManageSms || smsBusy || !sms}
+                    onCheckedChange={(v) => void toggleSms(v)}
+                    aria-label="Enable udhaari SMS"
+                  />
+                </div>
+              </div>
+
+              {sms ? (
+                <div className="mt-5 space-y-2">
+                  <div className="flex items-baseline justify-between text-sm">
+                    <span className="font-medium">Today&apos;s free SMS</span>
+                    <span className="text-muted-foreground">
+                      {sms.used} / {sms.limit} used &middot; {sms.remaining} left
+                    </span>
+                  </div>
+                  <div
+                    className="h-2 w-full overflow-hidden rounded-full bg-muted"
+                    role="progressbar"
+                    aria-valuenow={sms.used}
+                    aria-valuemin={0}
+                    aria-valuemax={sms.limit}
+                  >
+                    <div
+                      className={`h-full rounded-full transition-all ${sms.remaining === 0 ? "bg-destructive" : "bg-primary"}`}
+                      style={{ width: `${sms.limit > 0 ? Math.min(100, (sms.used / sms.limit) * 100) : 100}%` }}
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Resets at midnight IST. Once the daily allowance is used, further udhaari entries are not texted.
+                  </p>
+                </div>
+              ) : (
+                <TableSkeleton rows={2} padded={false} />
+              )}
+
+              {!canManageSms ? (
+                <p className="mt-3 text-xs text-muted-foreground">Only the owner or a manager can change this setting.</p>
+              ) : null}
+            </div>
+
+            <div className="space-y-2">
+              <h2 className="text-sm font-semibold">Recent messages</h2>
+              <div className="rounded-lg border bg-card">
+                {smsMessages.length === 0 ? (
+                  <EmptyState message="No SMS sent yet" className="py-6 text-center" />
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Sent</TableHead>
+                        <TableHead>Customer</TableHead>
+                        <TableHead>Number</TableHead>
+                        <TableHead>Status</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {smsMessages.map((m) => (
+                        <TableRow key={m.id}>
+                          <TableCell className="text-muted-foreground">{formatDateTime(m.createdAt)}</TableCell>
+                          <TableCell className="font-medium">{m.customerName ?? "-"}</TableCell>
+                          <TableCell className="text-muted-foreground">{m.toPhone}</TableCell>
+                          <TableCell>
+                            <Badge
+                              variant={
+                                m.status === "SENT"
+                                  ? "default"
+                                  : m.status === "FAILED"
+                                    ? "destructive"
+                                    : "secondary"
+                              }
+                              title={m.errorCode ?? undefined}
+                            >
+                              {m.status.replace(/_/g, " ").toLowerCase()}
+                            </Badge>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+              </div>
+            </div>
           </div>
         </TabsContent>
 

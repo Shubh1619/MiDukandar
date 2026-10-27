@@ -7,6 +7,16 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export type MailMode = "log" | "brevo";
 
+/**
+ * Outbound SMS transport.
+ * - `log`      prints the message to the console and never calls a gateway
+ *              (the default everywhere, so an existing deployment that has
+ *              not configured SMS keeps starting normally).
+ * - `msg91`    MSG91 v5 SMS API (India, DLT-native).
+ * - `fast2sms` Fast2SMS DLT route.
+ */
+export type SmsMode = "log" | "msg91" | "fast2sms";
+
 export interface Config {
   nodeEnv: string;
   isProd: boolean;
@@ -34,6 +44,13 @@ export interface Config {
   mailFromName: string;
   mailReplyTo: string;
   brevoWebhookSecret: string;
+  smsMode: SmsMode;
+  smsApiKey: string;
+  smsSenderId: string;
+  smsDltTemplateId: string;
+  smsDltEntityId: string;
+  smsDailyFreeLimit: number;
+  smsTimeoutMs: number;
   otpExpiryMinutes: number;
   otpLength: number;
   masterOtp: string;
@@ -93,6 +110,13 @@ const EnvSchema = z.object({
   BREVO_SENDER_EMAIL: z.string().optional(),
   BREVO_SENDER_NAME: z.string().optional(),
   BREVO_WEBHOOK_SECRET: z.string().optional(),
+  SMS_MODE: z.string().optional(),
+  SMS_API_KEY: z.string().optional(),
+  SMS_SENDER_ID: z.string().optional(),
+  SMS_DLT_TEMPLATE_ID: z.string().optional(),
+  SMS_DLT_ENTITY_ID: z.string().optional(),
+  SMS_DAILY_FREE_LIMIT: positiveInt(100),
+  SMS_TIMEOUT_MS: positiveInt(5000),
   JWT_ACCESS_SECRET: z.string().optional(),
   JWT_REFRESH_SECRET: z.string().optional(),
   JWT_ACCESS_EXPIRES_IN: z.string().optional(),
@@ -232,6 +256,16 @@ if (mailModeRaw !== "log" && mailModeRaw !== "brevo") {
 }
 const mailMode = mailModeRaw as MailMode;
 
+// SMS defaults to `log` even in production: turning messaging on is an
+// explicit operator decision, and defaulting to a real gateway would make a
+// deploy fail its boot check (or silently start spending credits) the moment
+// this feature ships to an environment that has no DLT registration yet.
+const smsModeRaw = env.SMS_MODE?.trim().toLowerCase() || "log";
+if (smsModeRaw !== "log" && smsModeRaw !== "msg91" && smsModeRaw !== "fast2sms") {
+  throw new Error(`SMS_MODE must be "log", "msg91" or "fast2sms" (got "${env.SMS_MODE}")`);
+}
+const smsMode = smsModeRaw as SmsMode;
+
 /**
  * Parses a jsonwebtoken-style duration ("15m", "2h", "7d", "900s", "900") into
  * seconds so the API can report an `expiresInSeconds` that always matches what
@@ -290,6 +324,15 @@ export const config: Config = {
   // Empty means the endpoint rejects every request, so a missing value fails
   // closed rather than accepting unauthenticated deliveries.
   brevoWebhookSecret: env.BREVO_WEBHOOK_SECRET?.trim() ?? "",
+  smsMode,
+  smsApiKey: env.SMS_API_KEY?.trim() ?? "",
+  smsSenderId: env.SMS_SENDER_ID?.trim() ?? "",
+  smsDltTemplateId: env.SMS_DLT_TEMPLATE_ID?.trim() ?? "",
+  // The Principal Entity ID is registered in the DLT portal, not required by
+  // the send APIs themselves; kept in config so a deployment can record it.
+  smsDltEntityId: env.SMS_DLT_ENTITY_ID?.trim() ?? "",
+  smsDailyFreeLimit: env.SMS_DAILY_FREE_LIMIT,
+  smsTimeoutMs: env.SMS_TIMEOUT_MS,
   otpExpiryMinutes: env.OTP_EXPIRY_MINUTES,
   otpLength: env.OTP_LENGTH,
   masterOtp: env.OTP_MASTER?.trim() ?? "",
@@ -342,6 +385,30 @@ function assertMailConfig(): void {
     throw new Error(
       `MAIL_MODE=brevo requires ${missing.join(", ")} to be set (see .env.example). ` +
         `Use MAIL_MODE=log for local development.`,
+    );
+  }
+}
+
+/**
+ * Fail fast when a real SMS gateway is selected but its credentials are
+ * missing, instead of letting the first udhaari entry fail with an opaque
+ * 401/400 from the provider. `SMS_MODE=log` needs no credentials.
+ */
+function assertSmsConfig(): void {
+  if (config.smsMode === "log") return;
+
+  const missing = [
+    ["SMS_API_KEY", config.smsApiKey],
+    ["SMS_SENDER_ID", config.smsSenderId],
+    ["SMS_DLT_TEMPLATE_ID", config.smsDltTemplateId],
+  ]
+    .filter(([, value]) => !value)
+    .map(([name]) => name);
+
+  if (missing.length > 0) {
+    throw new Error(
+      `SMS_MODE=${config.smsMode} requires ${missing.join(", ")} to be set (see .env.example). ` +
+        `Use SMS_MODE=log for local development.`,
     );
   }
 }
@@ -448,6 +515,7 @@ function assertProductionSecrets(): void {
 
 assertDevDatabase();
 assertMailConfig();
+assertSmsConfig();
 assertProductionSecrets();
 
 /**
@@ -466,6 +534,7 @@ export function startupSummary(): Record<string, string> {
   return {
     env: config.nodeEnv,
     mailMode: config.mailMode,
+    smsMode: config.smsMode,
     dbHost: config.dbHost || "(unset)",
     mailSenderMode: getMailSenderMode(),
   };

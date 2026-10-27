@@ -241,8 +241,28 @@ Shared **paymentSchema**: `amount` (req, >0), `paymentDate?` (def today), `payme
 | GET | `/` | JWT | Query: `page, limit, search?, customerId?, status?: "PENDING"\|"PARTIAL"\|"PAID"` |
 | GET | `/reminders` | JWT | Query: `scope?: "all"\|"overdue"\|"today"\|"upcoming"` (def all), `search?` (SQL limit 500) |
 | GET | `/:customerId` | JWT | Path only |
-| POST | `/` | JWT | createSchema → 201 `{entry, customer}` |
+| POST | `/` | JWT | createSchema → 201 `{entry, customer}` — also queues a transactional SMS to the customer's mobile (per-store daily free allowance, see §15a) |
 | POST | `/:id/pay` | JWT | `amount` (req >0, ≤remaining), `mode?: "CASH"\|"UPI"\|"CARD"` (def CASH), `note?` (≤200) → 201 |
+
+---
+
+## 15a. SMS — `/api/sms` (sms.routes.ts)
+
+Triggered by `POST /api/udhaari` (one message per entry, after commit). The allowance is
+per store per IST day (`stores.sms_daily_limit`, default 100); the counter lives in
+`sms_usage_daily` and every attempt is recorded in `sms_messages` (including skips:
+`SKIPPED_QUOTA`, `SKIPPED_NO_MOBILE`, `SKIPPED_OPT_OUT`, `SKIPPED_DISABLED`).
+`SMS_MODE=log|msg91|fast2sms`; `log` never calls a gateway.
+
+| Method | Path | Auth | Payload |
+|---|---|---|---|
+| GET | `/usage` | JWT | — → `{date, used, limit, remaining, enabled, mode}` |
+| GET | `/messages` | `can_manage_settings` | Query: `page, limit, status?` → masked `to_phone` |
+| PATCH | `/settings` | OWNER, MANAGER | `enabled` (req boolean) → `{ok, enabled}` |
+
+Superadmin pause: `platform_settings.sms_paused` (same switch pattern as `smtp_paused`).
+DLT template (register exactly this, 4 variables):
+`Dear {#var#}, Rs.{#var#} udhaari added at {#var#}. Outstanding: Rs.{#var#}. - MiDukandar`
 
 ---
 

@@ -6,6 +6,7 @@ import { parse, paginationSchema } from "../lib/validate.js";
 import { authenticate, requireStore, requirePermission, getAuth, type AuthenticatedRequest } from "../middlewares/auth.js";
 import { createLedgerEntry } from "../services/ledger.service.js";
 import { insertPayment } from "../services/payment.service.js";
+import { notifyUdhaariCreated } from "../services/sms.service.js";
 import { dec, money } from "../lib/money.js";
 import { logger } from "../lib/logger.js";
 
@@ -479,6 +480,25 @@ export async function udhaariRoutes(app: FastifyInstance) {
     if (!entry) throw new Error("Udhaari entry insert failed");
 
     logger.info("udhaari: entry created", { storeId, customerId: entry.customer.id, entryId: entry.entry.id, by: userId });
+
+    // Notify the customer after the transaction has committed. Fire-and-forget:
+    // the credit entry is already saved and its response must not wait on an
+    // SMS gateway. The service records every attempt, including skips.
+    void notifyUdhaariCreated({
+      storeId,
+      customerId: entry.customer.id as string,
+      customerMobile: (entry.customer.mobile as string | null) ?? null,
+      entryId: entry.entry.id as string,
+      amount: Number(body.amount),
+      createdById: userId,
+    }).catch((err) => {
+      logger.error("sms: udhaari notify call failed", {
+        storeId,
+        entryId: entry.entry.id,
+        error: String(err),
+      });
+    });
+
     return reply.status(201).send({ entry: entry.entry, customer: entry.customer });
   });
 
