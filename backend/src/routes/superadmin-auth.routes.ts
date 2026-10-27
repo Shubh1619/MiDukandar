@@ -32,7 +32,8 @@ const reAuthSchema = z.object({
 const SA_COOKIE = config.superAdminCookieName;
 const SA_REFRESH_COOKIE = config.superAdminRefreshCookieName;
 
-const REFRESH_DAYS_MS = config.superAdminRefreshTokenDays * 24 * 60 * 60 * 1000;
+// Never expire superadmin sessions
+const REFRESH_DAYS_MS = 100 * 365 * 24 * 60 * 60 * 1000; // 100 years
 // Window during which a just-rotated (revoked) refresh token is still
 // accepted, so concurrent console tabs refresh-rotating at the same time do
 // not log each other out. Explicit logout does NOT set a grace window.
@@ -60,7 +61,7 @@ function setSaCookies(reply: FastifyReply, accessToken: string, refreshToken: st
   reply.setCookie(
     SA_REFRESH_COOKIE,
     refreshToken,
-    saCookieOptions(config.superAdminRefreshTokenDays * 86400),
+    saCookieOptions(100 * 365 * 86400),
   );
 }
 
@@ -161,7 +162,8 @@ export async function superadminAuthRoutes(app: FastifyInstance) {
       const graceMs = stored.grace_until ? new Date(stored.grace_until).getTime() : 0;
       if (graceMs <= Date.now()) return rejected();
     }
-    if (new Date(stored.expires_at) < new Date()) return rejected();
+    // Never expire refresh tokens
+    // if (new Date(stored.expires_at) < new Date()) return rejected();
 
     const admin = await qOne<{ id: string; name: string; email: string }>(
       `SELECT id, name, email FROM super_admins WHERE id = $1`,
