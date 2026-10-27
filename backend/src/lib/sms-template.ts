@@ -16,6 +16,12 @@ export const UDHAARI_TEMPLATE_KEY = "UDHAARI_CREATED";
 export const UDHAARI_TEMPLATE_BODY =
   "Dear {#var#}, Rs.{#var#} udhaari added at {#var#}. Outstanding: Rs.{#var#}. - MiDukandar";
 
+export const UDHAARI_PAYMENT_TEMPLATE_KEY = "UDHAARI_PAYMENT";
+
+/** Register this exact text (4 variables) with the DLT portal. */
+export const UDHAARI_PAYMENT_TEMPLATE_BODY =
+  "Dear {#var#}, Rs.{#var#} received towards your udhaari at {#var#}. Outstanding: Rs.{#var#}. - MiDukandar";
+
 /** Single GSM-7 segment. Longer bodies cost more credits and can be split. */
 export const GSM_SEGMENT_LIMIT = 160;
 /** Single UCS-2 (Unicode) segment — Hindi/Marathi names push the body here. */
@@ -68,6 +74,20 @@ export function smsSegments(body: string): number {
 }
 
 export function renderUdhaariCreatedSms(input: UdhaariSmsInput): UdhaariSmsContent {
+  return render(
+    UDHAARI_TEMPLATE_BODY,
+    input,
+  );
+}
+
+export function renderUdhaariPaymentSms(input: UdhaariSmsInput): UdhaariSmsContent {
+  return render(
+    UDHAARI_PAYMENT_TEMPLATE_BODY,
+    input,
+  );
+}
+
+function render(templateBody: string, input: UdhaariSmsInput): UdhaariSmsContent {
   const variables = [
     clamp(input.customerName || "Customer", 24),
     clamp(formatSmsAmount(input.amount), 12),
@@ -75,13 +95,13 @@ export function renderUdhaariCreatedSms(input: UdhaariSmsInput): UdhaariSmsConte
     clamp(formatSmsAmount(input.outstanding), 12),
   ];
 
-  let body = UDHAARI_TEMPLATE_BODY;
+  let body = templateBody;
   for (const value of variables) {
     body = body.replace("{#var#}", value);
   }
 
   return {
-    templateBody: UDHAARI_TEMPLATE_BODY,
+    templateBody,
     variables,
     body,
     segments: smsSegments(body),

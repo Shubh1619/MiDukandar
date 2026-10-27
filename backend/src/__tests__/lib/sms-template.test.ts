@@ -1,7 +1,9 @@
 import {
   formatSmsAmount,
   renderUdhaariCreatedSms,
+  renderUdhaariPaymentSms,
   smsSegments,
+  UDHAARI_PAYMENT_TEMPLATE_BODY,
   UDHAARI_TEMPLATE_BODY,
 } from "../../lib/sms-template.js";
 
@@ -66,6 +68,39 @@ describe("renderUdhaariCreatedSms", () => {
     });
     expect(hindi.body).toContain("रमेश कुमार शर्मा");
     expect(hindi.segments).toBeGreaterThanOrEqual(1);
+  });
+});
+
+describe("renderUdhaariPaymentSms", () => {
+  const content = renderUdhaariPaymentSms({
+    customerName: "Kiran Ubale",
+    shopName: "Shree Ganga Aqua",
+    amount: 100,
+    outstanding: 900,
+  });
+
+  it("fills every placeholder", () => {
+    expect(content.body).not.toContain("{#var#}");
+    expect(content.body).toContain("Kiran Ubale");
+    expect(content.body).toContain("100");
+    expect(content.body).toContain("Shree Ganga Aqua");
+    expect(content.body).toContain("900");
+  });
+
+  it("reads as a payment confirmation, not a new entry", () => {
+    expect(content.body).toContain("received");
+    expect(content.body).not.toContain("udhaari added");
+  });
+
+  it("exposes the registered template with four variables", () => {
+    expect(content.templateBody).toBe(UDHAARI_PAYMENT_TEMPLATE_BODY);
+    expect(content.templateBody.match(/\{#var#\}/g)).toHaveLength(4);
+    expect(content.variables).toHaveLength(4);
+  });
+
+  it("fits in a single GSM segment for normal values", () => {
+    expect(content.body.length).toBeLessThanOrEqual(160);
+    expect(content.segments).toBe(1);
   });
 });
 

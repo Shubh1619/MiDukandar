@@ -7,7 +7,7 @@ import { parse, paginationSchema } from "../lib/validate.js";
 import { authenticate, requireStore, requirePermission, getAuth, type AuthenticatedRequest } from "../middlewares/auth.js";
 import { createLedgerEntry } from "../services/ledger.service.js";
 import { insertPayment } from "../services/payment.service.js";
-import { notifyUdhaariCreated, type PendingSms } from "../services/sms.service.js";
+import { notifyUdhaariCreated, notifyUdhaariPayment, type PendingSms } from "../services/sms.service.js";
 import { dec, money } from "../lib/money.js";
 import { logger } from "../lib/logger.js";
 
@@ -562,15 +562,59 @@ export async function udhaariRoutes(app: FastifyInstance) {
 
       const newPaid = money(paid.plus(body.amount));
       const total = money(entry.amount ?? 0);
-      return { payment, newPaid, total, remaining: money(total.minus(newPaid)) };
+      return {
+        payment,
+        newPaid,
+        total,
+        remaining: money(total.minus(newPaid)),
+        customerId: entry.customer_id as string,
+      };
     });
 
     logger.info("udhaari: payment recorded", { storeId, entryId: id, amount: body.amount, by: userId });
+
+    const customer = await qOne<{ mobile: string | null }>(
+      `SELECT mobile FROM customers WHERE id = $1 AND store_id = $2`,
+      [result.customerId, storeId],
+    );
+    const paymentId = result.payment.id as string;
+    const smsInput = {
+      storeId,
+      customerId: result.customerId,
+      customerMobile: customer?.mobile ?? null,
+      amount: body.amount,
+      createdById: userId,
+      paymentId,
+    };
+
+    let pendingSms: PendingSms | null = null;
+    if (config.smsMode === "device") {
+      pendingSms = await notifyUdhaariPayment(smsInput).catch((err) => {
+        logger.error("sms: payment notify call failed", {
+          storeId,
+          entryId: id,
+          paymentId,
+          error: String(err),
+        });
+        return null;
+      });
+    } else {
+      void notifyUdhaariPayment(smsInput).catch((err) => {
+        logger.error("sms: payment notify call failed", {
+          storeId,
+          entryId: id,
+          paymentId,
+          error: String(err),
+        });
+      });
+    }
+
     return reply.status(201).send({
       payment: result.payment,
       paid: result.newPaid.toNumber(),
       remaining: result.remaining.toNumber(),
       status: entryStatus(result.newPaid.toNumber(), result.total.toNumber()),
+      ...(pendingSms ? { pendingSms } : {}),
     });
   });
 }

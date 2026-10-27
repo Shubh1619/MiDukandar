@@ -6,6 +6,8 @@ import { parse, paginationSchema } from "../lib/validate.js";
 import { authenticate, requireStore, requirePermission, getAuth, type AuthenticatedRequest } from "../middlewares/auth.js";
 import { getCustomerOutstanding, createLedgerEntry } from "../services/ledger.service.js";
 import { insertPayment } from "../services/payment.service.js";
+import { notifyUdhaariPayment, type PendingSms } from "../services/sms.service.js";
+import { config } from "../config.js";
 import { logger } from "../lib/logger.js";
 import { invalidateDashboardCache } from "../lib/dashboard-cache.js";
 
@@ -52,13 +54,50 @@ export async function paymentRoutes(app: FastifyInstance) {
           referenceId: payment.id as string,
           note: body.note || "Customer payment received",
         });
-        return balanceAfter;
+        return { balanceAfter, paymentId: payment.id as string };
       });
 
       logger.info("payment: received", { storeId, customerId: body.customerId, amount: body.amount });
       invalidateDashboardCache(storeId);
       const outstanding = await getCustomerOutstanding(qClient(), body.customerId);
-      return reply.status(201).send({ ok: true, balanceAfter: out, outstanding });
+
+      const smsInput = {
+        storeId,
+        customerId: body.customerId,
+        customerMobile: (customer.mobile as string | null) ?? null,
+        amount: body.amount,
+        createdById: getAuth(request).id,
+        paymentId: out.paymentId,
+      };
+
+      // Same contract as udhaari creation: device mode hands the ready-to-send
+      // text back to the phone, every other mode stays fire-and-forget.
+      let pendingSms: PendingSms | null = null;
+      if (config.smsMode === "device") {
+        pendingSms = await notifyUdhaariPayment(smsInput).catch((err) => {
+          logger.error("sms: payment notify call failed", {
+            storeId,
+            paymentId: out.paymentId,
+            error: String(err),
+          });
+          return null;
+        });
+      } else {
+        void notifyUdhaariPayment(smsInput).catch((err) => {
+          logger.error("sms: payment notify call failed", {
+            storeId,
+            paymentId: out.paymentId,
+            error: String(err),
+          });
+        });
+      }
+
+      return reply.status(201).send({
+        ok: true,
+        balanceAfter: out.balanceAfter,
+        outstanding,
+        ...(pendingSms ? { pendingSms } : {}),
+      });
     },
   );
 

@@ -5,19 +5,20 @@ import { logger, maskPhone } from "../lib/logger.js";
 import { normalizeIndianMobile } from "../lib/phone.js";
 import { getPlatformSettings } from "../lib/platform-settings.js";
 import { sendSms } from "../lib/sms-provider.js";
-import { renderUdhaariCreatedSms, UDHAARI_TEMPLATE_KEY } from "../lib/sms-template.js";
+import { renderUdhaariCreatedSms, renderUdhaariPaymentSms, UDHAARI_PAYMENT_TEMPLATE_KEY, UDHAARI_TEMPLATE_KEY, type UdhaariSmsContent } from "../lib/sms-template.js";
 
 /**
  * Udhaari notification SMS.
  *
- * The caller (POST /api/udhaari) invokes `notifyUdhaariCreated` after the
- * udhaari transaction has committed and does not await it, so a slow or down
- * gateway can never delay — let alone fail — the credit entry itself.
+ * `notifyUdhaariCreated` (POST /api/udhaari) and `notifyUdhaariPayment`
+ * (POST /api/payments/receive, POST /api/udhaari/:id/pay) are called after the
+ * money transaction has committed and are not awaited by the caller, so a slow
+ * or down gateway can never delay — let alone fail — the ledger entry itself.
  *
  * Flow:
  *   1. Load the store/customer settings and decide whether to send.
- *   2. Insert an audit row (one per udhaari entry, enforced by a unique
- *      index), so retries/duplicate calls cannot text the customer twice.
+ *   2. Insert an audit row (one per reference, enforced by a unique index), so
+ *      retries/duplicate calls cannot text the customer twice.
  *   3. Reserve one unit of the store's daily free allowance with a single
  *      conditional upsert (atomic under concurrency).
  *   4. Send; on a transient failure schedule a retry, on a permanent failure
@@ -84,10 +85,23 @@ export interface UdhaariSmsInput {
   storeId: string;
   customerId: string;
   customerMobile: string | null;
-  entryId: string;
-  /** Amount of the entry that was just created. */
+  /** Amount added to (or paid against) the udhaari. */
   amount: number;
   createdById: string | null;
+}
+
+type SmsReferenceType = "UDHAARI_ENTRY" | "UDHAARI_PAYMENT";
+
+interface QueueSmsInput extends UdhaariSmsInput {
+  referenceType: SmsReferenceType;
+  referenceId: string;
+  templateKey: string;
+  render: (context: {
+    customerName: string;
+    shopName: string;
+    amount: number;
+    outstanding: number;
+  }) => UdhaariSmsContent;
 }
 
 /**
@@ -149,10 +163,38 @@ async function reserveQuota(storeId: string, day: string, limit?: number): Promi
 }
 
 /**
- * Creates and sends the SMS for a freshly committed udhaari entry.
+ * Queues the SMS for a freshly committed udhaari entry.
  * Never throws: failures are logged and recorded on the audit row.
  */
-export async function notifyUdhaariCreated(input: UdhaariSmsInput): Promise<PendingSms | null> {
+export async function notifyUdhaariCreated(
+  input: UdhaariSmsInput & { entryId: string },
+): Promise<PendingSms | null> {
+  return queueUdhaariSms({
+    ...input,
+    referenceType: "UDHAARI_ENTRY",
+    referenceId: input.entryId,
+    templateKey: UDHAARI_TEMPLATE_KEY,
+    render: renderUdhaariCreatedSms,
+  });
+}
+
+/**
+ * Queues the thank-you SMS for a payment received against a udhaari.
+ * `paymentId` is the `payments` row id and keeps the send idempotent.
+ */
+export async function notifyUdhaariPayment(
+  input: UdhaariSmsInput & { paymentId: string },
+): Promise<PendingSms | null> {
+  return queueUdhaariSms({
+    ...input,
+    referenceType: "UDHAARI_PAYMENT",
+    referenceId: input.paymentId,
+    templateKey: UDHAARI_PAYMENT_TEMPLATE_KEY,
+    render: renderUdhaariPaymentSms,
+  });
+}
+
+async function queueUdhaariSms(input: QueueSmsInput): Promise<PendingSms | null> {
   try {
     const store = await qOne<StoreRow>(
       `SELECT name, sms_udhaari_enabled, sms_daily_limit FROM stores WHERE id = $1`,
@@ -195,7 +237,7 @@ export async function notifyUdhaariCreated(input: UdhaariSmsInput): Promise<Pend
     }
 
     const outstanding = await outstandingFor(input.storeId, input.customerId);
-    const content = renderUdhaariCreatedSms({
+    const content = input.render({
       customerName: customer.name,
       shopName: store.name,
       amount: input.amount,
@@ -212,16 +254,17 @@ export async function notifyUdhaariCreated(input: UdhaariSmsInput): Promise<Pend
          (store_id, customer_id, reference_type, reference_id, to_phone,
           template_key, template_body, variables, body, status, error_code,
           quota_day, created_by_id)
-       VALUES ($1, $2, 'UDHAARI_ENTRY', $3, $4, $5, $6, $7::jsonb, $8, $9, $10, $11, $12)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9, $10, $11, $12, $13)
        ON CONFLICT (store_id, reference_type, reference_id)
          WHERE reference_id IS NOT NULL DO NOTHING
        RETURNING id`,
       [
         input.storeId,
         input.customerId,
-        input.entryId,
+        input.referenceType,
+        input.referenceId,
         auditPhone,
-        UDHAARI_TEMPLATE_KEY,
+        input.templateKey,
         content.templateBody,
         JSON.stringify(content.variables),
         content.body,
@@ -237,7 +280,8 @@ export async function notifyUdhaariCreated(input: UdhaariSmsInput): Promise<Pend
     if (skipStatus) {
       logger.info("sms: skipped", {
         storeId: input.storeId,
-        entryId: input.entryId,
+        referenceType: input.referenceType,
+        referenceId: input.referenceId,
         status: skipStatus,
         reason: skipReason,
         to: maskPhone(auditPhone),
@@ -260,7 +304,8 @@ export async function notifyUdhaariCreated(input: UdhaariSmsInput): Promise<Pend
       );
       logger.warn("sms: quota exceeded", {
         storeId: input.storeId,
-        entryId: input.entryId,
+        referenceType: input.referenceType,
+        referenceId: input.referenceId,
         limit,
         day,
         to: maskPhone(auditPhone),
@@ -280,7 +325,8 @@ export async function notifyUdhaariCreated(input: UdhaariSmsInput): Promise<Pend
       );
       logger.info("sms: queued for device delivery", {
         storeId: input.storeId,
-        entryId: input.entryId,
+        referenceType: input.referenceType,
+        referenceId: input.referenceId,
         messageId: row.id,
         to: maskPhone(auditPhone),
       });
@@ -293,7 +339,8 @@ export async function notifyUdhaariCreated(input: UdhaariSmsInput): Promise<Pend
   } catch (err) {
     logger.error("sms: notify failed", {
       storeId: input.storeId,
-      entryId: input.entryId,
+      referenceType: input.referenceType,
+      referenceId: input.referenceId,
       error: String(err),
     });
     return null;
