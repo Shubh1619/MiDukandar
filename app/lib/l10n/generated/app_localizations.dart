@@ -2032,6 +2032,126 @@ abstract class AppLocalizations {
   /// **'Signed in as {email}'**
   String signedInAs(String email);
 
+  /// No description provided for @smsSectionTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Udhaari SMS'**
+  String get smsSectionTitle;
+
+  /// No description provided for @smsSectionSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Text the customer when a udhaari entry is created, so they always know what they owe.'**
+  String get smsSectionSubtitle;
+
+  /// No description provided for @smsLogOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'Log only'**
+  String get smsLogOnly;
+
+  /// No description provided for @smsTodayFree.
+  ///
+  /// In en, this message translates to:
+  /// **'Today\'s free SMS'**
+  String get smsTodayFree;
+
+  /// No description provided for @smsUsageCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{used} / {limit} used · {remaining} left'**
+  String smsUsageCount(String used, String limit, String remaining);
+
+  /// No description provided for @smsResetNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Resets at midnight IST. Once the daily allowance is used, further udhaari entries are not texted.'**
+  String get smsResetNote;
+
+  /// No description provided for @smsRecentTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Recent messages'**
+  String get smsRecentTitle;
+
+  /// No description provided for @smsEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No SMS sent yet'**
+  String get smsEmpty;
+
+  /// No description provided for @smsManagerOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'Only the owner or a manager can change this setting.'**
+  String get smsManagerOnly;
+
+  /// No description provided for @smsLoadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not load SMS usage.'**
+  String get smsLoadFailed;
+
+  /// No description provided for @smsEnabledToast.
+  ///
+  /// In en, this message translates to:
+  /// **'Udhaari SMS enabled'**
+  String get smsEnabledToast;
+
+  /// No description provided for @smsDisabledToast.
+  ///
+  /// In en, this message translates to:
+  /// **'Udhaari SMS disabled'**
+  String get smsDisabledToast;
+
+  /// No description provided for @smsUpdateFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not update SMS settings: {error}'**
+  String smsUpdateFailed(String error);
+
+  /// No description provided for @smsStatusQueued.
+  ///
+  /// In en, this message translates to:
+  /// **'Queued'**
+  String get smsStatusQueued;
+
+  /// No description provided for @smsStatusSending.
+  ///
+  /// In en, this message translates to:
+  /// **'Sending'**
+  String get smsStatusSending;
+
+  /// No description provided for @smsStatusFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed'**
+  String get smsStatusFailed;
+
+  /// No description provided for @smsStatusSkippedQuota.
+  ///
+  /// In en, this message translates to:
+  /// **'Daily limit reached'**
+  String get smsStatusSkippedQuota;
+
+  /// No description provided for @smsStatusSkippedNoMobile.
+  ///
+  /// In en, this message translates to:
+  /// **'No mobile number'**
+  String get smsStatusSkippedNoMobile;
+
+  /// No description provided for @smsStatusSkippedOptOut.
+  ///
+  /// In en, this message translates to:
+  /// **'Opted out'**
+  String get smsStatusSkippedOptOut;
+
+  /// No description provided for @smsStatusSkippedDisabled.
+  ///
+  /// In en, this message translates to:
+  /// **'SMS turned off'**
+  String get smsStatusSkippedDisabled;
+
   /// No description provided for @state.
   ///
   /// In en, this message translates to:

@@ -1089,6 +1089,7 @@ case AppSection.purchases:
           apiService: widget.apiService,
           store: widget.store,
           onChanged: _refreshCurrentSection,
+          userRole: widget.user?.role,
         );
       case AppSection.users:
         return UsersScreen(

@@ -534,6 +534,36 @@ class ApiService {
     return Store.fromJson(store);
   }
 
+  // ---------------- SMS ----------------
+
+  Future<SmsUsage> getSmsUsage() async {
+    final data = await _request('/api/sms/usage');
+    return SmsUsage.fromJson(data);
+  }
+
+  Future<List<SmsMessage>> getSmsMessages({int limit = 5}) async {
+    final data = await _request('/api/sms/messages?limit=$limit');
+    final raw = data['messages'] is List ? data['messages'] as List : const [];
+    final out = <SmsMessage>[];
+    for (final item in raw) {
+      if (item is Map<String, dynamic>) {
+        out.add(SmsMessage.fromJson(item));
+      } else if (item is Map) {
+        out.add(SmsMessage.fromJson(Map<String, dynamic>.from(item)));
+      }
+    }
+    return out;
+  }
+
+  Future<bool> updateSmsSettings(bool enabled) async {
+    final data = await _request(
+      '/api/sms/settings',
+      method: 'PATCH',
+      body: {'enabled': enabled},
+    );
+    return data['enabled'] == true;
+  }
+
   Future<List<AppUser>> getUsers() async {
     final data = await _request('/api/users');
     final users = data['users'] is List ? data['users'] as List : const [];

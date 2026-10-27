@@ -326,6 +326,26 @@
       }
     }
   },
+  "@smsUsageCount": {
+    "placeholders": {
+      "used": {
+        "type": "String"
+      },
+      "limit": {
+        "type": "String"
+      },
+      "remaining": {
+        "type": "String"
+      }
+    }
+  },
+  "@smsUpdateFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
   "@suppAcrossOpenAccounts": {
     "placeholders": {
       "count": {
@@ -790,6 +810,26 @@
   "settingsTitle": "Settings",
   "signOut": "Sign out",
   "signedInAs": "Signed in as {email}",
+  "smsSectionTitle": "Udhaari SMS",
+  "smsSectionSubtitle": "Text the customer when a udhaari entry is created, so they always know what they owe.",
+  "smsLogOnly": "Log only",
+  "smsTodayFree": "Today's free SMS",
+  "smsUsageCount": "{used} / {limit} used · {remaining} left",
+  "smsResetNote": "Resets at midnight IST. Once the daily allowance is used, further udhaari entries are not texted.",
+  "smsRecentTitle": "Recent messages",
+  "smsEmpty": "No SMS sent yet",
+  "smsManagerOnly": "Only the owner or a manager can change this setting.",
+  "smsLoadFailed": "Could not load SMS usage.",
+  "smsEnabledToast": "Udhaari SMS enabled",
+  "smsDisabledToast": "Udhaari SMS disabled",
+  "smsUpdateFailed": "Could not update SMS settings: {error}",
+  "smsStatusQueued": "Queued",
+  "smsStatusSending": "Sending",
+  "smsStatusFailed": "Failed",
+  "smsStatusSkippedQuota": "Daily limit reached",
+  "smsStatusSkippedNoMobile": "No mobile number",
+  "smsStatusSkippedOptOut": "Opted out",
+  "smsStatusSkippedDisabled": "SMS turned off",
   "state": "State",
   "status": "Status",
   "statusActive": "Active",

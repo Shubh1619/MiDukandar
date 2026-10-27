@@ -90,4 +90,69 @@ void main() {
       expect(entry.balance, 60);
     });
   });
+
+  group('SmsUsage', () {
+    test('reads the /api/sms/usage shape', () {
+      final usage = SmsUsage.fromJson({
+        'date': '2026-10-27',
+        'used': 12,
+        'limit': 100,
+        'remaining': 88,
+        'enabled': true,
+        'mode': 'log',
+      });
+
+      expect(usage.used, 12);
+      expect(usage.limit, 100);
+      expect(usage.remaining, 88);
+      expect(usage.enabled, isTrue);
+      expect(usage.mode, 'log');
+      expect(usage.progress, closeTo(0.12, 0.0001));
+    });
+
+    test('progress never exceeds one when the allowance is overdrawn', () {
+      final usage = SmsUsage.fromJson({'used': 130, 'limit': 100});
+      expect(usage.progress, 1);
+    });
+
+    test('copyWith keeps the counter and updates only enabled', () {
+      final usage = SmsUsage.fromJson(
+        {'used': 3, 'limit': 100, 'remaining': 97, 'enabled': false},
+      );
+      final updated = usage.copyWith(enabled: true);
+
+      expect(updated.enabled, isTrue);
+      expect(updated.used, 3);
+      expect(updated.remaining, 97);
+    });
+  });
+
+  group('SmsMessage', () {
+    test('reads the masked delivery-log row', () {
+      final message = SmsMessage.fromJson({
+        'id': 'm1',
+        'customerName': 'Asha',
+        'toPhone': '98******10',
+        'status': 'SENT',
+        'errorCode': null,
+        'templateKey': 'udhaari_created',
+        'provider': 'msg91',
+        'attempts': 1,
+        'createdAt': '2026-10-27T05:30:00.000Z',
+      });
+
+      expect(message.customerName, 'Asha');
+      expect(message.toPhone, '98******10');
+      expect(message.status, 'SENT');
+      expect(message.attempts, 1);
+    });
+
+    test('missing optional fields fall back without crashing', () {
+      final message = SmsMessage.fromJson(const {});
+
+      expect(message.id, '');
+      expect(message.status, 'QUEUED');
+      expect(message.attempts, 0);
+    });
+  });
 }

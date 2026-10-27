@@ -1071,6 +1071,73 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get smsSectionTitle => 'Udhaari SMS';
+
+  @override
+  String get smsSectionSubtitle =>
+      'Text the customer when a udhaari entry is created, so they always know what they owe.';
+
+  @override
+  String get smsLogOnly => 'Log only';
+
+  @override
+  String get smsTodayFree => 'Today\'s free SMS';
+
+  @override
+  String smsUsageCount(String used, String limit, String remaining) {
+    return '$used / $limit used · $remaining left';
+  }
+
+  @override
+  String get smsResetNote =>
+      'Resets at midnight IST. Once the daily allowance is used, further udhaari entries are not texted.';
+
+  @override
+  String get smsRecentTitle => 'Recent messages';
+
+  @override
+  String get smsEmpty => 'No SMS sent yet';
+
+  @override
+  String get smsManagerOnly =>
+      'Only the owner or a manager can change this setting.';
+
+  @override
+  String get smsLoadFailed => 'Could not load SMS usage.';
+
+  @override
+  String get smsEnabledToast => 'Udhaari SMS enabled';
+
+  @override
+  String get smsDisabledToast => 'Udhaari SMS disabled';
+
+  @override
+  String smsUpdateFailed(String error) {
+    return 'Could not update SMS settings: $error';
+  }
+
+  @override
+  String get smsStatusQueued => 'Queued';
+
+  @override
+  String get smsStatusSending => 'Sending';
+
+  @override
+  String get smsStatusFailed => 'Failed';
+
+  @override
+  String get smsStatusSkippedQuota => 'Daily limit reached';
+
+  @override
+  String get smsStatusSkippedNoMobile => 'No mobile number';
+
+  @override
+  String get smsStatusSkippedOptOut => 'Opted out';
+
+  @override
+  String get smsStatusSkippedDisabled => 'SMS turned off';
+
+  @override
   String get state => 'State';
 
   @override

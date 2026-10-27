@@ -56,6 +56,7 @@ class _BusinessProfileScreenState extends State<BusinessProfileScreen> {
           body: SettingsScreen(
             apiService: widget.apiService,
             store: _store ?? widget.initialStore,
+            userRole: widget.user?.role,
             onChanged: () async {
               if (mounted) setState(() => _loading = true);
               await _load();

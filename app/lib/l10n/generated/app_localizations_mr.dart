@@ -1073,6 +1073,72 @@ class AppLocalizationsMr extends AppLocalizations {
   }
 
   @override
+  String get smsSectionTitle => 'उधारी एसएमएस';
+
+  @override
+  String get smsSectionSubtitle =>
+      'उधारी नोंद तयार झाल्यावर ग्राहकाला संदेश पाठवा, म्हणजे त्यांना किती द्यायचे आहे हे कळेल.';
+
+  @override
+  String get smsLogOnly => 'फक्त लॉग';
+
+  @override
+  String get smsTodayFree => 'आजचे मोफत एसएमएस';
+
+  @override
+  String smsUsageCount(String used, String limit, String remaining) {
+    return '$used / $limit वापरले · $remaining शिल्लक';
+  }
+
+  @override
+  String get smsResetNote =>
+      'मध्यरात्री IST ला रीसेट होते. दैनिक मर्यादा संपल्यानंतर उधारी नोंदींसाठी संदेश पाठवले जात नाहीत.';
+
+  @override
+  String get smsRecentTitle => 'अलीकडील संदेश';
+
+  @override
+  String get smsEmpty => 'अजून कोणताही एसएमएस पाठवलेला नाही';
+
+  @override
+  String get smsManagerOnly => 'फक्त मालक किंवा मॅनेजर हे सेटिंग बदलू शकतात.';
+
+  @override
+  String get smsLoadFailed => 'एसएमएस वापर लोड करता आला नाही.';
+
+  @override
+  String get smsEnabledToast => 'उधारी एसएमएस सुरू केले';
+
+  @override
+  String get smsDisabledToast => 'उधारी एसएमएस बंद केले';
+
+  @override
+  String smsUpdateFailed(String error) {
+    return 'एसएमएस सेटिंग्ज अद्ययावत करता आल्या नाहीत: $error';
+  }
+
+  @override
+  String get smsStatusQueued => 'रांगेत';
+
+  @override
+  String get smsStatusSending => 'पाठवत आहे';
+
+  @override
+  String get smsStatusFailed => 'अयशस्वी';
+
+  @override
+  String get smsStatusSkippedQuota => 'दैनिक मर्यादा पूर्ण';
+
+  @override
+  String get smsStatusSkippedNoMobile => 'मोबाइल क्रमांक नाही';
+
+  @override
+  String get smsStatusSkippedOptOut => 'नकार दिला';
+
+  @override
+  String get smsStatusSkippedDisabled => 'एसएमएस बंद आहे';
+
+  @override
   String get state => 'राज्य';
 
   @override

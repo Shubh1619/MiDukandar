@@ -1252,3 +1252,88 @@ class AppUser {
     );
   }
 }
+
+/// Per-store daily SMS allowance for the udhaari customer notification.
+class SmsUsage {
+  const SmsUsage({
+    required this.date,
+    required this.used,
+    required this.limit,
+    required this.remaining,
+    required this.enabled,
+    required this.mode,
+  });
+
+  final String date;
+  final int used;
+  final int limit;
+  final int remaining;
+  final bool enabled;
+  final String mode;
+
+  double get progress {
+    if (limit <= 0) return 1;
+    return (used / limit).clamp(0, 1).toDouble();
+  }
+
+  SmsUsage copyWith({bool? enabled}) {
+    return SmsUsage(
+      date: date,
+      used: used,
+      limit: limit,
+      remaining: remaining,
+      enabled: enabled ?? this.enabled,
+      mode: mode,
+    );
+  }
+
+  factory SmsUsage.fromJson(Map<String, dynamic> json) {
+    return SmsUsage(
+      date: _firstValue(json, const ['date']) ?? '',
+      used: _firstNumber(json, const ['used']).toInt(),
+      limit: _firstNumber(json, const ['limit']).toInt(),
+      remaining: _firstNumber(json, const ['remaining']).toInt(),
+      enabled: _firstBool(json, const ['enabled']),
+      mode: _firstValue(json, const ['mode']) ?? 'log',
+    );
+  }
+}
+
+/// One row of the SMS delivery log. The backend masks the phone number.
+class SmsMessage {
+  const SmsMessage({
+    required this.id,
+    required this.toPhone,
+    required this.status,
+    required this.templateKey,
+    required this.attempts,
+    required this.createdAt,
+    this.customerName,
+    this.errorCode,
+    this.provider,
+  });
+
+  final String id;
+  final String? customerName;
+  final String toPhone;
+  final String status;
+  final String? errorCode;
+  final String templateKey;
+  final String? provider;
+  final int attempts;
+  final String? createdAt;
+
+  factory SmsMessage.fromJson(Map<String, dynamic> json) {
+    return SmsMessage(
+      id: _firstValue(json, const ['id']) ?? '',
+      customerName: _firstValue(json, const ['customerName', 'customer_name']),
+      toPhone: _firstValue(json, const ['toPhone', 'to_phone']) ?? '',
+      status: _firstValue(json, const ['status']) ?? 'QUEUED',
+      errorCode: _firstValue(json, const ['errorCode', 'error_code']),
+      templateKey: _firstValue(json, const ['templateKey', 'template_key']) ?? '',
+      provider: _firstValue(json, const ['provider']),
+      attempts: _firstNumber(json, const ['attempts']).toInt(),
+      createdAt: _firstValue(json, const ['createdAt', 'created_at']),
+    );
+  }
+}

@@ -63,3 +63,31 @@ String localizedStatus(BuildContext context, String raw) {
       return raw;
   }
 }
+
+/// Translates the SMS delivery-log statuses. Kept separate from
+/// [localizedStatus] because several SMS states share the "skipped" prefix
+/// but mean very different things to the shop owner.
+String localizedSmsStatus(BuildContext context, String raw) {
+  final l = AppLocalizations.of(context)!;
+  switch (raw.trim().toLowerCase().replaceAll('_', ' ').replaceAll('-', ' ')) {
+    case 'queued':
+      return l.smsStatusQueued;
+    case 'sending':
+      return l.smsStatusSending;
+    case 'sent':
+      return l.statusSent;
+    case 'failed':
+      return l.smsStatusFailed;
+    case 'skipped quota':
+    case 'skipped daily limit':
+      return l.smsStatusSkippedQuota;
+    case 'skipped no mobile':
+      return l.smsStatusSkippedNoMobile;
+    case 'skipped opt out':
+      return l.smsStatusSkippedOptOut;
+    case 'skipped disabled':
+      return l.smsStatusSkippedDisabled;
+    default:
+      return raw;
+  }
+}
