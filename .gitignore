@@ -8,8 +8,23 @@ backend/.env.local
 
 # === Node / Build artifacts (never track) ===
 /node_modules/
+node_modules/
 /dist/
+dist/
 /build/
+build/
+/.next/
+.next/
+*.tsbuildinfo
+
+# === Dart / Flutter artifacts ===
+.dart_tool/
+.flutter-plugins-dependencies
+app/build/
+
+# === Python ===
+__pycache__/
+*.pyc
 
 # === IDE / runtime files ===
 /.idea/
@@ -24,9 +39,7 @@ yarn.lock
 pnpm-lockfile
 
 # === Next.js / Nuxt / build outputs ===
-/.next/
 /nuxt/
-/dist/
 
 # === Environment and secrets (override root .env above)
 backend/.env
