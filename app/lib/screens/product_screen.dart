@@ -736,6 +736,7 @@ class _ProductScreenState extends State<ProductScreen> {
                     subtitle: l.prodEmptySubtitle,
                   )
                 : ListView.separated(
+                    physics: const AlwaysScrollableScrollPhysics(),
                     itemCount: filtered.length,
                     separatorBuilder: (_, _) => const SizedBox(height: 10),
                     itemBuilder: (context, index) {
@@ -760,7 +761,12 @@ class _ProductScreenState extends State<ProductScreen> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text(product.name, style: const TextStyle(fontWeight: FontWeight.w700, color: MdColors.foreground)),
+                                  Text(
+                                    product.name,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(fontWeight: FontWeight.w700, color: MdColors.foreground),
+                                  ),
                                   const SizedBox(height: 3),
                                   Text(
                                     hasSku

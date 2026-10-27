@@ -133,6 +133,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get billAll => 'All';
 
   @override
+  String get billFilter => 'Filter';
+
+  @override
   String get billCreatedFromMobileApp => 'Created from mobile app';
 
   @override
@@ -1625,9 +1628,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get syncOffline => 'Offline';
-
-  @override
-  String get appVersion => 'v3.4.2';
 
   @override
   String get appTagline => 'मी दुकानदार - स्मार्ट व्यवसाय व्यवस्थापन';

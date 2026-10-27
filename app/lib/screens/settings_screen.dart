@@ -9,6 +9,7 @@ import '../models/app_models.dart';
 import '../services/api_service.dart';
 import '../theme/md_design.dart';
 import '../widgets/app_dialogs.dart';
+import '../widgets/md_inputs.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({
@@ -340,16 +341,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
             _SectionTitle(l.settingsLanguageSection, Icons.translate),
             const SizedBox(height: 12),
             MdCard(
-              child: DropdownButtonFormField<String>(
-                initialValue: _language,
-                decoration:
-                    InputDecoration(labelText: l.settingsAppLanguage),
-                items: _languageLabels.entries
-                    .map((e) =>
-                        DropdownMenuItem(value: e.key, child: Text(e.value)))
+              child: MdPickerField<String>(
+                label: l.settingsAppLanguage,
+                selected: _language,
+                prefixIcon: Icons.language,
+                pickerTitle: l.settingsAppLanguage,
+                options: _languageLabels.entries
+                    .map((e) => MdPickerOption(value: e.key, label: e.value))
                     .toList(),
-                onChanged: (v) {
-                  final code = v ?? 'en';
+                onChanged: (code) {
                   setState(() => _language = code);
                   // Switch the whole app instantly (MaterialApp rebuilds via
                   // LocaleController) and persist for the next launch.

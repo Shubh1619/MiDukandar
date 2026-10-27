@@ -152,13 +152,18 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
                   label: l.amount,
                 ),
                 const SizedBox(height: 12),
-                DropdownButtonFormField<String>(
-                  initialValue: mode,
-                  decoration: InputDecoration(labelText: l.billMode),
-                  items: const ['CASH', 'UPI', 'CARD']
-                      .map((m) => DropdownMenuItem(value: m, child: Text(m == 'CASH' ? l.billModeCash : m == 'UPI' ? l.billModeUpi : l.billModeCard)))
+                MdPickerField<String>(
+                  label: l.billMode,
+                  selected: mode,
+                  prefixIcon: Icons.payments_outlined,
+                  pickerTitle: l.billMode,
+                  options: const ['CASH', 'UPI', 'CARD']
+                      .map((m) => MdPickerOption(
+                            value: m,
+                            label: m == 'CASH' ? l.billModeCash : m == 'UPI' ? l.billModeUpi : l.billModeCard,
+                          ))
                       .toList(),
-                  onChanged: (v) => setDialogState(() => mode = v ?? 'CASH'),
+                  onChanged: (v) => setDialogState(() => mode = v),
                 ),
                 const SizedBox(height: 20),
                 Row(
@@ -211,7 +216,7 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
         children: [
           Row(
             children: [
-              Expanded(child: Text(l.sectionPurchases, style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold))),
+              Expanded(child: Text(l.sectionPurchases, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold))),
               if (widget.onCreate != null)
                 FilledButton.icon(
                   onPressed: () => _showCreateDialog(context),
@@ -264,6 +269,7 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
                             ),
                           )
                         : ListView.separated(
+                            physics: const AlwaysScrollableScrollPhysics(),
                             itemCount: _purchases.length,
                             separatorBuilder: (_, _) => const SizedBox(height: 10),
                             itemBuilder: (context, index) {
@@ -298,9 +304,19 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Text(item.purchaseNumber, style: const TextStyle(fontWeight: FontWeight.w700)),
+                                    Text(
+                                      item.purchaseNumber,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(fontWeight: FontWeight.w700),
+                                    ),
                                     const SizedBox(height: 4),
-                                    Text(item.supplierName, style: TextStyle(color: Colors.grey.shade600)),
+                                    Text(
+                                      item.supplierName,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(color: Colors.grey.shade600),
+                                    ),
                                     const SizedBox(height: 2),
                                     if (item.createdAt.isNotEmpty)
                                       Text(

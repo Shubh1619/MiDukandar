@@ -82,7 +82,7 @@ class NavyDrawer extends StatelessWidget {
                 ],
               ),
             ),
-            _SyncFooter(syncText: l.syncOnline, version: l.appVersion),
+            _SyncFooter(syncText: l.syncOnline),
           ],
         ),
         ),
@@ -346,10 +346,9 @@ class _RolePill extends StatelessWidget {
 }
 
 class _SyncFooter extends StatelessWidget {
-  const _SyncFooter({required this.syncText, required this.version});
+  const _SyncFooter({required this.syncText});
 
   final String syncText;
-  final String version;
 
   @override
   Widget build(BuildContext context) {
@@ -362,28 +361,19 @@ class _SyncFooter extends StatelessWidget {
         ),
       ),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Row(
-            children: [
-              const Icon(Icons.wifi, size: 14, color: MdColors.green400),
-              const SizedBox(width: 6),
-              Text(
-                'Sync: $syncText',
-                style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: MdColors.green400,
-                ),
+          const Icon(Icons.wifi, size: 14, color: MdColors.green400),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              'Sync: $syncText',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: MdColors.green400,
               ),
-            ],
-          ),
-          Text(
-            version,
-            style: const TextStyle(
-              fontFamily: 'monospace',
-              fontSize: 10,
-              color: MdColors.navy500,
             ),
           ),
         ],

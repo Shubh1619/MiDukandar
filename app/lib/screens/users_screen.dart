@@ -84,16 +84,15 @@ class _UsersScreenState extends State<UsersScreen> {
                   allowEmpty: true,
                 ),
                 const SizedBox(height: 12),
-                DropdownButtonFormField<String>(
-                  initialValue: role,
-                  decoration: InputDecoration(labelText: l.userRole),
-                  items: ['MANAGER', 'CASHIER', 'STAFF']
-                      .map((r) => DropdownMenuItem(
-                            value: r,
-                            child: Text(_roleLabel(l, r)),
-                          ))
+                MdPickerField<String>(
+                  label: l.userRole,
+                  selected: role,
+                  prefixIcon: Icons.badge_outlined,
+                  pickerTitle: l.userRole,
+                  options: ['MANAGER', 'CASHIER', 'STAFF']
+                      .map((r) => MdPickerOption(value: r, label: _roleLabel(l, r)))
                       .toList(),
-                  onChanged: (v) => setDialogState(() => role = v ?? 'CASHIER'),
+                  onChanged: (v) => setDialogState(() => role = v),
                 ),
                 const SizedBox(height: 8),
                 Text(
@@ -252,13 +251,15 @@ class _UsersScreenState extends State<UsersScreen> {
               return Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  DropdownButtonFormField<String>(
-                    initialValue: role,
-                    decoration: InputDecoration(labelText: l.userRole),
-                    items: ['MANAGER', 'CASHIER', 'STAFF']
-                        .map((r) => DropdownMenuItem(value: r, child: Text(_roleLabel(l, r))))
+                  MdPickerField<String>(
+                    label: l.userRole,
+                    selected: role,
+                    prefixIcon: Icons.badge_outlined,
+                    pickerTitle: l.userRole,
+                    options: ['MANAGER', 'CASHIER', 'STAFF']
+                        .map((r) => MdPickerOption(value: r, label: _roleLabel(l, r)))
                         .toList(),
-                    onChanged: (v) => setDialogState(() => role = v ?? role),
+                    onChanged: (v) => setDialogState(() => role = v),
                   ),
                   const SizedBox(height: 20),
                   Row(
@@ -381,6 +382,7 @@ class _UsersScreenState extends State<UsersScreen> {
                     ),
                   )
                 : ListView.separated(
+                    physics: const AlwaysScrollableScrollPhysics(),
                     itemCount: _users.length,
                     separatorBuilder: (_, _) => const SizedBox(height: 10),
                     itemBuilder: (context, index) {
@@ -418,7 +420,14 @@ final isCurrentUser = widget.user != null && (u.id == widget.user!.id || u.email
                                   children: [
                                     Row(
                                       children: [
-                                        Text(u.name, style: const TextStyle(fontWeight: FontWeight.w700)),
+                                        Flexible(
+                                          child: Text(
+                                            u.name,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: const TextStyle(fontWeight: FontWeight.w700),
+                                          ),
+                                        ),
                                         if (isCurrentUser) ...[
                                           const SizedBox(width: 6),
                                           Container(

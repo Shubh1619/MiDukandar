@@ -206,10 +206,20 @@ class MdHeader extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(title, style: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: MdColors.navy900)),
+              Text(
+                title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: MdColors.navy900),
+              ),
               if (subtitle != null) ...[
                 const SizedBox(height: 4),
-                Text(subtitle!, style: const TextStyle(fontSize: 13, color: MdColors.mutedForeground)),
+                Text(
+                  subtitle!,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 13, color: MdColors.mutedForeground),
+                ),
               ],
             ],
           ),

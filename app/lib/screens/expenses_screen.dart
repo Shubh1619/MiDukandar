@@ -78,13 +78,15 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                   label: l.amount,
                 ),
                 const SizedBox(height: 12),
-                DropdownButtonFormField<String>(
-                  initialValue: paymentMode,
-                  decoration: InputDecoration(labelText: l.expnPaymentMode),
-                  items: const ['CASH', 'UPI', 'CARD', 'BANK']
-                      .map((m) => DropdownMenuItem(value: m, child: Text(_paymentModeLabel(l, m))))
+                MdPickerField<String>(
+                  label: l.expnPaymentMode,
+                  selected: paymentMode,
+                  prefixIcon: Icons.account_balance_wallet_outlined,
+                  pickerTitle: l.expnPaymentMode,
+                  options: const ['CASH', 'UPI', 'CARD', 'BANK']
+                      .map((m) => MdPickerOption(value: m, label: _paymentModeLabel(l, m)))
                       .toList(),
-                  onChanged: (v) => setDialogState(() => paymentMode = v ?? 'CASH'),
+                  onChanged: (v) => setDialogState(() => paymentMode = v),
                 ),
                 const SizedBox(height: 20),
                 Row(
@@ -168,13 +170,15 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                   label: l.amount,
                 ),
                 const SizedBox(height: 12),
-                DropdownButtonFormField<String>(
-                  initialValue: paymentMode,
-                  decoration: InputDecoration(labelText: l.expnPaymentMode),
-                  items: const ['CASH', 'UPI', 'CARD', 'BANK']
-                      .map((m) => DropdownMenuItem(value: m, child: Text(_paymentModeLabel(l, m))))
+                MdPickerField<String>(
+                  label: l.expnPaymentMode,
+                  selected: paymentMode,
+                  prefixIcon: Icons.account_balance_wallet_outlined,
+                  pickerTitle: l.expnPaymentMode,
+                  options: const ['CASH', 'UPI', 'CARD', 'BANK']
+                      .map((m) => MdPickerOption(value: m, label: _paymentModeLabel(l, m)))
                       .toList(),
-                  onChanged: (v) => setDialogState(() => paymentMode = v ?? 'CASH'),
+                  onChanged: (v) => setDialogState(() => paymentMode = v),
                 ),
                 const SizedBox(height: 20),
                 Row(
@@ -291,7 +295,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
         children: [
           Row(
             children: [
-              Expanded(child: Text(l.sectionExpenses, style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold))),
+              Expanded(child: Text(l.sectionExpenses, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold))),
               if (widget.onCreate != null)
                 FilledButton.icon(
                   onPressed: () => _showCreateDialog(context),
@@ -349,6 +353,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                     ),
                   )
                 : ListView.separated(
+                    physics: const AlwaysScrollableScrollPhysics(),
                     itemCount: _expenses.length,
                     separatorBuilder: (_, _) => const SizedBox(height: 10),
                     itemBuilder: (context, index) {

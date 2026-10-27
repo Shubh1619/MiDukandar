@@ -52,6 +52,18 @@ class MiDukandarApp extends StatelessWidget {
           locale: LocaleController.instance.locale,
           localizationsDelegates: AppLocalizations.localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
+          // Dense shop-dashboard screens have little room for wrapped words.
+          // Beyond ~1.3x the OS font scale, labels start breaking mid-word
+          // ("invoi / ce"), so cap how far the system scale may stretch text.
+          builder: (context, child) {
+            final media = MediaQuery.of(context);
+            return MediaQuery(
+              data: media.copyWith(
+                textScaler: media.textScaler.clamp(maxScaleFactor: 1.3),
+              ),
+              child: child ?? const SizedBox.shrink(),
+            );
+          },
           home: const AuthGate(),
         );
       },
@@ -428,6 +440,17 @@ class _AppShellState extends State<AppShell> {
   bool _inventoryLowOnly = false;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
+  /// Dashboard figures are loaded by [AuthGate] once at sign-in. The shell keeps
+  /// its own copy so it can re-fetch after every mutation; [widget.stats] is
+  /// still the seed value and wins whenever the parent pushes a fresh snapshot
+  /// (app resume, sign-in).
+  late DashboardStats _stats = widget.stats;
+
+  /// Bumped to rebuild the active section from scratch, which re-runs its
+  /// `initState` → `_load()` and therefore shows server data immediately after
+  /// a create/update/delete or when the user re-taps the current tab.
+  int _sectionEpoch = 0;
+
   bool get _isOwner => widget.user?.role == 'OWNER';
 
   String get _sectionKey => switch (_section) {
@@ -454,19 +477,35 @@ class _AppShellState extends State<AppShell> {
     _ => 3,
   };
 
+  @override
+  void didUpdateWidget(covariant AppShell oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.stats != widget.stats) {
+      _stats = widget.stats;
+    }
+  }
+
+  Future<void> _reloadStats() async {
+    try {
+      final stats = await widget.apiService.getDashboardSummary();
+      if (mounted) setState(() => _stats = stats);
+    } catch (_) {
+      // Keep the last good snapshot; the next refresh will retry.
+    }
+  }
+
   void _onBottomNavTap(int index) {
     if (index == 3) {
       _scaffoldKey.currentState?.openDrawer();
       return;
     }
-    setState(() {
-      _section = switch (index) {
-        0 => AppSection.invoices,
-        1 => AppSection.customers,
-        2 => AppSection.udhaari,
-        _ => AppSection.invoices,
-      };
-    });
+    final section = switch (index) {
+      0 => AppSection.invoices,
+      1 => AppSection.customers,
+      2 => AppSection.udhaari,
+      _ => AppSection.invoices,
+    };
+    _selectSection(section);
   }
 
   Future<bool> _onWillPop() async {
@@ -506,6 +545,7 @@ class _AppShellState extends State<AppShell> {
   Future<void> _handleCreateProduct(Map<String, dynamic> payload) async {
     try {
       await widget.apiService.createProduct(payload);
+      unawaited(_refreshCurrentSection());
     } catch (error) {
       if (!mounted) return;
       AppDialogs.showError(
@@ -521,6 +561,7 @@ class _AppShellState extends State<AppShell> {
   ) async {
     try {
       await widget.apiService.updateProduct(id, payload);
+      unawaited(_refreshCurrentSection());
     } catch (error) {
       if (!mounted) return;
       AppDialogs.showError(
@@ -533,6 +574,7 @@ class _AppShellState extends State<AppShell> {
   Future<void> _handleArchiveProduct(String id) async {
     try {
       await widget.apiService.archiveProduct(id);
+      unawaited(_refreshCurrentSection());
     } catch (error) {
       if (!mounted) return;
       AppDialogs.showError(
@@ -545,6 +587,7 @@ class _AppShellState extends State<AppShell> {
   Future<void> _handleAdjustStock(String id, num qty, String reason) async {
     try {
       await widget.apiService.adjustStock(id, qty: qty, reason: reason);
+      unawaited(_refreshCurrentSection());
     } catch (error) {
       if (!mounted) return;
       AppDialogs.showError(
@@ -565,6 +608,7 @@ class _AppShellState extends State<AppShell> {
   Future<void> _handleCreateCustomer(Map<String, dynamic> payload) async {
     try {
       await widget.apiService.createCustomer(payload);
+      unawaited(_refreshCurrentSection());
     } catch (error) {
       if (!mounted) return;
       AppDialogs.showError(
@@ -580,6 +624,7 @@ class _AppShellState extends State<AppShell> {
   ) async {
     try {
       await widget.apiService.updateCustomer(id, payload);
+      unawaited(_refreshCurrentSection());
     } catch (error) {
       if (!mounted) return;
       AppDialogs.showError(
@@ -592,6 +637,7 @@ class _AppShellState extends State<AppShell> {
   Future<void> _handleDeleteCustomer(String id) async {
     try {
       await widget.apiService.deleteCustomer(id);
+      unawaited(_refreshCurrentSection());
     } catch (error) {
       if (!mounted) return;
       AppDialogs.showError(
@@ -604,6 +650,7 @@ class _AppShellState extends State<AppShell> {
   Future<void> _handleCreateInvoice(Map<String, dynamic> payload) async {
     try {
       await widget.apiService.createSale(payload);
+      unawaited(_refreshCurrentSection());
     } catch (error) {
       if (!mounted) return;
       AppDialogs.showError(
@@ -619,6 +666,7 @@ class _AppShellState extends State<AppShell> {
         invoice.id,
         amount: invoice.dueAmount,
       );
+      unawaited(_refreshCurrentSection());
     } catch (error) {
       if (!mounted) return;
       AppDialogs.showError(
@@ -631,6 +679,7 @@ class _AppShellState extends State<AppShell> {
   Future<void> _handleCreatePurchase(Map<String, dynamic> payload) async {
     try {
       await widget.apiService.createPurchase(payload);
+      unawaited(_refreshCurrentSection());
     } catch (error) {
       if (!mounted) return;
       AppDialogs.showError(
@@ -643,6 +692,7 @@ class _AppShellState extends State<AppShell> {
   Future<void> _handleCreateExpense(Map<String, dynamic> payload) async {
     try {
       await widget.apiService.createExpense(payload);
+      unawaited(_refreshCurrentSection());
     } catch (error) {
       if (!mounted) return;
       AppDialogs.showError(
@@ -655,6 +705,7 @@ class _AppShellState extends State<AppShell> {
   Future<void> _handleCreateSupplier(Map<String, dynamic> payload) async {
     try {
       await widget.apiService.createSupplier(payload);
+      unawaited(_refreshCurrentSection());
     } catch (error) {
       if (!mounted) return;
       AppDialogs.showError(
@@ -706,6 +757,7 @@ class _AppShellState extends State<AppShell> {
   ) async {
     try {
       await widget.apiService.updateSupplier(id, payload);
+      unawaited(_refreshCurrentSection());
     } catch (error) {
       if (!mounted) return;
       AppDialogs.showError(
@@ -718,6 +770,7 @@ class _AppShellState extends State<AppShell> {
   Future<void> _handleDeleteSupplier(String id) async {
     try {
       await widget.apiService.deleteSupplier(id);
+      unawaited(_refreshCurrentSection());
     } catch (error) {
       if (!mounted) return;
       AppDialogs.showError(
@@ -733,6 +786,7 @@ class _AppShellState extends State<AppShell> {
   ) async {
     try {
       await widget.apiService.updateExpense(id, payload);
+      unawaited(_refreshCurrentSection());
     } catch (error) {
       if (!mounted) return;
       AppDialogs.showError(
@@ -745,6 +799,7 @@ class _AppShellState extends State<AppShell> {
   Future<void> _handleDeleteExpense(String id) async {
     try {
       await widget.apiService.deleteExpense(id);
+      unawaited(_refreshCurrentSection());
     } catch (error) {
       if (!mounted) return;
       AppDialogs.showError(
@@ -760,6 +815,7 @@ class _AppShellState extends State<AppShell> {
   ) async {
     try {
       await widget.apiService.reverseSale(invoice.id, reason: reason);
+      unawaited(_refreshCurrentSection());
     } catch (error) {
       if (!mounted) return;
       AppDialogs.showError(
@@ -772,6 +828,7 @@ class _AppShellState extends State<AppShell> {
   Future<void> _handleUpdateInvoice(InvoiceRecord invoice, Map<String, dynamic> payload) async {
     try {
       await widget.apiService.updateSale(invoice.id, payload);
+      unawaited(_refreshCurrentSection());
     } catch (error) {
       if (!mounted) return;
       AppDialogs.showError(
@@ -784,6 +841,7 @@ class _AppShellState extends State<AppShell> {
   Future<void> _handleUpdateUserStatus(String id, bool isActive) async {
     try {
       await widget.apiService.updateUserStatus(id, isActive: isActive);
+      unawaited(_refreshCurrentSection());
     } catch (error) {
       if (!mounted) return;
       AppDialogs.showError(
@@ -796,6 +854,7 @@ class _AppShellState extends State<AppShell> {
   Future<void> _handleUpdateUserRole(String id, String role) async {
     try {
       await widget.apiService.updateUserRole(id, role: role);
+      unawaited(_refreshCurrentSection());
     } catch (error) {
       if (!mounted) return;
       AppDialogs.showError(
@@ -818,6 +877,7 @@ class _AppShellState extends State<AppShell> {
         phone: phone,
         role: role,
       );
+      unawaited(_refreshCurrentSection());
       final link = data['inviteLink']?.toString();
       return (link == null || link.isEmpty) ? null : link;
     } catch (error) {
@@ -834,9 +894,13 @@ class _AppShellState extends State<AppShell> {
 
   void _selectSection(AppSection section, {bool lowOnly = false}) {
     setState(() {
+      // Selecting the tab you are already on is the mobile convention for
+      // "refresh this screen": give it a new epoch so it re-fetches.
+      if (_section == section) _sectionEpoch++;
       _section = section;
       _inventoryLowOnly = lowOnly;
     });
+    if (section == AppSection.dashboard) unawaited(_reloadStats());
   }
 
   void _onDrawerSelect(String key) {
@@ -930,6 +994,8 @@ class _AppShellState extends State<AppShell> {
             children: [
               Text(
                 widget.store?.name ?? l.myStore,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
@@ -939,6 +1005,8 @@ class _AppShellState extends State<AppShell> {
               if (user?.name != null)
                 Text(
                   user!.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     fontSize: 12,
                     color: MdColors.mutedForeground,
@@ -955,39 +1023,28 @@ class _AppShellState extends State<AppShell> {
             ),
           ],
         ),
-        bottomNavigationBar: BottomNavigationBar(
-          currentIndex: _bottomNavIndex,
+        bottomNavigationBar: _MdBottomBar(
+          selectedIndex: _bottomNavIndex,
           onTap: _onBottomNavTap,
-          type: BottomNavigationBarType.fixed,
-          selectedItemColor: MdColors.navy900,
-          unselectedItemColor: MdColors.mutedForeground,
-          selectedLabelStyle: const TextStyle(
-            fontWeight: FontWeight.w600,
-            fontSize: 12,
-          ),
-          unselectedLabelStyle: const TextStyle(
-            fontWeight: FontWeight.w500,
-            fontSize: 12,
-          ),
           items: [
-            BottomNavigationBarItem(
-              icon: const Icon(Icons.receipt_long_outlined),
-              activeIcon: const Icon(Icons.receipt_long),
+            _MdBottomBarItem(
+              icon: Icons.receipt_long_outlined,
+              activeIcon: Icons.receipt_long,
               label: l.billInvoices,
             ),
-            BottomNavigationBarItem(
-              icon: const Icon(Icons.people_alt_outlined),
-              activeIcon: const Icon(Icons.people_alt),
+            _MdBottomBarItem(
+              icon: Icons.people_alt_outlined,
+              activeIcon: Icons.people_alt,
               label: l.navCustomers,
             ),
-            BottomNavigationBarItem(
-              icon: const Icon(Icons.payments_outlined),
-              activeIcon: const Icon(Icons.payments),
+            _MdBottomBarItem(
+              icon: Icons.payments_outlined,
+              activeIcon: Icons.payments,
               label: l.tabUdhari,
             ),
-            BottomNavigationBarItem(
-              icon: const Icon(Icons.more_horiz),
-              activeIcon: const Icon(Icons.more_horiz),
+            _MdBottomBarItem(
+              icon: Icons.more_horiz,
+              activeIcon: Icons.more_horiz,
               label: l.moreTitle,
             ),
           ],
@@ -1001,7 +1058,16 @@ class _AppShellState extends State<AppShell> {
             width: MediaQuery.sizeOf(context).width * 0.8,
           ),
         ),
-        body: _buildSection(_section),
+        // One pull-to-refresh for every section: the indicator listens to the
+        // vertical scrollable each screen already owns, and the rebuild gives
+        // that screen a fresh epoch so it re-fetches from the server.
+        body: RefreshIndicator(
+          onRefresh: _handlePullRefresh,
+          child: KeyedSubtree(
+            key: ValueKey('${_sectionKey}_$_sectionEpoch'),
+            child: _buildSection(_section),
+          ),
+        ),
       ),
     );
   }
@@ -1011,7 +1077,7 @@ class _AppShellState extends State<AppShell> {
     switch (section) {
       case AppSection.dashboard:
         return DashboardScreen(
-          stats: widget.stats,
+          stats: _stats,
           storeName: widget.store?.name ?? l.myStore,
           onNavigate: _selectSection,
           onLowStockTap: () =>
@@ -1084,7 +1150,7 @@ case AppSection.purchases:
       case AppSection.reports:
         return ReportScreen(
           apiService: widget.apiService,
-          stats: widget.stats,
+          stats: _stats,
         );
       case AppSection.settings:
         return SettingsScreen(
@@ -1105,8 +1171,20 @@ case AppSection.purchases:
   }
 
   Future<void> _refreshCurrentSection() async {
-    // No-op: each screen manages its own refresh via its own state.
-    // This is kept for API compatibility with screens that expect a callback.
+    if (!mounted) return;
+    // Rebuild after the current frame so the caller can finish closing its
+    // sheet/dialog and show its success message before the screen is recycled.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) setState(() => _sectionEpoch++);
+    });
+    unawaited(_reloadStats());
+  }
+
+  /// Pull-to-refresh: fetch the dashboard numbers, then recycle the active
+  /// section so it re-reads its own list from the server.
+  Future<void> _handlePullRefresh() async {
+    await _reloadStats();
+    if (mounted) setState(() => _sectionEpoch++);
   }
 
   Future<void> _handleCreateSupplierInvoice(String supplierId, Map<String, dynamic> payload) async {
@@ -1122,5 +1200,103 @@ case AppSection.purchases:
       if (!mounted) return;
       AppDialogs.showError(context, 'Failed to create supplier invoice: ${error.toString()}');
     }
+  }
+}
+
+/// Items for the app's bottom bar. Kept as plain data so the bar itself can
+/// guarantee single-line, ellipsized labels (Material's BottomNavigationBar
+/// wraps and can split a word down the middle on narrow screens).
+class _MdBottomBarItem {
+  const _MdBottomBarItem({
+    required this.icon,
+    required this.activeIcon,
+    required this.label,
+  });
+
+  final IconData icon;
+  final IconData activeIcon;
+  final String label;
+}
+
+class _MdBottomBar extends StatelessWidget {
+  const _MdBottomBar({
+    required this.selectedIndex,
+    required this.onTap,
+    required this.items,
+  });
+
+  final int selectedIndex;
+  final ValueChanged<int> onTap;
+  final List<_MdBottomBarItem> items;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: MdColors.surface,
+      child: SafeArea(
+        top: false,
+        child: Container(
+          decoration: const BoxDecoration(
+            border: Border(top: BorderSide(color: MdColors.border)),
+          ),
+          padding: const EdgeInsets.symmetric(vertical: 6),
+          child: Row(
+            children: [
+              for (var i = 0; i < items.length; i++)
+                Expanded(
+                  child: _MdBottomBarButton(
+                    item: items[i],
+                    selected: i == selectedIndex,
+                    onTap: () => onTap(i),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _MdBottomBarButton extends StatelessWidget {
+  const _MdBottomBarButton({
+    required this.item,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final _MdBottomBarItem item;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = selected ? MdColors.navy900 : MdColors.mutedForeground;
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(selected ? item.activeIcon : item.icon, size: 22, color: color),
+            const SizedBox(height: 3),
+            Text(
+              item.label,
+              maxLines: 1,
+              softWrap: false,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 11,
+                height: 1.15,
+                fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                color: color,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

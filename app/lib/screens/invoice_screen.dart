@@ -664,7 +664,7 @@ class _InvoiceScreenState extends State<InvoiceScreen> {
         children: [
           Row(
             children: [
-              Expanded(child: Text(l.billInvoices, style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold))),
+              Expanded(child: Text(l.billInvoices, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold))),
               OutlinedButton.icon(
                 onPressed: _showHeldBills,
                 icon: const Icon(Icons.pause_circle_outline),
@@ -697,14 +697,20 @@ class _InvoiceScreenState extends State<InvoiceScreen> {
                 ),
               ),
               const SizedBox(width: 12),
-              DropdownButton<String>(
-                value: _filter,
-                items: [
-                  DropdownMenuItem(value: 'all', child: Text(l.billAll)),
-                  DropdownMenuItem(value: 'paid', child: Text(l.statusPaid)),
-                  DropdownMenuItem(value: 'udhaar', child: Text(l.billUdhaar)),
-                ],
-                onChanged: (v) => setState(() => _filter = v ?? 'all'),
+              SizedBox(
+                width: 142,
+                child: MdPickerField<String>(
+                  label: l.billAll,
+                  selected: _filter,
+                  prefixIcon: Icons.filter_alt_outlined,
+                  pickerTitle: l.billFilter,
+                  options: [
+                    MdPickerOption(value: 'all', label: l.billAll),
+                    MdPickerOption(value: 'paid', label: l.statusPaid),
+                    MdPickerOption(value: 'udhaar', label: l.billUdhaar),
+                  ],
+                  onChanged: (v) => setState(() => _filter = v),
+                ),
               ),
             ],
           ),
@@ -730,6 +736,7 @@ class _InvoiceScreenState extends State<InvoiceScreen> {
                     ),
                   )
                 : ListView.separated(
+                    physics: const AlwaysScrollableScrollPhysics(),
                     itemCount: filtered.length,
                     separatorBuilder: (_, _) => const SizedBox(height: 12),
                     itemBuilder: (context, index) {
@@ -754,9 +761,19 @@ class _InvoiceScreenState extends State<InvoiceScreen> {
                                       child: Column(
                                         crossAxisAlignment: CrossAxisAlignment.start,
                                         children: [
-                                          Text(invoice.invoiceNumber, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+                                          Text(
+                                            invoice.invoiceNumber,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                                          ),
                                           const SizedBox(height: 4),
-                                          Text(invoice.customerName, style: TextStyle(color: Colors.grey.shade700, fontSize: 13)),
+                                          Text(
+                                            invoice.customerName,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: TextStyle(color: Colors.grey.shade700, fontSize: 13),
+                                          ),
                                         ],
                                       ),
                                     ),

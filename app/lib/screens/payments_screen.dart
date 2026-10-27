@@ -111,6 +111,7 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
                     ),
                   )
                 : ListView.separated(
+                    physics: const AlwaysScrollableScrollPhysics(),
                     itemCount: _payments.length,
                     separatorBuilder: (_, _) => const SizedBox(height: 10),
                     itemBuilder: (context, index) {
@@ -166,17 +167,29 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
                                     ),
                                     const SizedBox(height: 4),
                                     if (p.customerName != null && p.customerName!.isNotEmpty)
-                                      Text(p.customerName!, style: const TextStyle(fontWeight: FontWeight.w700))
+                                      Text(
+                                        p.customerName!,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(fontWeight: FontWeight.w700),
+                                      )
                                     else
                                       Text(
                                         p.referenceType != null
                                             ? l.paymReference(p.referenceType!, _shortPaymentId(p.referenceId))
                                             : l.paymPayment,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
                                         style: const TextStyle(fontWeight: FontWeight.w700),
                                       ),
                                     const SizedBox(height: 2),
                                     if (p.note != null && p.note!.isNotEmpty)
-                                      Text(p.note!, style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
+                                      Text(
+                                        p.note!,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+                                      ),
                                   ],
                                 ),
                               ),

@@ -65,6 +65,8 @@ class MdPickerField<T> extends StatelessWidget {
                     padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
                     child: Text(
                       pickerTitle ?? label,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                       style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: MdColors.navy900),
                     ),
                   ),
@@ -94,6 +96,8 @@ class MdPickerField<T> extends StatelessWidget {
                               : null,
                           title: Text(
                             o.label,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                             style: TextStyle(
                               fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
                               color: isSelected ? MdColors.navy900 : MdColors.foreground,

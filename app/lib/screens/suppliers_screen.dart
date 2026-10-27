@@ -529,6 +529,7 @@ class _SuppliersScreenState extends State<SuppliersScreen> {
                     subtitle: l.suppNoSuppliersSub,
                   )
                 : ListView.separated(
+                    physics: const AlwaysScrollableScrollPhysics(),
                     itemCount: _suppliers.length,
                     separatorBuilder: (_, _) => const SizedBox(height: 10),
                     itemBuilder: (context, index) {
@@ -557,7 +558,12 @@ class _SuppliersScreenState extends State<SuppliersScreen> {
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      Text(s.name, style: const TextStyle(fontWeight: FontWeight.w700)),
+                                      Text(
+                                        s.name,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(fontWeight: FontWeight.w700),
+                                      ),
                                       const SizedBox(height: 4),
                                       if (s.phone != null && s.phone!.isNotEmpty)
                                         Text(s.phone!, style: TextStyle(color: Colors.grey.shade600, fontSize: 13)),

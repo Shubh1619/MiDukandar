@@ -322,6 +322,12 @@ abstract class AppLocalizations {
   /// **'All'**
   String get billAll;
 
+  /// No description provided for @billFilter.
+  ///
+  /// In en, this message translates to:
+  /// **'Filter'**
+  String get billFilter;
+
   /// No description provided for @billCreatedFromMobileApp.
   ///
   /// In en, this message translates to:
@@ -3033,12 +3039,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Offline'**
   String get syncOffline;
-
-  /// No description provided for @appVersion.
-  ///
-  /// In en, this message translates to:
-  /// **'v3.4.2'**
-  String get appVersion;
 
   /// No description provided for @appTagline.
   ///

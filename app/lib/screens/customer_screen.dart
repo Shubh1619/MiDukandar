@@ -238,7 +238,12 @@ class _CustomerScreenState extends State<CustomerScreen> {
           Row(
             children: [
               Expanded(
-                child: Text(l.tabCustomers, style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
+                child: Text(
+                  l.tabCustomers,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+                ),
               ),
               if (widget.onCreate != null)
                 FilledButton.icon(
@@ -269,6 +274,7 @@ class _CustomerScreenState extends State<CustomerScreen> {
                         ),
                       )
                     : ListView.separated(
+                        physics: const AlwaysScrollableScrollPhysics(),
                         itemCount: _customers.length,
                         separatorBuilder: (_, _) => const SizedBox(height: 10),
                         itemBuilder: (context, index) {
@@ -287,9 +293,16 @@ class _CustomerScreenState extends State<CustomerScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(customer.name, style: const TextStyle(fontWeight: FontWeight.w700)),
+                            Text(
+                              customer.name,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(fontWeight: FontWeight.w700),
+                            ),
                             Text(
                               customer.mobile ?? l.custNoMobile,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                               style: TextStyle(color: Colors.grey.shade600),
                             ),
                           ],

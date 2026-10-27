@@ -125,7 +125,7 @@ class _UdhaariScreenState extends State<UdhaariScreen> {
           Row(
             children: [
               Expanded(
-                child: Text(l.udhrTitle, style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
+                child: Text(l.udhrTitle, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
               ),
               FilledButton.tonalIcon(
                 onPressed: () => _showAddUdhaari(context),
@@ -222,6 +222,7 @@ class _UdhaariScreenState extends State<UdhaariScreen> {
                     ),
                   )
                 : ListView.separated(
+                    physics: const AlwaysScrollableScrollPhysics(),
                     itemCount: _udhaari.length,
                     separatorBuilder: (_, _) => const SizedBox(height: 10),
                     itemBuilder: (context, index) {
@@ -253,7 +254,12 @@ class _UdhaariScreenState extends State<UdhaariScreen> {
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      Text(u.name, style: const TextStyle(fontWeight: FontWeight.w700)),
+                                      Text(
+                                        u.name,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(fontWeight: FontWeight.w700),
+                                      ),
                                       const SizedBox(height: 4),
                                       if (u.mobile != null && u.mobile!.isNotEmpty)
                                         Text(u.mobile!, style: TextStyle(color: Colors.grey.shade600, fontSize: 13)),
