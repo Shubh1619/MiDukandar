@@ -20,7 +20,7 @@ class UdhaariScreen extends StatefulWidget {
   });
 
   final ApiService apiService;
-  final Future<void> Function({
+  final Future<Map<String, dynamic>?> Function({
     required String customerId,
     required num amount,
     String mode,
@@ -745,13 +745,17 @@ class _UdhaariScreenState extends State<UdhaariScreen> {
     if (result == null || !context.mounted) return;
     if (widget.onPayment == null) return;
     AppDialogs.showLoading(context);
+    Map<String, dynamic>? response;
     try {
-      await widget.onPayment!(
+      response = await widget.onPayment!(
         customerId: result['customerId'] as String,
         amount: result['amount'] as num,
         mode: result['mode'] as String? ?? 'CASH',
         note: result['note'] as String?,
       );
+      // The outstanding balance changed, so refresh the list (and today's
+      // reminder counts) before showing the confirmation.
+      _load();
       if (context.mounted) {
         final l = AppLocalizations.of(context)!;
         AppDialogs.showSuccess(context, l.udhrPaymentReceived);
@@ -760,6 +764,18 @@ class _UdhaariScreenState extends State<UdhaariScreen> {
       if (context.mounted) {
         AppDialogs.hideLoading(context);
       }
+    }
+
+    // SMS_MODE=device: the API reserved a thank-you message and returned it
+    // instead of sending. Same handshake as a new entry: send from the phone's
+    // own SIM once the loading overlay is gone, then report the outcome.
+    if (response == null || !context.mounted) return;
+    final pending = response['pendingSms'];
+    if (pending is Map) {
+      await DeviceSmsDelivery(
+        apiService: widget.apiService,
+        chooseSim: (sims) => showSimPicker(context, sims),
+      ).handle(Map<String, dynamic>.from(pending));
     }
   }
 }

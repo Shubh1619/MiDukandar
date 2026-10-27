@@ -677,25 +677,26 @@ class _AppShellState extends State<AppShell> {
     }
   }
 
-  Future<void> _handleReceivePayment({
+  Future<Map<String, dynamic>?> _handleReceivePayment({
     required String customerId,
     required num amount,
     String mode = 'CASH',
     String? note,
   }) async {
     try {
-      await widget.apiService.receiveCustomerPayment(
+      return await widget.apiService.receiveCustomerPayment(
         customerId: customerId,
         amount: amount,
         mode: mode,
         note: note,
       );
     } catch (error) {
-      if (!mounted) return;
+      if (!mounted) return null;
       AppDialogs.showError(
         context,
         AppLocalizations.of(context)!.errRecordPayment(error.toString()),
       );
+      return null;
     }
   }
 

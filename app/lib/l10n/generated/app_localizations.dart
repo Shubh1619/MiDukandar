@@ -2041,7 +2041,7 @@ abstract class AppLocalizations {
   /// No description provided for @smsSectionSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Text the customer when a udhaari entry is created, so they always know what they owe.'**
+  /// **'Text the customer when a udhaari entry is created or a payment is received, so they always know what they owe.'**
   String get smsSectionSubtitle;
 
   /// No description provided for @smsLogOnly.
@@ -2071,13 +2071,13 @@ abstract class AppLocalizations {
   /// No description provided for @smsResetNote.
   ///
   /// In en, this message translates to:
-  /// **'Resets at midnight IST. Once the daily allowance is used, further udhaari entries are not texted.'**
+  /// **'Resets at midnight IST. Once the daily allowance is used, further udhaari messages are not sent.'**
   String get smsResetNote;
 
   /// No description provided for @smsDeviceNote.
   ///
   /// In en, this message translates to:
-  /// **'Sent from this phone\'s SIM. Entries created on another device or on the web are not texted.'**
+  /// **'Sent from this phone\'s SIM. Entries created or payments recorded on another device or on the web are not texted.'**
   String get smsDeviceNote;
 
   /// No description provided for @smsChooseSimTitle.
