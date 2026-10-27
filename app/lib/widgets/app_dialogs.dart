@@ -307,13 +307,16 @@ class AppDialogs {
     required String title,
     String? subtitle,
     required WidgetBuilder builder,
-  }) {
-    return showModalBottomSheet<T>(
-      context: context,
+  }) async {
+    final navigator = Navigator.of(context);
+    final route = ModalBottomSheetRoute<T>(
       isScrollControlled: true,
       useSafeArea: true,
       backgroundColor: Colors.transparent,
-      barrierColor: const Color(0x66091A33),
+      modalBarrierColor: const Color(0x66091A33),
+      barrierLabel: MaterialLocalizations.of(context).scrimLabel,
+      capturedThemes:
+          InheritedTheme.capture(from: context, to: navigator.context),
       builder: (sheetContext) {
         final bottomInset =
             MediaQuery.of(sheetContext).viewInsets.bottom +
@@ -388,6 +391,13 @@ class AppDialogs {
         );
       },
     );
+
+    final result = await navigator.push<T>(route);
+    // Callers dispose their TextEditingControllers as soon as this future
+    // completes. Wait for the exit animation to unmount the sheet first,
+    // otherwise those controllers are used after disposal mid-animation.
+    await route.completed;
+    return result;
   }
 
   /// Success feedback, auto-dismisses, positioned above the bottom nav bar.
