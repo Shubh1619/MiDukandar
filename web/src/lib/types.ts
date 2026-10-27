@@ -473,6 +473,7 @@ export interface PurchaseOrderItem {
   name?: string;
   quantity: number | string;
   rate: number | string;
+  mrp?: number | string | null;
   taxRate: number | string;
   lineTotal: number | string;
 }

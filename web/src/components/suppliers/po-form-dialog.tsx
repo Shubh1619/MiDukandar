@@ -39,11 +39,12 @@ interface LineDraft {
   product: Product | null;
   qty: string;
   rate: string;
+  mrp: string;
   taxRate: string;
 }
 
 function newLine(): LineDraft {
-  return { key: Math.random().toString(36).slice(2), product: null, qty: "1", rate: "", taxRate: "" };
+  return { key: Math.random().toString(36).slice(2), product: null, qty: "1", rate: "", mrp: "", taxRate: "" };
 }
 
 function lineTotal(l: LineDraft): number {
@@ -96,6 +97,7 @@ export function PurchaseOrderFormDialog({ open, onOpenChange, supplierId = "", s
           },
           qty: String(Number(it.quantity) || 1),
           rate: String(Number(it.rate) || ""),
+          mrp: it.mrp != null ? String(Number(it.mrp) || "") : "",
           taxRate: String(Number(it.taxRate) || ""),
         })),
       );
@@ -140,6 +142,7 @@ export function PurchaseOrderFormDialog({ open, onOpenChange, supplierId = "", s
           productId: l.product!.id,
           quantity: Number(l.qty),
           rate: Number(l.rate) || 0,
+          mrp: Number(l.mrp) || 0,
           taxRate: Number(l.taxRate) || 0,
         })),
       };
@@ -208,6 +211,7 @@ export function PurchaseOrderFormDialog({ open, onOpenChange, supplierId = "", s
                         updateLine(line.key, {
                           product: p,
                           rate: String(p.purchasePrice || ""),
+                          mrp: p.mrp != null ? String(p.mrp) : "",
                           taxRate: String(p.gstPercent ?? 0),
                         })
                       }
@@ -220,7 +224,7 @@ export function PurchaseOrderFormDialog({ open, onOpenChange, supplierId = "", s
 
                 {line.product && (
                   <>
-                    <div className="grid grid-cols-3 gap-2">
+                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                       <label className="space-y-1">
                         <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{t("qty")}</span>
                         <NumberInput value={line.qty} onChange={(v) => updateLine(line.key, { qty: v })} />
@@ -230,11 +234,22 @@ export function PurchaseOrderFormDialog({ open, onOpenChange, supplierId = "", s
                         <NumberInput value={line.rate} onChange={(v) => updateLine(line.key, { rate: v })} />
                       </label>
                       <label className="space-y-1">
+                        <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{t("mrp")}</span>
+                        <NumberInput value={line.mrp} onChange={(v) => updateLine(line.key, { mrp: v })} />
+                      </label>
+                      <label className="space-y-1">
                         <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{t("gstPercent")}</span>
                         <NumberInput max={100} value={line.taxRate} onChange={(v) => updateLine(line.key, { taxRate: v })} />
                       </label>
                     </div>
-                    <p className="text-right text-xs text-muted-foreground">{formatINR(lineTotal(line))}</p>
+                    <div className="flex justify-between text-xs text-muted-foreground">
+                      <span>
+                        {Number(line.mrp) > 0 && Number(line.rate) > 0
+                          ? `${t("mrp")}: ${formatINR(Number(line.mrp))} · ${t("rate")}: ${formatINR(Number(line.rate))}`
+                          : null}
+                      </span>
+                      <span className="font-semibold text-foreground">{formatINR(lineTotal(line))}</span>
+                    </div>
                   </>
                 )}
               </div>

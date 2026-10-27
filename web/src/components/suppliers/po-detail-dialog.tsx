@@ -154,6 +154,7 @@ export function PoDetailDialog({ poId, onOpenChange, onChanged }: Props) {
                       <TableHead>{t("items")}</TableHead>
                       <TableHead className="text-right">{t("qty")}</TableHead>
                       <TableHead className="text-right">{t("rate")}</TableHead>
+                      <TableHead className="text-right">{t("mrp")}</TableHead>
                       <TableHead className="text-right">{t("lineTotal")}</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -163,11 +164,14 @@ export function PoDetailDialog({ poId, onOpenChange, onChanged }: Props) {
                         <TableCell className="font-medium">{it.name ?? it.productId.slice(0, 8)}</TableCell>
                         <TableCell className="text-right tabular-nums">{formatQty(it.quantity)}</TableCell>
                         <TableCell className="text-right tabular-nums">{formatINR(it.rate)}</TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          {it.mrp != null && Number(it.mrp) > 0 ? formatINR(it.mrp) : "—"}
+                        </TableCell>
                         <TableCell className="text-right tabular-nums">{formatINR(it.lineTotal)}</TableCell>
                       </TableRow>
                     ))}
                     <TableRow>
-                      <TableCell className="font-semibold" colSpan={3}>{t("total")}</TableCell>
+                      <TableCell className="font-semibold" colSpan={4}>{t("total")}</TableCell>
                       <TableCell className="text-right font-semibold tabular-nums">{formatINR(po.totalAmount)}</TableCell>
                     </TableRow>
                   </TableBody>
