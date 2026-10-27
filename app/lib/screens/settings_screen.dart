@@ -380,6 +380,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         Padding(
                           padding: const EdgeInsets.only(top: 2, right: 4),
                           child: MdChip(label: l.smsLogOnly),
+                        )
+                      else if (_sms != null && _sms!.mode == 'device')
+                        Padding(
+                          padding: const EdgeInsets.only(top: 2, right: 4),
+                          child: MdChip(label: l.smsDeviceMode),
                         ),
                       Switch(
                         value: _sms?.enabled ?? false,
@@ -447,6 +452,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         color: MdColors.mutedForeground,
                       ),
                     ),
+                    if (_sms!.mode == 'device') ...[
+                      const SizedBox(height: 6),
+                      Text(
+                        l.smsDeviceNote,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: MdColors.mutedForeground,
+                        ),
+                      ),
+                    ],
                   ],
                   if (!_canManageSms) ...[
                     const SizedBox(height: 10),

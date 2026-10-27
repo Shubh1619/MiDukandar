@@ -54,9 +54,11 @@ services:
       BREVO_API_KEY: ${BREVO_API_KEY:-}
       BREVO_SENDER_EMAIL: ${BREVO_SENDER_EMAIL:-noreply@midukandar.com}
       BREVO_SENDER_NAME: ${BREVO_SENDER_NAME:-MiDukandar}
-      # SMS: `log` prints messages to the console; msg91/fast2sms send via the
-      # gateway. SMS_MODE defaults to `log` everywhere so an existing deploy
-      # keeps booting without DLT credentials.
+      # SMS: `device` hands the message to the mobile app, which sends it from
+      # the phone's own SIM and reports SENT/FAILED/HANDED_OFF. `log` prints
+      # messages to the console; msg91/fast2sms send via the gateway.
+      # SMS_MODE defaults to `log` everywhere so an existing deploy keeps
+      # booting without DLT credentials.
       SMS_MODE: ${SMS_MODE:-log}
       SMS_API_KEY: ${SMS_API_KEY:-}
       SMS_SENDER_ID: ${SMS_SENDER_ID:-}

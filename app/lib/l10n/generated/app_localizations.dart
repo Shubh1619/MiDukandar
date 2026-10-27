@@ -2050,6 +2050,12 @@ abstract class AppLocalizations {
   /// **'Log only'**
   String get smsLogOnly;
 
+  /// No description provided for @smsDeviceMode.
+  ///
+  /// In en, this message translates to:
+  /// **'Phone SIM'**
+  String get smsDeviceMode;
+
   /// No description provided for @smsTodayFree.
   ///
   /// In en, this message translates to:
@@ -2067,6 +2073,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Resets at midnight IST. Once the daily allowance is used, further udhaari entries are not texted.'**
   String get smsResetNote;
+
+  /// No description provided for @smsDeviceNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Sent from this phone\'s SIM. Entries created on another device or on the web are not texted.'**
+  String get smsDeviceNote;
 
   /// No description provided for @smsRecentTitle.
   ///
@@ -2127,6 +2139,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Failed'**
   String get smsStatusFailed;
+
+  /// No description provided for @smsStatusHandedOff.
+  ///
+  /// In en, this message translates to:
+  /// **'Sent from SMS app'**
+  String get smsStatusHandedOff;
 
   /// No description provided for @smsStatusSkippedQuota.
   ///

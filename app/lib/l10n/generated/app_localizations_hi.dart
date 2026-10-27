@@ -1082,6 +1082,9 @@ class AppLocalizationsHi extends AppLocalizations {
   String get smsLogOnly => 'केवल लॉग';
 
   @override
+  String get smsDeviceMode => 'फ़ोन सिम';
+
+  @override
   String get smsTodayFree => 'आज का मुफ़्त एसएमएस';
 
   @override
@@ -1092,6 +1095,10 @@ class AppLocalizationsHi extends AppLocalizations {
   @override
   String get smsResetNote =>
       'आधी रात IST पर रीसेट होता है। दैनिक सीमा खत्म होने के बाद उधारी प्रविष्टियों के लिए संदेश नहीं भेजे जाएंगे।';
+
+  @override
+  String get smsDeviceNote =>
+      'इस फ़ोन की सिम से भेजा जाता है। किसी दूसरे डिवाइस या वेब पर बनाई गई प्रविष्टियों के लिए संदेश नहीं जाता।';
 
   @override
   String get smsRecentTitle => 'हाल के संदेश';
@@ -1125,6 +1132,9 @@ class AppLocalizationsHi extends AppLocalizations {
 
   @override
   String get smsStatusFailed => 'विफल';
+
+  @override
+  String get smsStatusHandedOff => 'एसएमएस ऐप से भेजा';
 
   @override
   String get smsStatusSkippedQuota => 'दैनिक सीमा पूरी';

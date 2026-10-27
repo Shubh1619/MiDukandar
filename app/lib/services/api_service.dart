@@ -564,6 +564,16 @@ class ApiService {
     return data['enabled'] == true;
   }
 
+  /// Reports the outcome of a message the phone was asked to send in
+  /// `SMS_MODE=device`: `SENT`, `FAILED` or `HANDED_OFF`.
+  Future<void> reportSmsDelivery(String messageId, String status) async {
+    await _request(
+      '/api/sms/messages/$messageId/delivery',
+      method: 'POST',
+      body: {'status': status},
+    );
+  }
+
   Future<List<AppUser>> getUsers() async {
     final data = await _request('/api/users');
     final users = data['users'] is List ? data['users'] as List : const [];

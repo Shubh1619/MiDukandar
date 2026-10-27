@@ -5,6 +5,7 @@ import '../l10n/generated/app_localizations.dart';
 import '../l10n/status_labels.dart';
 import '../models/app_models.dart';
 import '../services/api_service.dart';
+import '../services/device_sms_delivery.dart';
 import '../theme/md_design.dart';
 import '../widgets/app_dialogs.dart';
 import '../widgets/md_inputs.dart';
@@ -24,7 +25,7 @@ class UdhaariScreen extends StatefulWidget {
     String mode,
     String? note,
   })? onPayment;
-  final Future<void> Function(Map<String, dynamic> payload)? onCreate;
+  final Future<Map<String, dynamic>?> Function(Map<String, dynamic> payload)? onCreate;
 
   @override
   State<UdhaariScreen> createState() => _UdhaariScreenState();
@@ -475,15 +476,25 @@ class _UdhaariScreenState extends State<UdhaariScreen> {
 
     if (result == null || !context.mounted) return;
     AppDialogs.showLoading(context);
+    Map<String, dynamic>? response;
     try {
-      if (widget.onCreate != null) {
-        await widget.onCreate!(result);
-      } else {
-        await widget.apiService.createUdhaari(result);
-      }
+      response = widget.onCreate != null
+          ? await widget.onCreate!(result)
+          : await widget.apiService.createUdhaari(result);
       _loadCounts();
     } finally {
       if (context.mounted) AppDialogs.hideLoading(context);
+    }
+
+    // SMS_MODE=device: the API does not send; it returns the reserved message
+    // and the phone sends it from its own SIM. Run this only after the loading
+    // overlay is gone, otherwise the permission/composer sheet would sit on
+    // top of it (or be popped by hideLoading).
+    if (response == null || !context.mounted) return;
+    final pending = response['pendingSms'];
+    if (pending is Map) {
+      await DeviceSmsDelivery(apiService: widget.apiService)
+          .handle(Map<String, dynamic>.from(pending));
     }
   }
 

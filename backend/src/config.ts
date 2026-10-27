@@ -14,8 +14,11 @@ export type MailMode = "log" | "brevo";
  *              not configured SMS keeps starting normally).
  * - `msg91`    MSG91 v5 SMS API (India, DLT-native).
  * - `fast2sms` Fast2SMS DLT route.
+ * - `device`   the API does not send at all: it reserves the allowance and
+ *              hands the ready-to-send message back to the mobile app, which
+ *              sends it from the phone's own SIM and reports the result.
  */
-export type SmsMode = "log" | "msg91" | "fast2sms";
+export type SmsMode = "log" | "msg91" | "fast2sms" | "device";
 
 export interface Config {
   nodeEnv: string;
@@ -261,8 +264,15 @@ const mailMode = mailModeRaw as MailMode;
 // deploy fail its boot check (or silently start spending credits) the moment
 // this feature ships to an environment that has no DLT registration yet.
 const smsModeRaw = env.SMS_MODE?.trim().toLowerCase() || "log";
-if (smsModeRaw !== "log" && smsModeRaw !== "msg91" && smsModeRaw !== "fast2sms") {
-  throw new Error(`SMS_MODE must be "log", "msg91" or "fast2sms" (got "${env.SMS_MODE}")`);
+if (
+  smsModeRaw !== "log" &&
+  smsModeRaw !== "msg91" &&
+  smsModeRaw !== "fast2sms" &&
+  smsModeRaw !== "device"
+) {
+  throw new Error(
+    `SMS_MODE must be "log", "msg91", "fast2sms" or "device" (got "${env.SMS_MODE}")`,
+  );
 }
 const smsMode = smsModeRaw as SmsMode;
 
@@ -392,10 +402,11 @@ function assertMailConfig(): void {
 /**
  * Fail fast when a real SMS gateway is selected but its credentials are
  * missing, instead of letting the first udhaari entry fail with an opaque
- * 401/400 from the provider. `SMS_MODE=log` needs no credentials.
+ * 401/400 from the provider. `SMS_MODE=log` and `SMS_MODE=device` need no
+ * credentials: neither one talks to an SMS gateway.
  */
 function assertSmsConfig(): void {
-  if (config.smsMode === "log") return;
+  if (config.smsMode === "log" || config.smsMode === "device") return;
 
   const missing = [
     ["SMS_API_KEY", config.smsApiKey],

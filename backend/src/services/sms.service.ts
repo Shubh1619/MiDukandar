@@ -31,12 +31,21 @@ const MAX_ATTEMPTS = 3;
 /** Retry delays (seconds) after attempt 1 and attempt 2. */
 const RETRY_DELAYS = [60, 300];
 const STALE_SENDING_MINUTES = 10;
+/**
+ * How long a device-mode row may wait for the phone to report back before the
+ * sweeper fails it and returns the reserved allowance. The app reports within
+ * seconds of saving; this only catches entries whose app was killed first.
+ */
+const DEVICE_REPORT_TIMEOUT_MINUTES = 30;
+/** Marks a row the API handed to the phone instead of sending itself. */
+const DEVICE_PROVIDER = "device";
 
 type SmsStatus =
   | "QUEUED"
   | "SENDING"
   | "SENT"
   | "FAILED"
+  | "HANDED_OFF"
   | "SKIPPED_QUOTA"
   | "SKIPPED_NO_MOBILE"
   | "SKIPPED_OPT_OUT"
@@ -63,6 +72,7 @@ interface SmsRow {
   attempts: number;
   quota_day: string | null;
   quota_reserved: boolean;
+  provider: string | null;
 }
 
 interface OutstandingRow {
@@ -78,6 +88,18 @@ export interface UdhaariSmsInput {
   /** Amount of the entry that was just created. */
   amount: number;
   createdById: string | null;
+}
+
+/**
+ * A message the API reserved and recorded, but did not send because
+ * `SMS_MODE=device`. The mobile app sends it from the phone's own SIM and then
+ * reports the outcome to `POST /api/sms/messages/:id/delivery`.
+ */
+export interface PendingSms {
+  id: string;
+  /** E.164 (`+91XXXXXXXXXX`). */
+  to: string;
+  body: string;
 }
 
 /** Customer's total outstanding across all udhaari entries, after this one. */
@@ -130,19 +152,19 @@ async function reserveQuota(storeId: string, day: string, limit?: number): Promi
  * Creates and sends the SMS for a freshly committed udhaari entry.
  * Never throws: failures are logged and recorded on the audit row.
  */
-export async function notifyUdhaariCreated(input: UdhaariSmsInput): Promise<void> {
+export async function notifyUdhaariCreated(input: UdhaariSmsInput): Promise<PendingSms | null> {
   try {
     const store = await qOne<StoreRow>(
       `SELECT name, sms_udhaari_enabled, sms_daily_limit FROM stores WHERE id = $1`,
       [input.storeId],
     );
-    if (!store) return;
+    if (!store) return null;
 
     const customer = await qOne<CustomerRow>(
       `SELECT name, sms_opt_out FROM customers WHERE id = $1 AND store_id = $2`,
       [input.customerId, input.storeId],
     );
-    if (!customer) return;
+    if (!customer) return null;
 
     const settings = await getPlatformSettings();
     const phone = normalizeIndianMobile(input.customerMobile);
@@ -210,7 +232,7 @@ export async function notifyUdhaariCreated(input: UdhaariSmsInput): Promise<void
       ],
     );
 
-    if (!row) return;
+    if (!row) return null;
 
     if (skipStatus) {
       logger.info("sms: skipped", {
@@ -220,7 +242,7 @@ export async function notifyUdhaariCreated(input: UdhaariSmsInput): Promise<void
         reason: skipReason,
         to: maskPhone(auditPhone),
       });
-      return;
+      return null;
     }
 
     // Reserve the allowance before sending. If the process dies between here
@@ -243,17 +265,38 @@ export async function notifyUdhaariCreated(input: UdhaariSmsInput): Promise<void
         day,
         to: maskPhone(auditPhone),
       });
-      return;
+      return null;
+    }
+
+    if (config.smsMode === DEVICE_PROVIDER) {
+      // Nothing is sent here: the phone owns the SIM. Claim the row for the
+      // device so the sweeper never tries to deliver it through a gateway, and
+      // hand the ready-to-send text back to the caller.
+      await q(
+        `UPDATE sms_messages
+            SET quota_reserved = TRUE, provider = $2, updated_at = now()
+          WHERE id = $1`,
+        [row.id, DEVICE_PROVIDER],
+      );
+      logger.info("sms: queued for device delivery", {
+        storeId: input.storeId,
+        entryId: input.entryId,
+        messageId: row.id,
+        to: maskPhone(auditPhone),
+      });
+      return { id: row.id, to: phone ?? auditPhone, body: content.body };
     }
 
     await q(`UPDATE sms_messages SET quota_reserved = TRUE, updated_at = now() WHERE id = $1`, [row.id]);
     await deliverSmsRow(row.id);
+    return null;
   } catch (err) {
     logger.error("sms: notify failed", {
       storeId: input.storeId,
       entryId: input.entryId,
       error: String(err),
     });
+    return null;
   }
 }
 
@@ -268,16 +311,87 @@ async function refundQuota(storeId: string, quotaDay: string | null): Promise<vo
   );
 }
 
+export type DeviceDeliveryStatus = "SENT" | "FAILED" | "HANDED_OFF";
+
+/**
+ * Records the outcome of a message the phone was asked to send.
+ *
+ * `SENT`       the SIM sent it silently.
+ * `HANDED_OFF` the app opened the SMS composer, so the user may still send it;
+ *              the reserved unit is kept because the message is not lost.
+ * `FAILED`     nothing left the phone; the allowance is refunded.
+ *
+ * Idempotent: a repeated report returns the stored terminal status and never
+ * refunds twice.
+ */
+export async function reportDeviceDelivery(input: {
+  storeId: string;
+  messageId: string;
+  status: DeviceDeliveryStatus;
+}): Promise<{ status: string } | null> {
+  const row = await qOne<{
+    id: string;
+    status: string;
+    quota_day: string | null;
+    quota_reserved: boolean;
+  }>(
+    `SELECT id, status, quota_day, quota_reserved
+       FROM sms_messages
+      WHERE id = $1 AND store_id = $2 AND provider = $3`,
+    [input.messageId, input.storeId, DEVICE_PROVIDER],
+  );
+  if (!row) return null;
+
+  const updated = await qOne<{ id: string }>(
+    `UPDATE sms_messages
+        SET status = $2,
+            error_code = $3,
+            next_attempt_at = NULL,
+            updated_at = now()
+      WHERE id = $1
+        AND status IN ('QUEUED', 'SENDING')
+      RETURNING id`,
+    [
+      row.id,
+      input.status,
+      input.status === "FAILED" ? "device_send_failed" : null,
+    ],
+  );
+
+  if (!updated) {
+    // Already reported (or expired by the sweeper): return what is stored.
+    const current = await qOne<{ status: string }>(
+      `SELECT status FROM sms_messages WHERE id = $1`,
+      [row.id],
+    );
+    return { status: current?.status ?? row.status };
+  }
+
+  if (input.status === "FAILED" && row.quota_reserved) {
+    await refundQuota(input.storeId, row.quota_day);
+  }
+
+  logger.info("sms: device delivery reported", {
+    storeId: input.storeId,
+    messageId: row.id,
+    status: input.status,
+  });
+  return { status: input.status };
+}
+
 /** Claims and sends one queued row. Safe to call concurrently. */
 async function deliverSmsRow(id: string): Promise<void> {
   const row = await qOne<SmsRow>(
     `UPDATE sms_messages
         SET status = 'SENDING', attempts = attempts + 1, updated_at = now()
       WHERE id = $1 AND status = 'QUEUED' AND attempts < $2
-      RETURNING id, store_id, to_phone, template_body, body, variables, attempts, quota_day, quota_reserved`,
+      RETURNING id, store_id, to_phone, template_body, body, variables, attempts, quota_day, quota_reserved, provider`,
     [id, MAX_ATTEMPTS],
   );
   if (!row) return;
+  // Defensive: device rows are delivered by the phone. Even if one is ever
+  // selected by the sweeper it must not be sent through a gateway.
+  if (row.provider === DEVICE_PROVIDER) return;
 
   // Normally true: notify reserved the unit before calling. A row recovered
   // by the sweeper after a crash (or one whose reservation step failed) still
@@ -366,25 +480,44 @@ async function deliverSmsRow(id: string): Promise<void> {
  * it picked up.
  */
 export async function drainSmsQueue(batchSize = 20): Promise<number> {
+  // Device rows belong to the phone, not the server. If the app never reports
+  // back (it was killed right after saving the entry) the reserved unit would
+  // leak for the rest of the IST day, so fail the row and refund it.
+  const staleDevice = await q<{ store_id: string; quota_day: string | null }>(
+    `UPDATE sms_messages
+        SET status = 'FAILED', error_code = 'device_timeout',
+            next_attempt_at = NULL, updated_at = now()
+      WHERE status IN ('QUEUED', 'SENDING')
+        AND provider = $1
+        AND updated_at < now() - ($2::int * INTERVAL '1 minute')
+      RETURNING store_id, quota_day`,
+    [DEVICE_PROVIDER, DEVICE_REPORT_TIMEOUT_MINUTES],
+  );
+  for (const row of staleDevice) {
+    await refundQuota(row.store_id, row.quota_day);
+  }
+
   // Recover rows left in SENDING by a crash/restart. Their attempt was already
   // counted when they were claimed.
   await q(
     `UPDATE sms_messages
         SET status = 'QUEUED', updated_at = now()
       WHERE status = 'SENDING'
-        AND updated_at < now() - ($1::int * INTERVAL '1 minute')
-        AND attempts < $2`,
-    [STALE_SENDING_MINUTES, MAX_ATTEMPTS],
+        AND provider IS DISTINCT FROM $1
+        AND updated_at < now() - ($2::int * INTERVAL '1 minute')
+        AND attempts < $3`,
+    [DEVICE_PROVIDER, STALE_SENDING_MINUTES, MAX_ATTEMPTS],
   );
 
   const rows = await q<{ id: string }>(
     `SELECT id FROM sms_messages
       WHERE status = 'QUEUED'
-        AND attempts < $1
+        AND provider IS DISTINCT FROM $1
+        AND attempts < $2
         AND (next_attempt_at IS NULL OR next_attempt_at <= now())
       ORDER BY created_at ASC
-      LIMIT $2`,
-    [MAX_ATTEMPTS, batchSize],
+      LIMIT $3`,
+    [DEVICE_PROVIDER, MAX_ATTEMPTS, batchSize],
   );
 
   for (const row of rows) {

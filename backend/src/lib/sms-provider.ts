@@ -66,6 +66,14 @@ export async function sendSms(input: SendSmsInput): Promise<SendSmsResult> {
     return { ok: true, mode: "log" };
   }
 
+  // Device mode is delivered by the mobile app from the phone's own SIM. The
+  // API must never fall through to a gateway adapter here: doing so would send
+  // the message twice and bill a provider the deployment did not configure.
+  if (config.smsMode === "device") {
+    logger.warn("sms: device mode has no server-side sender", { to: masked });
+    return { ok: false, mode: "device", error: "SMS_DEVICE_MODE", permanent: true };
+  }
+
   try {
     // Superadmin kill-switch for outbound SMS (provider outage, suspected
     // abuse). Checked only for the real-send path so local log mode is

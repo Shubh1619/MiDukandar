@@ -1,12 +1,13 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
+import { config } from "../config.js";
 import { q, qOne, withTx, qClient, type DbClient, type Row } from "../db/pool.js";
 import { ApiError } from "../lib/api-error.js";
 import { parse, paginationSchema } from "../lib/validate.js";
 import { authenticate, requireStore, requirePermission, getAuth, type AuthenticatedRequest } from "../middlewares/auth.js";
 import { createLedgerEntry } from "../services/ledger.service.js";
 import { insertPayment } from "../services/payment.service.js";
-import { notifyUdhaariCreated } from "../services/sms.service.js";
+import { notifyUdhaariCreated, type PendingSms } from "../services/sms.service.js";
 import { dec, money } from "../lib/money.js";
 import { logger } from "../lib/logger.js";
 
@@ -481,25 +482,44 @@ export async function udhaariRoutes(app: FastifyInstance) {
 
     logger.info("udhaari: entry created", { storeId, customerId: entry.customer.id, entryId: entry.entry.id, by: userId });
 
-    // Notify the customer after the transaction has committed. Fire-and-forget:
-    // the credit entry is already saved and its response must not wait on an
-    // SMS gateway. The service records every attempt, including skips.
-    void notifyUdhaariCreated({
+    const smsInput = {
       storeId,
       customerId: entry.customer.id as string,
       customerMobile: (entry.customer.mobile as string | null) ?? null,
       entryId: entry.entry.id as string,
       amount: Number(body.amount),
       createdById: userId,
-    }).catch((err) => {
-      logger.error("sms: udhaari notify call failed", {
-        storeId,
-        entryId: entry.entry.id,
-        error: String(err),
-      });
-    });
+    };
 
-    return reply.status(201).send({ entry: entry.entry, customer: entry.customer });
+    // In device mode the phone sends the SMS, so the response must carry the
+    // ready-to-send text; the caller waits for it (a few local DB queries, no
+    // network). Every other mode stays fire-and-forget so a gateway can never
+    // delay — let alone fail — the credit entry itself.
+    let pendingSms: PendingSms | null = null;
+    if (config.smsMode === "device") {
+      pendingSms = await notifyUdhaariCreated(smsInput).catch((err) => {
+        logger.error("sms: udhaari notify call failed", {
+          storeId,
+          entryId: entry.entry.id,
+          error: String(err),
+        });
+        return null;
+      });
+    } else {
+      void notifyUdhaariCreated(smsInput).catch((err) => {
+        logger.error("sms: udhaari notify call failed", {
+          storeId,
+          entryId: entry.entry.id,
+          error: String(err),
+        });
+      });
+    }
+
+    return reply.status(201).send({
+      entry: entry.entry,
+      customer: entry.customer,
+      ...(pendingSms ? { pendingSms } : {}),
+    });
   });
 
   // Record a (partial) payment against a specific udhaari entry

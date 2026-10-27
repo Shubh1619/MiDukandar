@@ -664,15 +664,16 @@ class _AppShellState extends State<AppShell> {
     }
   }
 
-  Future<void> _handleCreateUdhaari(Map<String, dynamic> payload) async {
+  Future<Map<String, dynamic>?> _handleCreateUdhaari(Map<String, dynamic> payload) async {
     try {
-      await widget.apiService.createUdhaari(payload);
+      return await widget.apiService.createUdhaari(payload);
     } catch (error) {
-      if (!mounted) return;
+      if (!mounted) return null;
       AppDialogs.showError(
         context,
         AppLocalizations.of(context)!.errCreateUdhaari(error.toString()),
       );
+      return null;
     }
   }
 

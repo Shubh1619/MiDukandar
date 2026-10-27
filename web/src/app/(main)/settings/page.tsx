@@ -569,7 +569,7 @@ export default function SettingsPage() {
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
-                  {sms ? <Badge variant="outline">{sms.mode === "log" ? "Log only" : sms.mode}</Badge> : null}
+                  {sms ? <Badge variant="outline">{sms.mode === "log" ? "Log only" : sms.mode === "device" ? "Phone SIM" : sms.mode}</Badge> : null}
                   <Switch
                     checked={Boolean(sms?.enabled)}
                     disabled={!canManageSms || smsBusy || !sms}

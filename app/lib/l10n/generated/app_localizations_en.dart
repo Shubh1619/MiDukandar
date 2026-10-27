@@ -1081,6 +1081,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get smsLogOnly => 'Log only';
 
   @override
+  String get smsDeviceMode => 'Phone SIM';
+
+  @override
   String get smsTodayFree => 'Today\'s free SMS';
 
   @override
@@ -1091,6 +1094,10 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get smsResetNote =>
       'Resets at midnight IST. Once the daily allowance is used, further udhaari entries are not texted.';
+
+  @override
+  String get smsDeviceNote =>
+      'Sent from this phone\'s SIM. Entries created on another device or on the web are not texted.';
 
   @override
   String get smsRecentTitle => 'Recent messages';
@@ -1124,6 +1131,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get smsStatusFailed => 'Failed';
+
+  @override
+  String get smsStatusHandedOff => 'Sent from SMS app';
 
   @override
   String get smsStatusSkippedQuota => 'Daily limit reached';

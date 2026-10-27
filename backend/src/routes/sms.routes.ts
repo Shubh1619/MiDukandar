@@ -14,6 +14,7 @@ import {
   type AuthenticatedRequest,
 } from "../middlewares/auth.js";
 import { ROLES } from "../middlewares/auth.types.js";
+import { reportDeviceDelivery } from "../services/sms.service.js";
 
 /**
  * Per-store SMS allowance, audit log and on/off switch for the udhaari
@@ -108,6 +109,31 @@ export async function smsRoutes(app: FastifyInstance) {
         page: query.page,
         limit: query.limit,
       };
+    },
+  );
+
+  // Delivery report from the mobile app when SMS_MODE=device. The phone sends
+  // from its own SIM and tells us the outcome so the audit log and the daily
+  // allowance stay accurate. `can_manage_udhaari` is the same permission that
+  // creates the entry in the first place.
+  app.post(
+    "/messages/:id/delivery",
+    { preHandler: [authenticate, requirePermission("can_manage_udhaari")] },
+    async (request: AuthenticatedRequest) => {
+      const storeId = requireStore(request);
+      const { id } = request.params as { id: string };
+      const body = parse(
+        z.object({ status: z.enum(["SENT", "FAILED", "HANDED_OFF"]) }),
+        request.body,
+      );
+
+      const result = await reportDeviceDelivery({
+        storeId,
+        messageId: id,
+        status: body.status,
+      });
+      if (!result) throw ApiError.notFound("SMS message not found");
+      return { ok: true, status: result.status };
     },
   );
 

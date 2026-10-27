@@ -78,6 +78,8 @@ String localizedSmsStatus(BuildContext context, String raw) {
       return l.statusSent;
     case 'failed':
       return l.smsStatusFailed;
+    case 'handed off':
+      return l.smsStatusHandedOff;
     case 'skipped quota':
     case 'skipped daily limit':
       return l.smsStatusSkippedQuota;

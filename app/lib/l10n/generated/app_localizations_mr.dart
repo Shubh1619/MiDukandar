@@ -1083,6 +1083,9 @@ class AppLocalizationsMr extends AppLocalizations {
   String get smsLogOnly => 'फक्त लॉग';
 
   @override
+  String get smsDeviceMode => 'फोन सिम';
+
+  @override
   String get smsTodayFree => 'आजचे मोफत एसएमएस';
 
   @override
@@ -1093,6 +1096,10 @@ class AppLocalizationsMr extends AppLocalizations {
   @override
   String get smsResetNote =>
       'मध्यरात्री IST ला रीसेट होते. दैनिक मर्यादा संपल्यानंतर उधारी नोंदींसाठी संदेश पाठवले जात नाहीत.';
+
+  @override
+  String get smsDeviceNote =>
+      'या फोनच्या सिमवरून पाठवले जाते. दुसऱ्या डिव्हाइसवर किंवा वेबवर तयार केलेल्या नोंदींसाठी संदेश जात नाही.';
 
   @override
   String get smsRecentTitle => 'अलीकडील संदेश';
@@ -1125,6 +1132,9 @@ class AppLocalizationsMr extends AppLocalizations {
 
   @override
   String get smsStatusFailed => 'अयशस्वी';
+
+  @override
+  String get smsStatusHandedOff => 'एसएमएस ॲपमधून पाठवले';
 
   @override
   String get smsStatusSkippedQuota => 'दैनिक मर्यादा पूर्ण';
