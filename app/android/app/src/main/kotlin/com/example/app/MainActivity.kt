@@ -79,11 +79,20 @@ class MainActivity : FlutterActivity() {
         return list
             .sortedBy { it.simSlotIndex }
             .map { info ->
+                // displayName is the short carrier name the SIM tray shows
+                // ("Jio"); carrierName can be a long brand string
+                // ("Jio True5G | Jio") that wraps in the picker.
+                val display = info.displayName?.toString()?.trim().orEmpty()
                 val carrier = info.carrierName?.toString()?.trim().orEmpty()
+                val label = when {
+                    display.isNotEmpty() -> display
+                    carrier.isNotEmpty() -> carrier
+                    else -> "SIM ${info.simSlotIndex + 1}"
+                }
                 mapOf(
                     "subscriptionId" to info.subscriptionId,
                     "slotIndex" to info.simSlotIndex,
-                    "label" to carrier.ifEmpty { "SIM ${info.simSlotIndex + 1}" },
+                    "label" to label,
                 )
             }
     }

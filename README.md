@@ -131,8 +131,16 @@ set these environment variables in the Render dashboard:
 | `APP_URL` | `https://<service>.onrender.com` |
 | `CORS_ALLOWED_ORIGINS` | `https://<service>.onrender.com` |
 | `RAZORPAY_*` | optional; `RAZORPAY_WEBHOOK_SECRET` required if keys are set |
+| `SMS_MODE` | `device` to text udhaari entries from the shop phone's own SIM (free daily allowance, 100/store/day); `log` sends nothing, `msg91` / `fast2sms` bill a paid gateway |
 
 Notes:
+
+- `SMS_MODE=device` is what the mobile app expects: the API reserves the daily
+  allowance, returns the message as `pendingSms`, and the phone sends it from
+  its own SIM through the SIM the owner picked, then reports the outcome. On
+  dual-SIM phones one SIM often has no SMS recharge, so the app asks once and
+  remembers the choice. Entries created on the web are only texted when a
+  gateway mode (`msg91` / `fast2sms`) is configured.
 
 - `OTP_MASTER` must be **unset** in production (boot fails if set).
 - Migrations run on every deploy from `backend/migrations`; local and Render
