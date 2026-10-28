@@ -46,24 +46,21 @@ function ChallanView({ po }: { po: PurchaseOrderDetail }) {
   ];
 
   return (
-    <div className="overflow-hidden rounded-md border border-[#c5d0dc]">
-      <div className="bg-[#1f6feb] px-3 py-1.5 text-center text-sm font-bold tracking-wide text-white">
-        {t("challanTitle")}
+    <div className="space-y-3">
+      <div className="grid gap-2 text-sm sm:grid-cols-3">
+        <div><span className="text-muted-foreground">{t("supplier")}</span><p className="font-medium">{po.supplierName}</p></div>
+        <div><span className="text-muted-foreground">{t("orderDate")}</span><p className="tabular-nums">{formatChallanDate(po.orderDate)}</p></div>
+        <div><span className="text-muted-foreground">{t("poNumber")}</span><p className="tabular-nums">{po.poNumber}</p></div>
+        <div><span className="text-muted-foreground">{t("paymentMode")}</span><p>{po.challanType === "CREDIT" ? t("credit") : t("cash")}</p></div>
+        <div><span className="text-muted-foreground">{t("challanPartyNo")}</span><p>{po.partyNumber || "—"}</p></div>
+        <div><span className="text-muted-foreground">{t("challanDt")}</span><p>{po.partyDate ? formatChallanDate(po.partyDate) : "—"}</p></div>
       </div>
-      <div className="grid gap-x-6 gap-y-1 bg-[#f3f7fb] px-3 py-2 text-[12px] sm:grid-cols-2">
-        <div>{t("challanName")} : <span className="font-medium">{po.supplierName}</span></div>
-        <div>{t("challanDate")} : <span className="tabular-nums">{formatChallanDate(po.orderDate)}</span></div>
-        <div className="flex items-center gap-2">{t("challanEntryNo")} : <span className="tabular-nums">{po.poNumber}</span> <PoStatusBadge status={po.status} /></div>
-        <div>{t("challanType")} : {po.challanType === "CREDIT" ? t("challanCredit") : t("challanCash")}</div>
-        <div>{t("challanPartyNo")} : {po.partyNumber || "—"}</div>
-        <div>{t("challanDt")} : {po.partyDate ? formatChallanDate(po.partyDate) : "—"}</div>
-      </div>
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[820px] border-collapse text-[12px]">
+      <div className="overflow-x-auto rounded-lg border">
+        <table className="w-full min-w-[820px] border-collapse text-sm">
           <thead>
-            <tr className="bg-[#d9ead3] text-[#1e3a2f]">
+            <tr className="bg-muted/50 text-muted-foreground">
               {heads.map((label, i) => (
-                <th key={label} className={`border border-[#b7c9b0] px-1.5 py-1 text-[11px] font-semibold uppercase ${i >= 3 ? "text-right" : "text-left"}`}>
+                <th key={label} className={`px-2 py-2 text-[10px] font-semibold uppercase tracking-wide ${i >= 3 ? "text-right" : "text-left"}`}>
                   {label}
                 </th>
               ))}
@@ -71,35 +68,27 @@ function ChallanView({ po }: { po: PurchaseOrderDetail }) {
           </thead>
           <tbody>
             {po.items.map((it, index) => (
-              <tr key={it.id}>
-                <td className="border border-[#d3e4cc] px-1.5 py-1 font-medium">{it.name ?? it.productId.slice(0, 8)}</td>
-                <td className="border border-[#d3e4cc] px-1.5 py-1">{it.pack || "—"}</td>
-                <td className="border border-[#d3e4cc] px-1.5 py-1">{it.batch || "—"}</td>
-                <td className="border border-[#d3e4cc] px-1.5 py-1 text-right tabular-nums">{Number(it.quantity) || 0}</td>
-                <td className="border border-[#d3e4cc] px-1.5 py-1 text-right tabular-nums">{Number(it.tabQty) || 0}</td>
-                <td className="border border-[#d3e4cc] px-1.5 py-1 text-right tabular-nums">{Number(it.freeQty) || 0}</td>
-                <td className="border border-[#d3e4cc] px-1.5 py-1 text-right tabular-nums">{formatINR(it.rate)}</td>
-                <td className="border border-[#d3e4cc] px-1.5 py-1 text-right tabular-nums">{Number(it.discountPercent) || 0}</td>
-                <td className="border border-[#d3e4cc] px-1.5 py-1 text-right tabular-nums">{formatINR(money[index]?.taxable ?? 0)}</td>
+              <tr key={it.id} className="border-t">
+                <td className="px-2 py-2 font-medium">{it.name ?? it.productId.slice(0, 8)}</td>
+                <td className="px-2 py-2">{it.pack || "—"}</td>
+                <td className="px-2 py-2">{it.batch || "—"}</td>
+                <td className="px-2 py-2 text-right tabular-nums">{Number(it.quantity) || 0}</td>
+                <td className="px-2 py-2 text-right tabular-nums">{Number(it.tabQty) || 0}</td>
+                <td className="px-2 py-2 text-right tabular-nums">{Number(it.freeQty) || 0}</td>
+                <td className="px-2 py-2 text-right tabular-nums">{formatINR(it.rate)}</td>
+                <td className="px-2 py-2 text-right tabular-nums">{Number(it.discountPercent) || 0}</td>
+                <td className="px-2 py-2 text-right tabular-nums">{formatINR(money[index]?.taxable ?? 0)}</td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
-      <div className="grid text-[12px] sm:grid-cols-2">
-        <div className="space-y-1 border-[#c5d0dc] px-3 py-2 sm:border-r">
-          <div>{t("challanItem")} : {po.items[0]?.name ?? ""}</div>
-          <div>{t("challanBatch")} : {po.items[0]?.batch || "—"}</div>
-          <div>{t("challanExpiry")} : {po.items[0]?.expiryDate ? formatChallanDate(po.items[0].expiryDate) : "—"} · {t("challanMrp")} : {po.items[0]?.mrp != null && Number(po.items[0].mrp) > 0 ? formatINR(po.items[0].mrp) : "—"}</div>
-        </div>
-        <div className="space-y-1 px-3 py-2">
-          <div className="flex justify-between"><span>{t("challanValue")} :</span><span className="tabular-nums">{formatINR(totals.goods)}</span></div>
-          <div className="flex justify-between"><span>{t("challanDiscount")} :</span><span className="tabular-nums">{formatINR(totals.discount)}</span></div>
-          <div className="flex justify-between"><span>{t("challanGst")} :</span><span className="tabular-nums">{formatINR(totals.gst)}</span></div>
-          <div className="flex justify-between border-t border-[#c5d0dc] pt-1 font-semibold"><span>{t("challanNet")} :</span><span className="tabular-nums">{formatINR(totals.net)}</span></div>
-        </div>
+      <div className="ml-auto w-full max-w-xs space-y-1 text-sm">
+        <div className="flex justify-between"><span className="text-muted-foreground">{t("subtotal")}</span><span className="tabular-nums">{formatINR(totals.goods)}</span></div>
+        <div className="flex justify-between"><span className="text-muted-foreground">{t("discount")}</span><span className="tabular-nums">{formatINR(totals.discount)}</span></div>
+        <div className="flex justify-between"><span className="text-muted-foreground">{t("challanGst")}</span><span className="tabular-nums">{formatINR(totals.gst)}</span></div>
+        <div className="flex justify-between border-t pt-1 font-display text-lg font-bold"><span>{t("total")}</span><span className="tabular-nums">{formatINR(totals.net)}</span></div>
       </div>
-      <div className="bg-[#1a2744] px-3 py-1.5 text-sm font-bold tracking-wide text-white">{t("challanFooter")}</div>
     </div>
   );
 }
@@ -212,10 +201,10 @@ export function PoDetailDialog({ poId, onOpenChange, onChanged }: Props) {
             </div>
           ) : (
             <>
-              <DialogHeader className="sr-only">
-                <DialogTitle>{po.poNumber}</DialogTitle>
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">{po.poNumber} <PoStatusBadge status={po.status} /></DialogTitle>
                 <DialogDescription>
-                  {po.supplierName} · {t("poDate")}: {formatDateTime(po.orderDate)}
+                  {po.supplierName} · {t("orderDate")}: {formatDateTime(po.orderDate)}
                 </DialogDescription>
               </DialogHeader>
 

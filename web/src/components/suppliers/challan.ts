@@ -15,7 +15,7 @@ export interface ChallanLineMoney {
   net: number;
 }
 
-/** Line math for the purchase challan. Amount is goods after Dis1%, before GST. */
+/** Line math for a purchase order. Amount is goods after the line discount, before GST. */
 export function challanLine(input: ChallanLineInput): ChallanLineMoney {
   const qty = Number(input.quantity) || 0;
   const rate = Number(input.rate) || 0;

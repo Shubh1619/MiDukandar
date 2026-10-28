@@ -9,14 +9,18 @@ import { formatINR } from "@/lib/format";
 import type { Product, PurchaseOrderDetail, Supplier } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { NumberInput } from "@/components/ui/number-input";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
 import { ProductSearch } from "./product-search";
-import { challanLine, challanTotals, formatChallanDate } from "./challan";
+import { challanLine, challanTotals } from "./challan";
 
 function today(): string {
   return new Date().toISOString().slice(0, 10);
@@ -62,9 +66,10 @@ function padLines(lines: LineDraft[]): LineDraft[] {
   return next;
 }
 
-const cell = "border border-[#d3e4cc] p-0 align-middle";
-const field =
-  "h-7 rounded-none border-0 bg-transparent px-1 text-xs shadow-none focus-visible:ring-1 focus-visible:ring-[#1f6feb]/40";
+const cell = "border-b border-border p-1 align-middle";
+const field = "h-8";
+const selectClass =
+  "h-8 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
 
 interface Props {
   open: boolean;
@@ -260,72 +265,68 @@ export function PurchaseOrderFormDialog({ open, onOpenChange, supplierId = "", s
         onOpenChange(o);
       }}
     >
-      <DialogContent className="max-h-[94vh] gap-0 overflow-y-auto p-0 sm:max-w-5xl [&_[data-slot=dialog-close]]:text-white [&_[data-slot=dialog-close]]:hover:bg-white/15">
-        <div className="bg-[#1f6feb] px-10 py-1.5 text-center">
-          <DialogTitle className="text-sm font-bold tracking-wide text-white">{t("challanTitle")}</DialogTitle>
-        </div>
+      <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-5xl">
+        <DialogHeader>
+          <DialogTitle>{editing ? t("editPo") : t("newPo")}</DialogTitle>
+          <DialogDescription>{supplierLabel || t("challanSupplierRequired")}</DialogDescription>
+        </DialogHeader>
 
-        <div className="grid gap-x-6 gap-y-1.5 bg-[#f3f7fb] px-3 py-2 text-[12px] text-[#1c2b3a] sm:grid-cols-2">
-          <label className="flex items-center gap-2">
-            <span className="w-20 shrink-0">{t("challanName")} :</span>
+        <div className="grid gap-3 sm:grid-cols-3">
+          <div className="space-y-1.5">
+            <Label>{t("supplier")}</Label>
             {lockedSupplier ? (
-              <span className="min-w-0 flex-1 truncate border-b border-[#9bb0c7] px-1 py-0.5 font-medium">{supplierLabel}</span>
+              <p className="flex h-8 items-center truncate rounded-lg border bg-muted/40 px-2.5 text-sm font-medium">{supplierLabel}</p>
             ) : (
-              <select
-                value={chosenSupplierId}
-                onChange={(e) => setChosenSupplierId(e.target.value)}
-                className="h-7 min-w-0 flex-1 border border-[#9bb0c7] bg-white px-1 text-xs"
-              >
+              <select value={chosenSupplierId} onChange={(e) => setChosenSupplierId(e.target.value)} className={selectClass}>
                 <option value="">{t("challanSupplierRequired")}</option>
                 {suppliers.map((s) => (
                   <option key={s.id} value={s.id}>{s.name}</option>
                 ))}
               </select>
             )}
-          </label>
-          <label className="flex items-center gap-2">
-            <span className="w-16 shrink-0">{t("challanDate")} :</span>
-            <Input type="date" value={orderDate} onChange={(e) => setOrderDate(e.target.value)} className="h-7 flex-1 rounded-none border-[#9bb0c7] bg-white text-xs" />
-          </label>
-          <div className="flex items-center gap-2">
-            <span className="w-20 shrink-0">{t("challanEntryNo")} :</span>
-            <span className="flex-1 border-b border-[#9bb0c7] px-1 py-0.5 tabular-nums">{editing?.poNumber || "—"}</span>
           </div>
-          <label className="flex items-center gap-2">
-            <span className="w-16 shrink-0">{t("challanType")} :</span>
+          <div className="space-y-1.5">
+            <Label>{t("orderDate")}</Label>
+            <Input type="date" value={orderDate} onChange={(e) => setOrderDate(e.target.value)} />
+          </div>
+          <div className="space-y-1.5">
+            <Label>{t("poNumber")}</Label>
+            <p className="flex h-8 items-center rounded-lg border bg-muted/40 px-2.5 text-sm tabular-nums">{editing?.poNumber || "—"}</p>
+          </div>
+          <div className="space-y-1.5">
+            <Label>{t("paymentMode")}</Label>
             <select
               value={challanType}
               onChange={(e) => setChallanType(e.target.value as "CASH" | "CREDIT")}
-              className="h-7 flex-1 border border-[#9bb0c7] bg-white px-1 text-xs"
+              className={selectClass}
             >
-              <option value="CASH">{t("challanCash")}</option>
-              <option value="CREDIT">{t("challanCredit")}</option>
+              <option value="CASH">{t("cash")}</option>
+              <option value="CREDIT">{t("credit")}</option>
             </select>
-          </label>
-          <label className="flex items-center gap-2">
-            <span className="w-20 shrink-0">{t("challanPartyNo")} :</span>
-            <Input value={partyNumber} onChange={(e) => setPartyNumber(e.target.value)} className="h-7 flex-1 rounded-none border-[#9bb0c7] bg-white text-xs" />
-          </label>
-          <span />
-          <label className="flex items-center gap-2">
-            <span className="w-20 shrink-0">{t("challanDt")} :</span>
-            <Input type="date" value={partyDate} onChange={(e) => setPartyDate(e.target.value)} className="h-7 flex-1 rounded-none border-[#9bb0c7] bg-white text-xs" />
-          </label>
+          </div>
+          <div className="space-y-1.5">
+            <Label>{t("challanPartyNo")}</Label>
+            <Input value={partyNumber} onChange={(e) => setPartyNumber(e.target.value)} />
+          </div>
+          <div className="space-y-1.5">
+            <Label>{t("challanDt")}</Label>
+            <Input type="date" value={partyDate} onChange={(e) => setPartyDate(e.target.value)} />
+          </div>
         </div>
 
-        <div className="overflow-x-auto bg-white">
-          <table className="w-full min-w-[880px] border-collapse text-[12px]">
+        <div className="overflow-x-auto rounded-lg border">
+          <table className="w-full min-w-[880px] border-collapse text-sm">
             <thead>
-              <tr className="bg-[#d9ead3] text-[#1e3a2f]">
+              <tr className="bg-muted/50 text-muted-foreground">
                 {head.map((label, i) => (
                   <th
                     key={label}
-                    className={`border border-[#b7c9b0] px-1 py-1 text-[11px] font-semibold uppercase ${i >= 3 ? "text-right" : "text-left"}`}
+                    className={`px-2 py-2 text-[10px] font-semibold uppercase tracking-wide ${i >= 3 ? "text-right" : "text-left"}`}
                   >
                     {label}
                   </th>
                 ))}
-                <th className="w-7 border border-[#b7c9b0]" />
+                <th className="w-8" />
               </tr>
             </thead>
             <tbody>
@@ -343,7 +344,7 @@ export function PurchaseOrderFormDialog({ open, onOpenChange, supplierId = "", s
                   <tr
                     key={line.key}
                     onClick={() => setActiveKey(line.key)}
-                    className={selected ? "bg-[#e7f1ff]" : "bg-white"}
+                    className={selected ? "bg-accent/60" : undefined}
                   >
                     <td className={`${cell} min-w-[180px]`}>
                       {line.product ? (
@@ -413,84 +414,72 @@ export function PurchaseOrderFormDialog({ open, onOpenChange, supplierId = "", s
           </table>
         </div>
 
-        <div className="grid border-t border-[#c5d0dc] text-[12px] sm:grid-cols-2">
-          <div className="grid grid-cols-[auto_1fr_auto_1fr] items-center gap-x-2 gap-y-1 border-[#c5d0dc] px-3 py-2 sm:border-r">
-            <span>{t("challanItem")} :</span>
-            <span className="col-span-3 truncate font-medium">{active?.product?.name ?? ""}</span>
-            <span>{t("challanBatch")} :</span>
-            <Input
-              value={active?.batch ?? ""}
-              onChange={(e) => active && updateLine(active.key, { batch: e.target.value })}
-              className="h-7 rounded-none border-[#9bb0c7] bg-white text-xs"
-            />
-            <span />
-            <span />
-            <span>{t("challanExpiry")} :</span>
-            <Input
-              type="date"
-              value={active?.expiry ?? ""}
-              onChange={(e) => active && updateLine(active.key, { expiry: e.target.value })}
-              className="h-7 rounded-none border-[#9bb0c7] bg-white text-xs"
-            />
-            <span>{t("challanStock")} :</span>
-            <span className="tabular-nums">{active?.stock != null ? active.stock : ""}</span>
-            <span>{t("challanMrp")} :</span>
-            <NumberInput
-              value={active?.mrp ?? ""}
-              onChange={(v) => active && updateLine(active.key, { mrp: v })}
-              className="h-7 rounded-none border-[#9bb0c7] bg-white text-xs"
-            />
-            <span>{t("challanRate")} :</span>
-            <NumberInput
-              value={active?.rate ?? ""}
-              onChange={(v) => active && updateLine(active.key, { rate: v })}
-              className="h-7 rounded-none border-[#9bb0c7] bg-white text-xs"
-            />
-            <span>{t("challanChall")} :</span>
-            <span className="truncate">{partyNumber || editing?.poNumber || ""}</span>
-            <span>{t("challanDate")} :</span>
-            <span className="tabular-nums">{formatChallanDate(orderDate)}</span>
+        <div className="grid gap-3 sm:grid-cols-[1.4fr_0.8fr]">
+          <div className="grid grid-cols-2 gap-3 rounded-lg border bg-muted/30 p-3">
+            <div className="col-span-2 space-y-1">
+              <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{t("challanItem")}</span>
+              <p className="truncate text-sm font-medium">{active?.product?.name || "—"}</p>
+            </div>
+            <label className="space-y-1">
+              <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{t("challanBatch")}</span>
+              <Input value={active?.batch ?? ""} onChange={(e) => active && updateLine(active.key, { batch: e.target.value })} />
+            </label>
+            <label className="space-y-1">
+              <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{t("challanExpiry")}</span>
+              <Input type="date" value={active?.expiry ?? ""} onChange={(e) => active && updateLine(active.key, { expiry: e.target.value })} />
+            </label>
+            <div className="space-y-1">
+              <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{t("inStock")}</span>
+              <p className="flex h-8 items-center text-sm tabular-nums">{active?.stock != null ? active.stock : "—"}</p>
+            </div>
+            <label className="space-y-1">
+              <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{t("mrp")}</span>
+              <NumberInput value={active?.mrp ?? ""} onChange={(v) => active && updateLine(active.key, { mrp: v })} />
+            </label>
+            <label className="space-y-1">
+              <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{t("rate")}</span>
+              <NumberInput value={active?.rate ?? ""} onChange={(v) => active && updateLine(active.key, { rate: v })} />
+            </label>
+            <div className="space-y-1">
+              <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{t("challanChall")}</span>
+              <p className="flex h-8 items-center truncate text-sm">{partyNumber || editing?.poNumber || "—"}</p>
+            </div>
           </div>
-          <div className="space-y-1 px-3 py-2">
-            <div className="flex items-center justify-between gap-3">
-              <span>{t("challanValue")} :</span>
+          <div className="space-y-1 self-end text-sm">
+            <div className="flex justify-between gap-3">
+              <span className="text-muted-foreground">{t("subtotal")}</span>
               <span className="tabular-nums">{formatINR(pricing.goods)}</span>
             </div>
-            <div className="flex items-center justify-between gap-3">
-              <span>{t("challanDiscount")} :</span>
+            <div className="flex justify-between gap-3">
+              <span className="text-muted-foreground">{t("discount")}</span>
               <span className="tabular-nums">{formatINR(pricing.discount)}</span>
             </div>
-            <div className="flex items-center justify-between gap-3">
-              <span>{t("challanGst")} :</span>
+            <div className="flex justify-between gap-3">
+              <span className="text-muted-foreground">{t("challanGst")}</span>
               <span className="tabular-nums">{formatINR(pricing.gst)}</span>
             </div>
-            <div className="flex items-center justify-between gap-3 border-t border-[#c5d0dc] pt-1 font-semibold">
-              <span>{t("challanNet")} :</span>
+            <div className="flex justify-between gap-3 border-t pt-1 font-display text-lg font-bold">
+              <span>{t("total")}</span>
               <span className="tabular-nums">{formatINR(pricing.net)}</span>
             </div>
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center justify-between gap-2 bg-[#1a2744] px-3 py-2 text-white">
-          <span className="text-sm font-bold tracking-wide">{t("challanFooter")}</span>
-          <div className="flex flex-wrap items-center gap-2">
-            <select
-              value={status}
-              onChange={(e) => setStatus(e.target.value as "draft" | "sent")}
-              className="h-8 border border-white/30 bg-white/10 px-2 text-xs text-white"
-              aria-label={t("status")}
-            >
-              <option value="draft" className="text-black">{t("statusDraft")}</option>
-              <option value="sent" className="text-black">{t("statusSent")}</option>
-            </select>
-            <Button type="button" variant="outline" size="sm" onClick={() => onOpenChange(false)} disabled={busy} className="border-white/40 bg-transparent text-white hover:bg-white/10 hover:text-white">
-              {t("cancel")}
-            </Button>
-            <Button type="button" size="sm" onClick={() => void save()} disabled={busy || pricing.lineCount === 0} className="min-w-28 bg-white text-[#1a2744] hover:bg-white/90">
-              {busy ? <Loader2 className="size-4 animate-spin" /> : t("save")}
-            </Button>
-          </div>
-        </div>
+        <DialogFooter>
+          <select
+            value={status}
+            onChange={(e) => setStatus(e.target.value as "draft" | "sent")}
+            className={`${selectClass} sm:w-36`}
+            aria-label={t("status")}
+          >
+            <option value="draft">{t("statusDraft")}</option>
+            <option value="sent">{t("statusSent")}</option>
+          </select>
+          <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={busy}>{t("cancel")}</Button>
+          <Button type="button" onClick={() => void save()} disabled={busy || pricing.lineCount === 0} className="min-w-28">
+            {busy ? <Loader2 className="size-4 animate-spin" /> : t("save")}
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
