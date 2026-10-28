@@ -177,7 +177,7 @@ const faqs = [
   },
   {
     q: "How can I contact support?",
-    a: "You can reach support via email at support@midukandar.com as listed in the footer.",
+    a: "You can reach support via email at trinetraservices.ltd@gmail.com or by phone at +91 99703 68016 as listed in the footer.",
   },
 ];
 

@@ -34,7 +34,7 @@ export default function PublicFooter({ compact = false, dark = false }: PublicFo
           <Link href="/terms" className={link}>
             Terms of Service
           </Link>
-          <a href="mailto:support@midukandar.com" className={`inline-flex items-center gap-1.5 ${link}`}>
+          <a href="mailto:trinetraservices.ltd@gmail.com" className={`inline-flex items-center gap-1.5 ${link}`}>
             <Mail className="size-3.5" aria-hidden />
             Support
           </a>

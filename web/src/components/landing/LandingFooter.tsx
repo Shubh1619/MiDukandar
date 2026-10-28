@@ -62,11 +62,12 @@ export default function LandingFooter() {
             <h3 className="text-sm font-bold text-navy-950">Support</h3>
             <ul className="mt-4 space-y-2.5 text-sm text-navy-600">
               <li>
-                <a href="mailto:support@midukandar.com" className="inline-flex items-center gap-2 transition-colors hover:text-royal-600">
+                <a href="mailto:trinetraservices.ltd@gmail.com" className="inline-flex items-center gap-2 transition-colors hover:text-royal-600">
                   <Mail className="size-4" aria-hidden />
-                  support@midukandar.com
+                  trinetraservices.ltd@gmail.com
                 </a>
               </li>
+              <li className="text-navy-500">+91 99703 68016</li>
               <li>
                 <Link href="/terms" className="transition-colors hover:text-royal-600">
                   Terms of Service
