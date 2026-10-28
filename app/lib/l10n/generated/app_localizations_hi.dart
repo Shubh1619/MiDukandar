@@ -1848,4 +1848,17 @@ class AppLocalizationsHi extends AppLocalizations {
 
   @override
   String get regSectionPreferences => 'प्राथमिकताएं';
+
+  @override
+  String get regSendCode => 'कोड भेजें';
+
+  @override
+  String get regOtpLabel => 'ईमेल कोड';
+
+  @override
+  String get regOtpRequired => 'इस ईमेल पर भेजा गया कोड दर्ज करें।';
+
+  @override
+  String get regOtpSent =>
+      'कोड भेज दिया गया। रजिस्ट्रेशन पूरा करने के लिए नीचे दर्ज करें।';
 }

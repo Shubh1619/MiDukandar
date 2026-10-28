@@ -42,7 +42,7 @@ export async function getDashboardStats(
   // recent), serialising nine DB round-trips behind each other.
   const [salesAgg, purchaseAgg, expensesAgg, receivables, payables, lowStockAgg, recentSales, recentPurchases, recentPayments] =
     await Promise.all([
-      db.qOne<{ t: number; cogs: number; tx: number; d: number }>(
+      db.qOne<{ t: number; cogs: number; tx: number }>(
         `SELECT COALESCE(SUM(s.paid_amount),0) AS t,
                 COALESCE(SUM(CASE WHEN s.total > 0 THEN s.paid_amount / s.total ELSE 0 END
                            * COALESCE((SELECT SUM(p.purchase_price * si.qty)
@@ -50,8 +50,7 @@ export async function getDashboardStats(
                                        LEFT JOIN products p ON p.id = si.product_id
                                        WHERE si.sale_id = s.id), 0)),0) AS cogs,
                 COALESCE(SUM(CASE WHEN s.total > 0 THEN s.paid_amount / s.total ELSE 0 END
-                           * s.tax_total),0) AS tx,
-                COALESCE(SUM(s.discount),0) AS d
+                           * s.tax_total),0) AS tx
          FROM sales s WHERE s.store_id=$1 AND s.status='CONFIRMED' AND s.created_at BETWEEN $2 AND $3`,
         [storeId, start, end],
       ),
@@ -103,14 +102,14 @@ export async function getDashboardStats(
   const salesRev = salesAgg?.t ?? 0;
   const salesCogs = salesAgg?.cogs ?? 0;
   const salesTax = salesAgg?.tx ?? 0;
-  const salesDiscounts = salesAgg?.d ?? 0;
   const expensesCost = expensesAgg?.t ?? 0;
 
   return {
     todaySales: round2(salesRev),
     todayPurchases: round2(purchaseAgg?.t ?? 0),
     todayExpenses: round2(expensesCost),
-    todayProfit: round2(salesRev - salesCogs - salesTax - salesDiscounts - expensesCost),
+    // paid_amount is already net of the bill discount, so the discount is not subtracted again.
+    todayProfit: round2(salesRev - salesCogs - salesTax - expensesCost),
     receivables: round2(receivables?.r ?? 0),
     payables: round2(payables?.p ?? 0),
     lowStockCount: lowStockAgg,
@@ -484,6 +483,13 @@ export interface GstReportResponse {
   invoices: Gstr1InvoiceRow[];
 }
 
+function statesDiffer(storeState: string | null, customerState: string | null): boolean {
+  const norm = (value: string | null) => (value ?? "").trim().toLowerCase().replace(/\s+/g, " ");
+  const shop = norm(storeState);
+  const customer = norm(customerState);
+  return shop.length > 0 && customer.length > 0 && shop !== customer;
+}
+
 export async function getGstReport(
   db: Tx,
   storeId: string,
@@ -500,6 +506,8 @@ export async function getGstReport(
     sale_date: string;
     customer_name: string | null;
     gstin: string | null;
+    customer_state: string | null;
+    store_state: string | null;
     gst_percent: number;
     taxable_value: number;
     tax_amount: number;
@@ -509,16 +517,19 @@ export async function getGstReport(
             to_char(s.created_at AT TIME ZONE 'Asia/Kolkata','YYYY-MM-DD') AS sale_date,
             COALESCE(c.name,'Walk-in') AS customer_name,
             c.gst AS gstin,
+            c.state AS customer_state,
+            st.state AS store_state,
             COALESCE(si.gst_percent, 0) AS gst_percent,
             COALESCE(SUM(CASE WHEN si.tax_amount > 0 THEN si.line_total - si.tax_amount
                               ELSE si.line_total END), 0) AS taxable_value,
             COALESCE(SUM(si.tax_amount), 0) AS tax_amount,
             COALESCE(SUM(si.line_total), 0) AS total
      FROM sales s
+       JOIN stores st ON st.id = s.store_id
        LEFT JOIN customers c ON c.id = s.customer_id
        JOIN sale_items si ON si.sale_id = s.id
      WHERE s.store_id=$1 AND s.status='CONFIRMED' AND s.created_at BETWEEN $2 AND $3
-     GROUP BY s.id, s.invoice_number, s.created_at, c.name, c.gst, si.gst_percent
+     GROUP BY s.id, s.invoice_number, s.created_at, c.name, c.gst, c.state, st.state, si.gst_percent
      ORDER BY s.created_at, si.gst_percent`,
     [storeId, from, to],
   );
@@ -532,10 +543,10 @@ export async function getGstReport(
     const taxable = round2(Number(r.taxable_value));
     const taxAmount = round2(Number(r.tax_amount));
     const total = round2(Number(r.total));
-    // Assume intra-state (CGST+SGST split); if you need inter-state logic, check store state vs customer state
-    const cgst = round2(taxAmount / 2);
-    const sgst = round2(taxAmount - cgst);
-    const igst = 0;
+    const interState = statesDiffer(r.store_state, r.customer_state);
+    const igst = interState ? taxAmount : 0;
+    const cgst = interState ? 0 : round2(taxAmount / 2);
+    const sgst = interState ? 0 : round2(taxAmount - cgst);
 
     const key = `${r.invoice_number}__${rate}`;
     const existing = invoiceMap.get(key);
@@ -543,6 +554,7 @@ export async function getGstReport(
       existing.taxableValue = round2(existing.taxableValue + taxable);
       existing.cgst = round2(existing.cgst + cgst);
       existing.sgst = round2(existing.sgst + sgst);
+      existing.igst = round2(existing.igst + igst);
       existing.taxAmount = round2(existing.taxAmount + taxAmount);
       existing.total = round2(existing.total + total);
     } else {
@@ -566,6 +578,7 @@ export async function getGstReport(
     rb.taxableValue = round2(rb.taxableValue + taxable);
     rb.cgst = round2(rb.cgst + cgst);
     rb.sgst = round2(rb.sgst + sgst);
+    rb.igst = round2(rb.igst + igst);
     rb.totalTax = round2(rb.totalTax + taxAmount);
     rb.invoiceCount += 1;
     rateMap.set(rate, rb);
@@ -577,7 +590,7 @@ export async function getGstReport(
   const totalTaxableValue = round2(invoices.reduce((s, r) => s + r.taxableValue, 0));
   const totalCgst = round2(invoices.reduce((s, r) => s + r.cgst, 0));
   const totalSgst = round2(invoices.reduce((s, r) => s + r.sgst, 0));
-  const totalIgst = 0;
+  const totalIgst = round2(invoices.reduce((s, r) => s + r.igst, 0));
   const totalTax = round2(invoices.reduce((s, r) => s + r.taxAmount, 0));
 
   return { totalTaxableValue, totalCgst, totalSgst, totalIgst, totalTax, rateBreakup, invoices };
@@ -613,7 +626,7 @@ export async function getPnlReport(
   from: Date,
   to: Date,
 ): Promise<PnlReportResponse> {
-  // Revenue from confirmed sales (paid amount)
+  // Revenue is ex-GST. sales.total includes tax, so profit would count tax collected as earnings.
   const salesRows = await db.q<{
     d: string;
     revenue: number;
@@ -622,7 +635,7 @@ export async function getPnlReport(
     total: number;
   }>(
     `SELECT to_char(s.created_at AT TIME ZONE 'Asia/Kolkata','YYYY-MM-DD') AS d,
-            COALESCE(SUM(s.total), 0) AS revenue,
+            COALESCE(SUM(s.total - s.tax_total), 0) AS revenue,
             COALESCE(SUM(s.subtotal), 0) AS subtotal,
             COALESCE(SUM(s.tax_total), 0) AS tax,
             COALESCE(SUM(s.total), 0) AS total
@@ -648,7 +661,7 @@ export async function getPnlReport(
     `SELECT expense_date::text AS d, COALESCE(SUM(amount), 0) AS expenses
      FROM expenses WHERE store_id=$1 AND expense_date BETWEEN $2::date AND $3::date
      GROUP BY d ORDER BY d`,
-    [storeId, from.toISOString().split("T")[0], to.toISOString().split("T")[0]],
+    [storeId, istDateKey(from), istDateKey(to)],
   );
 
   // Merge by date

@@ -215,24 +215,34 @@ export function InvoiceFormDialog({ onClose, onSaved, editing, held }: Props) {
   }, []);
 
   const pricing = useMemo(() => {
+    const draft: { preTax: number; gst: number }[] = [];
     let subtotal = 0;
-    let tax = 0;
+    let lineDiscountTotal = 0;
     for (const l of lines) {
       if (!l.product) continue;
-      const unit = Number(l.unitPrice) || 0;
-      const qty = Number(l.qty) || 0;
-      const disc = Number(l.discount) || 0;
-      const g = Number(l.gst) || 0;
-      const taxable = unit * qty - disc;
-      subtotal += unit * qty;
-      tax += g > 0 ? (taxable * g) / 100 : 0;
+      const base = round2((Number(l.unitPrice) || 0) * (Number(l.qty) || 0));
+      const disc = Math.min(Math.max(Number(l.discount) || 0, 0), Math.max(base, 0));
+      const preTax = round2(Math.max(0, base - disc));
+      draft.push({ preTax, gst: Number(l.gst) || 0 });
+      subtotal = round2(subtotal + base);
+      lineDiscountTotal = round2(lineDiscountTotal + disc);
     }
-    subtotal = round2(subtotal);
+    const net = Math.max(0, round2(subtotal - lineDiscountTotal));
+    let billDisc = Math.max(0, round2(Number(billDiscount) || 0));
+    if (discountType === "PERCENT") billDisc = round2(subtotal * (Math.min(billDisc, 100) / 100));
+    billDisc = Math.min(billDisc, net);
+    let tax = 0;
+    let allocated = 0;
+    draft.forEach((d, i) => {
+      const raw = i === draft.length - 1 ? round2(billDisc - allocated) : round2(net > 0 ? (billDisc * d.preTax) / net : 0);
+      const share = Math.min(Math.max(raw, 0), d.preTax);
+      allocated = round2(allocated + share);
+      const taxable = round2(d.preTax - share);
+      if (d.gst > 0) tax += (taxable * d.gst) / 100;
+    });
     tax = round2(tax);
-    let billDisc = round2(Number(billDiscount) || 0);
-    if (discountType === "PERCENT") billDisc = round2(subtotal * (billDisc / 100));
-    const total = round2(subtotal + tax - billDisc);
-    return { subtotal, tax, billDisc, total, lineCount: lines.filter((l) => l.product).length };
+    const total = round2(Math.max(0, net - billDisc + tax));
+    return { subtotal, tax, billDisc, total, lineCount: draft.length };
   }, [lines, billDiscount, discountType]);
 
   const save = async () => {

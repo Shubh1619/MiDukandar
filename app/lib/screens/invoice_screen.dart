@@ -35,6 +35,8 @@ class _InvoiceScreenState extends State<InvoiceScreen> {
   bool _loading = true;
   String? _error;
   List<InvoiceRecord> _invoices = const [];
+  num _summaryRevenue = 0;
+  num _summaryPending = 0;
 
   @override
   void initState() {
@@ -54,10 +56,12 @@ class _InvoiceScreenState extends State<InvoiceScreen> {
       _error = null;
     });
     try {
-      final invoices = await widget.apiService.getInvoices();
+      final page = await widget.apiService.getInvoices();
       if (!mounted) return;
       setState(() {
-        _invoices = invoices;
+        _invoices = page.invoices;
+        _summaryRevenue = page.totalRevenue;
+        _summaryPending = page.pendingAmount;
         _loading = false;
       });
     } catch (e) {
@@ -86,8 +90,8 @@ class _InvoiceScreenState extends State<InvoiceScreen> {
     }).toList();
   }
 
-  num get totalRevenue => _invoices.fold(0, (sum, inv) => sum + inv.amount);
-  num get pendingAmount => _invoices.fold(0, (sum, inv) => sum + inv.dueAmount);
+  num get totalRevenue => _summaryRevenue;
+  num get pendingAmount => _summaryPending;
 
   Future<void> _showCreateDialog({
     Map<String, dynamic>? resume,
@@ -117,6 +121,26 @@ class _InvoiceScreenState extends State<InvoiceScreen> {
       text: (resume?['paidAmount']?.toString() ?? '0'),
     );
     String mode = (resume?['paymentMode']?.toString() ?? 'CASH');
+    String? productId = resumeLines['productId']?.toString();
+    if (productId != null && productId.isEmpty) productId = null;
+    var gstPercent = num.tryParse('${resumeLines['gstPercent'] ?? resumeLines['gst_percent'] ?? 0}') ?? 0;
+    var productName = (resumeLines['productName'] ?? resumeLines['product_name'])?.toString() ?? '';
+    if (productName.isEmpty) productName = l.billGenericItem;
+    List<Product> catalog = const [];
+    try {
+      catalog = await widget.apiService.getProducts(limit: 200);
+    } catch (_) {}
+    if (!mounted) {
+      customerController.dispose();
+      mobileController.dispose();
+      qtyController.dispose();
+      amountController.dispose();
+      paidController.dispose();
+      return;
+    }
+    if (mode != 'CREDIT' && (resume?['paidAmount'] == null)) {
+      paidController.text = '';
+    }
 
     final result = await AppDialogs.showFormSheet<Map<String, dynamic>>(
       context,
@@ -137,6 +161,44 @@ class _InvoiceScreenState extends State<InvoiceScreen> {
                   controller: mobileController,
                   allowEmpty: true,
                 ),
+                if (catalog.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  MdPickerField<String>(
+                    selected: productId ?? '',
+                    label: l.prodProductName,
+                    prefixIcon: Icons.inventory_2_outlined,
+                    options: [
+                      MdPickerOption(value: '', label: l.billGenericItem, icon: Icons.notes_outlined),
+                      ...catalog.map(
+                        (p) => MdPickerOption(
+                          value: p.id,
+                          label: p.name,
+                          icon: Icons.shopping_bag_outlined,
+                        ),
+                      ),
+                    ],
+                    onChanged: (v) {
+                      setDialogState(() {
+                        if (v.isEmpty) {
+                          productId = null;
+                          productName = l.billGenericItem;
+                          gstPercent = 0;
+                        } else {
+                          Product? product;
+                          for (final item in catalog) {
+                            if (item.id == v) product = item;
+                          }
+                          productId = v;
+                          productName = product?.name ?? l.billGenericItem;
+                          gstPercent = product?.gstPercent ?? 0;
+                          if (product != null) {
+                            amountController.text = product.sellingPrice.toString();
+                          }
+                        }
+                      });
+                    },
+                  ),
+                ],
                 const SizedBox(height: 12),
                 Row(
                   children: [
@@ -171,11 +233,7 @@ class _InvoiceScreenState extends State<InvoiceScreen> {
                         selected: mode,
                         label: l.billMode,
                         prefixIcon: Icons.payments_outlined,
-                        options: [
-                          MdPickerOption(value: 'CASH', label: l.billModeCash, icon: Icons.currency_rupee_outlined),
-                          MdPickerOption(value: 'UPI', label: l.billModeUpi, icon: Icons.phone_iphone_outlined),
-                          MdPickerOption(value: 'CARD', label: l.billModeCard, icon: Icons.credit_card_outlined),
-                        ],
+                        options: _billModes(l),
                         onChanged: (v) => setDialogState(() => mode = v),
                       ),
                     ),
@@ -201,6 +259,9 @@ class _InvoiceScreenState extends State<InvoiceScreen> {
                           unitPrice: amountController.text.trim(),
                           paid: paidController.text.trim(),
                           mode: mode,
+                          productId: productId,
+                          productName: productName,
+                          gstPercent: gstPercent,
                         );
                         Navigator.pop(sheetContext, {...payload, '__hold': true});
                       },
@@ -219,6 +280,9 @@ class _InvoiceScreenState extends State<InvoiceScreen> {
                           unitPrice: amountController.text.trim(),
                           paid: paidController.text.trim(),
                           mode: mode,
+                          productId: productId,
+                          productName: productName,
+                          gstPercent: gstPercent,
                         );
                         Navigator.pop(sheetContext, payload);
                       },
@@ -264,6 +328,15 @@ class _InvoiceScreenState extends State<InvoiceScreen> {
     }
   }
 
+  List<MdPickerOption<String>> _billModes(AppLocalizations l) {
+    return [
+      MdPickerOption(value: 'CASH', label: l.billModeCash, icon: Icons.currency_rupee_outlined),
+      MdPickerOption(value: 'UPI', label: l.billModeUpi, icon: Icons.phone_iphone_outlined),
+      MdPickerOption(value: 'CARD', label: l.billModeCard, icon: Icons.credit_card_outlined),
+      MdPickerOption(value: 'CREDIT', label: l.billUdhaar, icon: Icons.handshake_outlined),
+    ];
+  }
+
   Map<String, dynamic> _buildBillPayload({
     required AppLocalizations l,
     required String customerName,
@@ -272,7 +345,19 @@ class _InvoiceScreenState extends State<InvoiceScreen> {
     required String unitPrice,
     required String paid,
     required String mode,
+    String? productId,
+    required String productName,
+    required num gstPercent,
   }) {
+    final qtyN = num.tryParse(qty) ?? 1;
+    final priceN = num.tryParse(unitPrice) ?? 0;
+    final base = qtyN * priceN;
+    final total = base + (gstPercent > 0 ? base * gstPercent / 100 : 0);
+    final typed = paid.trim();
+    final parsed = num.tryParse(typed);
+    final paidAmount = mode == 'CREDIT'
+        ? (parsed ?? 0)
+        : (typed.isEmpty ? total : (parsed ?? total));
     return {
       'customer': {
         'name': customerName.isNotEmpty ? customerName : l.billWalkInCustomer,
@@ -285,18 +370,18 @@ class _InvoiceScreenState extends State<InvoiceScreen> {
       },
       'lines': [
         {
-          'productId': null,
-          'productName': l.billGenericItem,
-          'qty': num.tryParse(qty) ?? 1,
-          'unitPrice': num.tryParse(unitPrice) ?? 0,
+          'productId': (productId == null || productId.isEmpty) ? null : productId,
+          'productName': productName,
+          'qty': qtyN,
+          'unitPrice': priceN,
           'discount': 0,
-          'gstPercent': 0,
+          'gstPercent': gstPercent,
         }
       ],
       'paymentMode': mode,
       'discount': 0,
       'discountType': 'FLAT',
-      'paidAmount': num.tryParse(paid) ?? 0,
+      'paidAmount': paidAmount,
       'notes': l.billCreatedFromMobileApp,
     };
   }
@@ -566,11 +651,7 @@ class _InvoiceScreenState extends State<InvoiceScreen> {
                         selected: mode,
                         label: l.billMode,
                         prefixIcon: Icons.payments_outlined,
-                        options: [
-                          MdPickerOption(value: 'CASH', label: l.billModeCash, icon: Icons.currency_rupee_outlined),
-                          MdPickerOption(value: 'UPI', label: l.billModeUpi, icon: Icons.phone_iphone_outlined),
-                          MdPickerOption(value: 'CARD', label: l.billModeCard, icon: Icons.credit_card_outlined),
-                        ],
+                        options: _billModes(l),
                         onChanged: (v) => setDialogState(() => mode = v),
                       ),
                     ),
@@ -591,18 +672,14 @@ class _InvoiceScreenState extends State<InvoiceScreen> {
                         final customerName = customerController.text.trim();
                         final paid = num.tryParse(paidController.text.trim()) ?? 0;
                         final payload = {
+                          if (invoice.customerId != null && invoice.customerId!.isNotEmpty)
+                            'customerId': invoice.customerId,
                           'customer': {
                             'name': customerName.isNotEmpty ? customerName : l.billWalkInCustomer,
                             'mobile': mobileController.text.trim(),
-                            'address': '',
-                            'city': '',
-                            'state': '',
-                            'pincode': '',
-                            'gst': '',
                           },
                           'paymentMode': mode,
                           'paidAmount': paid,
-                          'notes': l.billCreatedFromMobileApp,
                         };
                         Navigator.pop(sheetContext, payload);
                       },

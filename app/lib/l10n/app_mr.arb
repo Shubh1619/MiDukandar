@@ -1022,5 +1022,9 @@
   "regSectionAccountDetails": "वितरण विवरण",
   "regSectionStoreDetails": "दुकान विवरण",
   "regSectionLocation": "स्थान",
-  "regSectionPreferences": "प्राधान्ये"
+  "regSectionPreferences": "प्राधान्ये",
+  "regSendCode": "कोड पाठवा",
+  "regOtpLabel": "ईमेल कोड",
+  "regOtpRequired": "या ईमेलवर पाठवलेला कोड टाका.",
+  "regOtpSent": "कोड पाठवला. नोंदणी पूर्ण करण्यासाठी खाली टाका."
 }

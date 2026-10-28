@@ -10,6 +10,7 @@ import { createSale, reverseSale, updateSale, recordSalePayment } from "../servi
 import { generateInvoicePdf } from "../lib/pdf.js";
 import { logger } from "../lib/logger.js";
 import { invalidateDashboardCache } from "../lib/dashboard-cache.js";
+import { istBoundary } from "../lib/ist.js";
 
 const saleLineSchema = lineItemBaseSchema
   .extend({
@@ -57,8 +58,23 @@ const saleUpdateSchema = saleSchema.extend({
   discountType: z.enum(["FLAT", "PERCENT"]).optional(),
 });
 
-/** Credit invoices outstanding longer than this many days count as overdue. */
+/** Outstanding invoices with no due date count as overdue after this many days. */
 const OVERDUE_DAYS = 30;
+
+/**
+ * A bill is overdue when its due date has passed (IST). Bills saved before
+ * due dates existed fall back to 30 days after they were created.
+ */
+const OVERDUE_SQL = `s.status = 'CONFIRMED' AND s.due_amount > 0 AND (
+  (s.due_date IS NOT NULL AND s.due_date < (now() AT TIME ZONE 'Asia/Kolkata')::date)
+  OR (s.due_date IS NULL AND s.created_at < now() - make_interval(days => ${OVERDUE_DAYS}))
+)`;
+
+function saleBound(value: string | undefined, endOfDay: boolean): Date | undefined {
+  if (!value || !value.trim()) return undefined;
+  const d = istBoundary(value.trim(), endOfDay);
+  return Number.isNaN(d.getTime()) ? undefined : d;
+}
 
 /** pg returns `date` columns as JS Date; normalize to YYYY-MM-DD for payloads. */
 function toYmd(v: unknown): string | null {
@@ -385,17 +401,17 @@ function salesWhere(
 ): { conditions: string[]; params: unknown[] } {
   const conditions = ["s.store_id = $1"];
   const params: unknown[] = [storeId];
-  if (query.from) { params.push(query.from); conditions.push(`s.created_at >= $${params.length}`); }
-  if (query.to) { params.push(query.to); conditions.push(`s.created_at <= $${params.length}`); }
+  const from = saleBound(query.from, false);
+  const to = saleBound(query.to, true);
+  if (from) { params.push(from); conditions.push(`s.created_at >= $${params.length}`); }
+  if (to) { params.push(to); conditions.push(`s.created_at <= $${params.length}`); }
   if (query.customerId) { params.push(query.customerId); conditions.push(`s.customer_id = $${params.length}`); }
   if (query.status) { params.push(query.status); conditions.push(`s.status = $${params.length}`); }
   if (query.paymentMode) { params.push(query.paymentMode); conditions.push(`s.payment_mode = $${params.length}`); }
   if (query.payment === "PAID") conditions.push(`s.status = 'CONFIRMED' AND s.due_amount <= 0`);
   if (query.payment === "UNPAID") conditions.push(`s.status = 'CONFIRMED' AND s.due_amount > 0`);
   if (query.payment === "OVERDUE") {
-    conditions.push(
-      `s.status = 'CONFIRMED' AND s.due_amount > 0 AND s.created_at < now() - make_interval(days => ${OVERDUE_DAYS})`,
-    );
+    conditions.push(OVERDUE_SQL);
   }
   if (query.search) {
     params.push(`%${query.search}%`);
@@ -429,7 +445,7 @@ async function salesSummary(
        COUNT(*) AS total_invoices,
        COALESCE(SUM(CASE WHEN s.status <> 'REVERSED' THEN s.paid_amount ELSE 0 END), 0) AS total_revenue,
        COALESCE(SUM(CASE WHEN s.status = 'CONFIRMED' AND s.due_amount > 0 THEN s.due_amount ELSE 0 END), 0) AS pending_amount,
-       COUNT(*) FILTER (WHERE s.status = 'CONFIRMED' AND s.due_amount > 0 AND s.created_at < now() - make_interval(days => ${OVERDUE_DAYS})) AS overdue_count
+       COUNT(*) FILTER (WHERE ${OVERDUE_SQL}) AS overdue_count
      FROM sales s LEFT JOIN customers c ON c.id = s.customer_id
      WHERE ${conditions.join(" AND ")}`,
     params,

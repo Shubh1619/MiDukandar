@@ -12,8 +12,9 @@
  *     subtracted once for every unit (₹10 of line discount on 2 units came off
  *     ₹20 instead of ₹10) — overstating the GSTR-1 taxable turnover.
  * PASSES AFTER: profit = paid − COGS(purchase_price × qty, pro-rated by
- *   paid/total) − tax − discounts − expenses, and the taxable value is
- *   unit_price × qty − line discount (line_total − tax).
+ *   paid/total) − tax − expenses. paid_amount is already net of the bill
+ *   discount, so the discount is not subtracted a second time. The taxable
+ *   value is unit_price × qty − line discount (line_total − tax).
  *
  * Plan-module gating: SALES_INVOICES / GST_REPORTS / PRODUCTS / EXPENSES are
  * enabled for the run and restored after.
@@ -147,8 +148,7 @@ async function main(): Promise<void> {
     const fraction = paid / Number(s.total);
     const expectedCogs = COST * QTY * fraction;
     const expectedTax = Number(s.tax_total) * fraction;
-    const expectedDiscount = Number(s.discount) * fraction;
-    const expectedProfit = paid - expectedCogs - expectedTax - expectedDiscount - 5;
+    const expectedProfit = paid - expectedCogs - expectedTax - 5;
 
     const statsRes = await app.inject({ method: "GET", url: "/api/reports/dashboard", headers });
     const statsBody = statsRes.json() as { stats?: { todayProfit?: number } };
@@ -157,7 +157,7 @@ async function main(): Promise<void> {
     check(
       "fix-10 today profit uses cost of goods, tax, discount and expenses",
       typeof profit === "number" && near(profit, expectedProfit),
-      `profit=${profit} expected=${expectedProfit} (paid=${paid} cogs=${expectedCogs} tax=${expectedTax} disc=${expectedDiscount})`,
+      `profit=${profit} expected=${expectedProfit} (paid=${paid} cogs=${expectedCogs} tax=${expectedTax})`,
     );
 
     // GSTR-1 taxable value must be the discounted pre-tax value of the line:

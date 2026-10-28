@@ -1846,4 +1846,16 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get regSectionPreferences => 'Preferences';
+
+  @override
+  String get regSendCode => 'Send code';
+
+  @override
+  String get regOtpLabel => 'Email code';
+
+  @override
+  String get regOtpRequired => 'Enter the code sent to this email.';
+
+  @override
+  String get regOtpSent => 'Code sent. Enter it below to finish registration.';
 }

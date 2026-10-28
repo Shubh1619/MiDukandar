@@ -259,6 +259,7 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
     required String currency,
     required String language,
     required String invoicePrefix,
+    required String otp,
   }) async {
     try {
       setState(() => _isLoading = true);
@@ -276,6 +277,7 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
         currency: currency,
         language: language,
         invoicePrefix: invoicePrefix,
+        otp: otp,
       );
       if (!mounted) return;
       setState(() => _showRegister = false);

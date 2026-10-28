@@ -11,6 +11,7 @@
  *
  * Run:  npx tsx scripts/test-fix-20.ts     (exit 0 = PASS, 1 = FAIL)
  */
+import { createHash } from "node:crypto";
 import { pool } from "../src/db/pool.js";
 import { invalidatePlatformSettings } from "../src/lib/platform-settings.js";
 
@@ -47,10 +48,17 @@ async function main(): Promise<void> {
   const createdEmails: string[] = [];
 
   const register = async (email: string, storeName: string, referralCode?: string) => {
+    const otp = "654321";
+    await pool.query(
+      `INSERT INTO otps (email, otp_hash, purpose, expires_at)
+       VALUES ($1, $2, 'REGISTER', now() + interval '10 minutes')`,
+      [email.toLowerCase(), createHash("sha256").update(otp).digest("hex")],
+    );
     const payload: Record<string, unknown> = {
       email, ownerName: "Test Owner", name: storeName, type: "Retail",
       address: "1 Test St", city: "Pune", state: "MH", pincode: "411001",
       phone: "9000000000", gst: "", currency: "INR", language: "en", invoicePrefix: "T",
+      otp,
     };
     if (referralCode) payload.referralCode = referralCode;
     const res = await app.inject({ method: "POST", url: "/api/auth/register", payload });

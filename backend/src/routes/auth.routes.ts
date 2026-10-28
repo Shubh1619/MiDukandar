@@ -154,10 +154,9 @@ export async function authRoutes(app: FastifyInstance) {
     });
   });
 
-  // Registration - creates the account + store together, no OTP required.
-  // No verification stands between a caller and a new store, so this is the
-  // cheapest way to mass-create tenants and referral-credit fraud; 10 per hour
-  // per IP still clears an office or a shared NAT signing up several people.
+  // Registration creates the account + store together after a REGISTER OTP
+  // proves the caller owns the inbox. 10 per hour per IP still clears an
+  // office or a shared NAT signing up several people.
   app.post("/register", rateLimited(10, 3_600_000), async (request, reply) => {
     const registerSchema = z.object({
       email: z.string().email(),
@@ -174,6 +173,7 @@ export async function authRoutes(app: FastifyInstance) {
       language: z.string().max(8).optional().default("hi"),
       invoicePrefix: z.string().max(10).optional().default("INV"),
       referralCode: z.string().min(4).max(32).optional(),
+      otp: z.string().min(4).max(10).optional(),
     });
     const body = parse(registerSchema, request.body);
     const email = body.email.trim().toLowerCase();
@@ -188,6 +188,13 @@ export async function authRoutes(app: FastifyInstance) {
     if (existing) {
       throw ApiError.conflict("An account with this email already exists. Sign in instead.");
     }
+
+    // The inbox has to be proven before the address can own a store. verifyOtp
+    // consumes the REGISTER code, so a replay of the same code cannot open a second shop.
+    if (!body.otp) {
+      throw ApiError.badRequestCode("Enter the code sent to this email.", "OTP_REQUIRED");
+    }
+    await verifyOtp(email, body.otp, "REGISTER");
 
     const referrerId = await resolveReferralCode(body.referralCode);
 

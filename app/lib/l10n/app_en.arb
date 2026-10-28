@@ -1049,5 +1049,9 @@
   "regSectionAccountDetails": "Account Details",
   "regSectionStoreDetails": "Store Details",
   "regSectionLocation": "Location",
-  "regSectionPreferences": "Preferences"
+  "regSectionPreferences": "Preferences",
+  "regSendCode": "Send code",
+  "regOtpLabel": "Email code",
+  "regOtpRequired": "Enter the code sent to this email.",
+  "regOtpSent": "Code sent. Enter it below to finish registration."
 }

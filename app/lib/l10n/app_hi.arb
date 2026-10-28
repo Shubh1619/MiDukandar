@@ -1022,5 +1022,9 @@
   "regSectionAccountDetails": "खाता विवरण",
   "regSectionStoreDetails": "दुकान का विवरण",
   "regSectionLocation": "स्थान",
-  "regSectionPreferences": "प्राथमिकताएं"
+  "regSectionPreferences": "प्राथमिकताएं",
+  "regSendCode": "कोड भेजें",
+  "regOtpLabel": "ईमेल कोड",
+  "regOtpRequired": "इस ईमेल पर भेजा गया कोड दर्ज करें।",
+  "regOtpSent": "कोड भेज दिया गया। रजिस्ट्रेशन पूरा करने के लिए नीचे दर्ज करें।"
 }

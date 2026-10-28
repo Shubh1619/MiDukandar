@@ -3429,6 +3429,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Preferences'**
   String get regSectionPreferences;
+
+  /// No description provided for @regSendCode.
+  ///
+  /// In en, this message translates to:
+  /// **'Send code'**
+  String get regSendCode;
+
+  /// No description provided for @regOtpLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Email code'**
+  String get regOtpLabel;
+
+  /// No description provided for @regOtpRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter the code sent to this email.'**
+  String get regOtpRequired;
+
+  /// No description provided for @regOtpSent.
+  ///
+  /// In en, this message translates to:
+  /// **'Code sent. Enter it below to finish registration.'**
+  String get regOtpSent;
 }
 
 class _AppLocalizationsDelegate

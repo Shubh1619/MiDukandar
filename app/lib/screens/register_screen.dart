@@ -32,6 +32,7 @@ class RegisterScreen extends StatefulWidget {
     required String currency,
     required String language,
     required String invoicePrefix,
+    required String otp,
   })? onRegister;
   final VoidCallback? onBackToLogin;
 
@@ -113,6 +114,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _phoneController = TextEditingController();
   final _gstController = TextEditingController();
   final _invoicePrefixController = TextEditingController(text: 'INV');
+  final _otpController = TextEditingController();
 
   String _type = 'Kirana & General Store';
   String _state = 'Maharashtra';
@@ -133,6 +135,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     _phoneController.dispose();
     _gstController.dispose();
     _invoicePrefixController.dispose();
+    _otpController.dispose();
     super.dispose();
   }
 
@@ -141,11 +144,38 @@ class _RegisterScreenState extends State<RegisterScreen> {
     setState(() => _error = error);
   }
 
+  Future<void> _sendCode() async {
+    final l = AppLocalizations.of(context)!;
+    final email = _emailController.text.trim().toLowerCase();
+    if (!RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(email)) {
+      _setError(l.regEmailInvalid);
+      return;
+    }
+    setState(() {
+      _submitting = true;
+      _error = null;
+    });
+    try {
+      await widget.apiService.requestRegisterOtp(email: email);
+      if (!mounted) return;
+      AppDialogs.showSuccess(context, l.regOtpSent);
+    } catch (error) {
+      if (!mounted) return;
+      _setError(error.toString().replaceFirst('HttpException: ', ''));
+    } finally {
+      if (mounted) setState(() => _submitting = false);
+    }
+  }
+
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
     final phoneText = _phoneController.text.trim();
     if (phoneText.isEmpty || !RegExp(r'^\d{10,12}$').hasMatch(phoneText)) {
       _setError(AppLocalizations.of(context)!.validationMobileNumber);
+      return;
+    }
+    if (_otpController.text.trim().length < 4) {
+      _setError(AppLocalizations.of(context)!.regOtpRequired);
       return;
     }
 
@@ -171,6 +201,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         currency: _currency,
         language: _language,
         invoicePrefix: _invoicePrefixController.text.trim().toUpperCase(),
+        otp: _otpController.text.trim(),
       );
 
       if (!mounted) return;
@@ -381,6 +412,25 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   prefixIcon: Icons.email_outlined,
                   keyboardType: TextInputType.emailAddress,
                   autofillHints: const [AutofillHints.email],
+                ),
+                const SizedBox(height: 8),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: TextButton.icon(
+                    onPressed: _submitting ? null : _sendCode,
+                    icon: const Icon(Icons.mark_email_unread_outlined),
+                    label: Text(l.regSendCode),
+                  ),
+                ),
+                const SizedBox(height: 14),
+                _buildField(
+                  label: l.regOtpLabel,
+                  controller: _otpController,
+                  validator: (value) => (value ?? '').trim().length < 4 ? l.regOtpRequired : null,
+                  prefixIcon: Icons.pin_outlined,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  maxLength: 10,
                 ),
                 const SizedBox(height: 14),
                 _buildField(

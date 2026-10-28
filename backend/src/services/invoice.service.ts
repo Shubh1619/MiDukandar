@@ -7,8 +7,6 @@ import { insertPayment } from "./payment.service.js";
 
 type Tx = DbClient;
 
-const round2 = (n: number) => moneyNum(n);
-
 /** Normalizes a `date` column (pg returns a local Date) to `YYYY-MM-DD`. */
 function toYmd(v: Date | string | null): string | undefined {
   if (!v) return undefined;
@@ -27,69 +25,111 @@ type ProductRow = {
   store_id: string;
 };
 
-/** Prices line items and returns computed line rows plus running subtotal/tax/line-discounts. */
-function priceLines(lines: SaleLineInput[], pMap: Map<string, ProductRow>) {
-  let subtotal = dec(0);
-  let taxTotal = dec(0);
-  const items = lines.map((line) => {
-    const p = line.productId ? pMap.get(line.productId) : undefined;
-    const unitPrice = money(line.unitPrice ?? p?.selling_price ?? 0);
-    const lineQty = dec(roundQty3(line.qty));
-    const baseAmount = unitPrice.times(lineQty);
-    const lineDisc = money(line.discount ?? 0);
-    const gstPercent = money(line.gstPercent ?? p?.gst_percent ?? 0);
-    const taxable = baseAmount.minus(lineDisc);
-    const taxAmount = money(gstPercent.gt(0) ? taxable.times(gstPercent).div(100) : 0);
-    const lineTotal = money(taxable.plus(taxAmount));
+type PricedItem = {
+  productId: string | null;
+  productName: string;
+  barcode: string | null;
+  qty: number;
+  unitPrice: number;
+  discount: number;
+  gstPercent: number;
+  taxAmount: number;
+  lineTotal: number;
+};
 
-    subtotal = subtotal.plus(baseAmount);
-    taxTotal = taxTotal.plus(taxAmount);
-
-    return {
-      productId: p?.id ?? null,
-      productName: line.productName?.trim() || p?.name || "Item",
-      barcode: p?.barcode ?? null,
-      qty: lineQty.toNumber(),
-      unitPrice: unitPrice.toNumber(),
-      discount: lineDisc.toNumber(),
-      gstPercent: gstPercent.toNumber(),
-      taxAmount: taxAmount.toNumber(),
-      lineTotal: lineTotal.toNumber(),
-    };
-  });
-  const lineDiscounts = money(sumMoney(items.map((it) => it.discount)));
-  return {
-    items,
-    subtotal: moneyNum(subtotal),
-    taxTotal: moneyNum(taxTotal),
-    lineDiscounts: lineDiscounts.toNumber(),
-  };
-}
-
-/** Applies a bill-level discount and returns the grand total before payment split. */
-function billTotals(
-  subtotal: number,
-  taxTotal: number,
-  lineDiscounts: number,
+/**
+ * Prices a sale. Line discounts are capped at the line amount, and the bill
+ * discount (flat, or a percent of the gross subtotal, itself capped at 100)
+ * is capped at the pre-tax net and spread across lines *before* GST. A
+ * discount can never push the grand total below zero.
+ */
+function priceSale(
+  lines: SaleLineInput[],
+  pMap: Map<string, ProductRow>,
   discount?: number,
   discountType?: "FLAT" | "PERCENT",
 ) {
-  let billDiscount = money(discount ?? 0);
+  const drafts = lines.map((line) => {
+    const p = line.productId ? pMap.get(line.productId) : undefined;
+    const unitPrice = money(line.unitPrice ?? p?.selling_price ?? 0);
+    const lineQty = dec(roundQty3(line.qty));
+    const baseAmount = money(unitPrice.times(lineQty));
+    const lineDisc = money(dmin(dmax(0, line.discount ?? 0), dmax(0, baseAmount)));
+    const gstPercent = money(line.gstPercent ?? p?.gst_percent ?? 0);
+    const preTax = money(baseAmount.minus(lineDisc));
+    return { p, line, unitPrice, lineQty, baseAmount, lineDisc, gstPercent, preTax };
+  });
+
+  const subtotal = money(drafts.reduce((acc, d) => acc.plus(d.baseAmount), dec(0)));
+  const lineDiscounts = money(drafts.reduce((acc, d) => acc.plus(d.lineDisc), dec(0)));
+  const netBeforeBill = money(dmax(0, subtotal.minus(lineDiscounts)));
+
+  let billDiscount = money(dmax(0, discount ?? 0));
   if (discountType === "PERCENT") {
-    billDiscount = money(dec(subtotal).times(billDiscount).div(100));
+    const percent = dmin(billDiscount, 100);
+    billDiscount = money(subtotal.times(percent).div(100));
   }
-  const grantTotal = money(
-    dec(subtotal).plus(taxTotal).minus(money(dec(lineDiscounts).plus(billDiscount))),
-  );
-  return { billDiscount: billDiscount.toNumber(), grantTotal: grantTotal.toNumber() };
+  billDiscount = money(dmin(billDiscount, netBeforeBill));
+
+  let remainingDisc = billDiscount;
+  const shares = drafts.map((d, i) => {
+    if (remainingDisc.lte(0) || netBeforeBill.lte(0)) return dec(0);
+    const isLast = i === drafts.length - 1;
+    const raw = isLast ? remainingDisc : money(billDiscount.times(d.preTax).div(netBeforeBill));
+    const share = money(dmin(dmin(raw, d.preTax), remainingDisc));
+    remainingDisc = remainingDisc.minus(share);
+    return share;
+  });
+  if (remainingDisc.gt(0)) {
+    for (let i = 0; i < drafts.length && remainingDisc.gt(0); i++) {
+      const room = money(drafts[i].preTax.minus(shares[i]));
+      const extra = money(dmin(room, remainingDisc));
+      shares[i] = shares[i].plus(extra);
+      remainingDisc = remainingDisc.minus(extra);
+    }
+  }
+
+  const items: PricedItem[] = drafts.map((d, i) => {
+    const taxable = money(d.preTax.minus(shares[i]));
+    const taxAmount = money(d.gstPercent.gt(0) ? taxable.times(d.gstPercent).div(100) : 0);
+    return {
+      productId: d.p?.id ?? null,
+      productName: d.line.productName?.trim() || d.p?.name || "Item",
+      barcode: d.p?.barcode ?? null,
+      qty: d.lineQty.toNumber(),
+      unitPrice: d.unitPrice.toNumber(),
+      discount: d.lineDisc.toNumber(),
+      gstPercent: d.gstPercent.toNumber(),
+      taxAmount: taxAmount.toNumber(),
+      lineTotal: money(taxable.plus(taxAmount)).toNumber(),
+    };
+  });
+
+  const taxTotal = money(sumMoney(items.map((it) => it.taxAmount)));
+  const grantTotal = money(sumMoney(items.map((it) => it.lineTotal)));
+  return {
+    items,
+    subtotal: subtotal.toNumber(),
+    taxTotal: taxTotal.toNumber(),
+    lineDiscounts: lineDiscounts.toNumber(),
+    billDiscount: billDiscount.toNumber(),
+    grantTotal: grantTotal.toNumber(),
+  };
 }
 
-/** Splits the grand total into paid/due based on payment mode. CREDIT is the only mode that leaves a balance. */
+/**
+ * Splits the grand total into collected and still-owed amounts.
+ * An omitted `paidAmount` means "collected in full" for cash/UPI/card and
+ * "nothing collected" for credit. An explicit amount, including 0, is capped
+ * at the total and the remainder stays due for every payment mode.
+ */
 function splitPayment(grantTotal: number, paymentMode: "CASH" | "UPI" | "CARD" | "CREDIT", paidAmount?: number) {
-  const total = dec(grantTotal);
-  const payable = paymentMode === "CREDIT" ? dec(paidAmount ?? 0) : dec(paidAmount ?? total);
-  const paid = money(dmin(total, dmax(0, payable)));
-  const due = paymentMode === "CREDIT" ? money(total.minus(paid)) : dec(0);
+  const total = money(dmax(0, grantTotal));
+  const requested = paidAmount === undefined
+    ? (paymentMode === "CREDIT" ? dec(0) : total)
+    : dec(paidAmount);
+  const paid = money(dmin(total, dmax(0, requested)));
+  const due = money(total.minus(paid));
   return { paidAmount: paid.toNumber(), dueAmount: due.toNumber() };
 }
 
@@ -190,10 +230,46 @@ async function resolveCustomer(
   db: Tx,
   storeId: string,
   input: Pick<SaleInput, "customerId" | "customer">,
-  createdById: string,
+  _createdById: string,
 ): Promise<string | undefined> {
-  if (input.customerId) return input.customerId;
   const c = input.customer;
+  if (input.customerId) {
+    const owned = await db.qOne<{ id: string }>(
+      `SELECT id FROM customers WHERE id = $1 AND store_id = $2`,
+      [input.customerId, storeId],
+    );
+    if (!owned) {
+      throw ApiError.badRequestCode("Customer not found in this store.", "INVALID_CUSTOMER");
+    }
+    if (c?.name?.trim()) {
+      // Blank strings keep the stored value. The mobile edit form sends empty
+      // address fields alongside a name change, and those must not wipe the record.
+      await db.q(
+        `UPDATE customers
+            SET name = $1,
+                mobile = COALESCE(NULLIF(btrim($2), ''), mobile),
+                address = COALESCE(NULLIF(btrim($3), ''), address),
+                city = COALESCE(NULLIF(btrim($4), ''), city),
+                state = COALESCE(NULLIF(btrim($5), ''), state),
+                pincode = COALESCE(NULLIF(btrim($6), ''), pincode),
+                gst = COALESCE(NULLIF(btrim($7), ''), gst),
+                updated_at = now()
+          WHERE id = $8 AND store_id = $9`,
+        [
+          c.name.trim(),
+          c.mobile?.trim() || "",
+          c.address?.trim() || "",
+          c.city?.trim() || "",
+          c.state?.trim() || "",
+          c.pincode?.trim() || "",
+          c.gst?.trim() || "",
+          owned.id,
+          storeId,
+        ],
+      );
+    }
+    return owned.id;
+  }
   if (!c || !c.name || !c.name.trim()) return undefined;
   const row = await db.qOne<{ id: string }>(
     `INSERT INTO customers (store_id, name, mobile, address, city, state, pincode, gst)
@@ -344,12 +420,16 @@ export async function createSale(db: Tx, input: SaleInput): Promise<SaleRow> {
   // Stock check against derived balances.
   await assertStock(db, input.lines, pMap);
 
-  const { items, subtotal, taxTotal, lineDiscounts } = priceLines(input.lines, pMap);
-  const { billDiscount, grantTotal } = billTotals(subtotal, taxTotal, lineDiscounts, input.discount, input.discountType);
+  const { items, subtotal, taxTotal, billDiscount, grantTotal } = priceSale(
+    input.lines,
+    pMap,
+    input.discount,
+    input.discountType,
+  );
   const { paidAmount, dueAmount } = splitPayment(grantTotal, input.paymentMode, input.paidAmount);
 
   const now = new Date();
-  const dueDate = input.paymentMode === "CREDIT" ? input.udhaar?.dueDate || null : null;
+  const dueDate = dueAmount > 0 ? input.udhaar?.dueDate || null : null;
   const sale = await db.qOne<SaleRow>(
     `INSERT INTO sales
        (store_id, invoice_number, customer_id, subtotal, discount, discount_type, tax_total, total, paid_amount, due_amount, payment_mode, due_date, status, notes, created_by_id, created_at, updated_at)
@@ -394,8 +474,8 @@ export async function createSale(db: Tx, input: SaleInput): Promise<SaleRow> {
     });
   }
 
-  // Credit ledger + linked udhaari entry (so the Udhaari section tracks the invoice)
-  if (input.paymentMode === "CREDIT" && customerId && dueAmount > 0) {
+  // Any unpaid remainder is udhaar, whichever tender the collected part used.
+  if (customerId && dueAmount > 0) {
     await createLedgerEntry(db, {
       customerId,
       storeId: input.storeId,
@@ -408,15 +488,14 @@ export async function createSale(db: Tx, input: SaleInput): Promise<SaleRow> {
     await linkUdhaariEntry(db, input.storeId, customerId, sale, dueAmount, input.udhaar, input.createdById);
   }
 
-  // Payment record (CASH/UPI/CARD)
-  if (input.paymentMode !== "CREDIT" && paidAmount > 0) {
+  if (paidAmount > 0) {
     await insertPayment(db, {
       storeId: input.storeId,
       customerId: customerId ?? null,
       saleId: sale.id as string,
       amount: paidAmount,
       type: "RECEIVED",
-      mode: input.paymentMode,
+      mode: input.paymentMode === "CREDIT" ? "CASH" : input.paymentMode,
       referenceType: "SALE",
       referenceId: sale.id as string,
       note: `Payment for ${invoiceNumber}`,
@@ -665,12 +744,12 @@ export async function reverseSale(
     });
   }
 
-  if (sale.payment_mode === "CREDIT" && sale.customer_id && sale.due_amount > 0) {
+  if (sale.customer_id && Number(sale.due_amount) > 0) {
     await createLedgerEntry(db, {
       customerId: sale.customer_id,
       storeId,
       type: "CREDIT",
-      amount: sale.due_amount,
+      amount: Number(sale.due_amount),
       referenceType: "SALE",
       referenceId: sale.id,
       note: `Reversal of credit sale ${sale.invoice_number}`,
@@ -679,9 +758,7 @@ export async function reverseSale(
 
   // Remove the invoice's linked udhaari entries (their payments cascade off;
   // ledger + payments history is append-only and stays for the audit trail).
-  if (sale.payment_mode === "CREDIT") {
-    await db.q(`DELETE FROM udhaari_entries WHERE sale_id = $1`, [saleId]);
-  }
+  await db.q(`DELETE FROM udhaari_entries WHERE sale_id = $1`, [saleId]);
 
   await db.q(
     `UPDATE sales SET status = 'REVERSED', reversed_by_id = $1, reversed_at = now(), updated_at = now() WHERE id = $2`,
@@ -729,84 +806,96 @@ export async function updateSale(
     [saleId],
   );
 
-  // A partial edit omits `lines`: reuse the stored lines (and the bill discount
-  // and credit due date) so callers can change just customer/paid/mode/notes.
+  // A partial edit omits `lines`. The stored lines, bill discount and totals
+  // stay as written — re-running a PERCENT discount against the stored rupee
+  // amount would treat ₹100 as 100%. Stock is left untouched for the same reason.
   const partial = input.lines === undefined;
-  const lines: SaleLineInput[] = partial
-    ? oldItems.map((it) => ({
-        productId: it.product_id,
-        productName: it.product_name,
-        qty: Number(it.qty),
-        unitPrice: Number(it.unit_price),
-        discount: Number(it.discount),
-        gstPercent: Number(it.gst_percent),
-      }))
-    : input.lines ?? [];
-  if (lines.length === 0) {
+  const lines = input.lines ?? [];
+  if (!partial && lines.length === 0) {
     throw ApiError.badRequestCode("Sale must have at least one line item.", "EMPTY_SALE");
   }
-  const discount = partial ? Number(existing.discount) : input.discount;
-  const discountType = partial ? (existing.discount_type as "FLAT" | "PERCENT") : input.discountType;
-  const udhaar = partial
-    ? { dueDate: toYmd(existing.due_date) }
-    : input.udhaar;
 
-  // An omitted field means "unchanged" (the same convention `lines`, `discount`
-  // and `udhaar` already follow). Writing `input.x ?? null` instead would clear
-  // the customer link, wipe the notes and, with `input.paidAmount ?? 0`/the
-  // mode changing, reset the settlement of an invoice the caller only meant to
-  // partially touch. Payment history is only rebuilt when its inputs change.
-  const touchesPayment = input.paymentMode !== undefined || input.paidAmount !== undefined;
-  const paymentMode = input.paymentMode ?? (existing.payment_mode as "CASH" | "UPI" | "CARD" | "CREDIT");
-  const preservedPaid =
-    existing.due_amount <= 0 || existing.payment_mode === "CREDIT"
-      ? Number(existing.paid_amount)
-      : undefined;
-
-  for (const it of oldItems) {
-    if (!it.product_id) continue;
-    await createStockMovement(db, {
-      productId: it.product_id,
-      storeId,
-      qty: Math.abs(it.qty),
-      type: "ADJUSTMENT",
-      referenceType: "SALE",
-      referenceId: saleId,
-      note: `Edit ${existing.invoice_number} (restock)`,
-      createdById: input.createdById,
-    });
-  }
-  await db.q(`DELETE FROM sale_items WHERE sale_id = $1`, [saleId]);
-
-  const catalogLines = lines.filter((l) => l.productId);
-  const productIds = [...new Set(catalogLines.map((l) => l.productId as string))];
-  const products = productIds.length > 0
-    ? await db.q<ProductRow>(
-        `SELECT id, name, barcode, selling_price, gst_percent, store_id FROM products WHERE id = ANY($1::uuid[])`,
-        [productIds],
-      )
-    : [];
-  if (products.length !== productIds.length) {
-    throw ApiError.badRequestCode("One or more products are invalid.", "INVALID_PRODUCT");
-  }
-  for (const p of products) {
-    if (p.store_id !== storeId) {
-      throw ApiError.badRequestCode("One or more products belong to another store.", "INVALID_PRODUCT");
-    }
-  }
-  const pMap = new Map(products.map((p) => [p.id, p]));
-  await assertStock(db, lines, pMap);
-
-  const { items, subtotal, taxTotal, lineDiscounts } = priceLines(lines, pMap);
-  const { billDiscount, grantTotal } = billTotals(subtotal, taxTotal, lineDiscounts, discount, discountType);
-  const { paidAmount, dueAmount } = splitPayment(
-    grantTotal,
-    paymentMode,
-    input.paidAmount ?? preservedPaid,
-  );
   const customerId = input.customerId !== undefined || input.customer !== undefined
     ? await resolveCustomer(db, storeId, input, input.createdById)
     : (existing.customer_id ?? undefined);
+  const paymentMode = input.paymentMode ?? (existing.payment_mode as "CASH" | "UPI" | "CARD" | "CREDIT");
+
+  let subtotal = Number(existing.subtotal);
+  let billDiscount = Number(existing.discount);
+  let discountType = (existing.discount_type as "FLAT" | "PERCENT") || "FLAT";
+  let taxTotal = Number(existing.tax_total);
+  let grantTotal = Number(existing.total);
+
+  if (!partial) {
+    for (const it of oldItems) {
+      if (!it.product_id) continue;
+      await createStockMovement(db, {
+        productId: it.product_id,
+        storeId,
+        qty: Math.abs(it.qty),
+        type: "ADJUSTMENT",
+        referenceType: "SALE",
+        referenceId: saleId,
+        note: `Edit ${existing.invoice_number} (restock)`,
+        createdById: input.createdById,
+      });
+    }
+    await db.q(`DELETE FROM sale_items WHERE sale_id = $1`, [saleId]);
+
+    const catalogLines = lines.filter((l) => l.productId);
+    const productIds = [...new Set(catalogLines.map((l) => l.productId as string))];
+    const products = productIds.length > 0
+      ? await db.q<ProductRow>(
+          `SELECT id, name, barcode, selling_price, gst_percent, store_id FROM products WHERE id = ANY($1::uuid[])`,
+          [productIds],
+        )
+      : [];
+    if (products.length !== productIds.length) {
+      throw ApiError.badRequestCode("One or more products are invalid.", "INVALID_PRODUCT");
+    }
+    for (const p of products) {
+      if (p.store_id !== storeId) {
+        throw ApiError.badRequestCode("One or more products belong to another store.", "INVALID_PRODUCT");
+      }
+    }
+    const pMap = new Map(products.map((p) => [p.id, p]));
+    await assertStock(db, lines, pMap);
+
+    const priced = priceSale(lines, pMap, input.discount, input.discountType);
+    subtotal = priced.subtotal;
+    billDiscount = priced.billDiscount;
+    discountType = input.discountType ?? "FLAT";
+    taxTotal = priced.taxTotal;
+    grantTotal = priced.grantTotal;
+
+    for (const it of priced.items) {
+      await db.q(
+        `INSERT INTO sale_items (sale_id, product_id, product_name, barcode, qty, unit_price, discount, gst_percent, tax_amount, line_total)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+        [saleId, it.productId, it.productName, it.barcode, it.qty, it.unitPrice, it.discount, it.gstPercent, it.taxAmount, it.lineTotal],
+      );
+      if (!it.productId) continue;
+      await createStockMovement(db, {
+        productId: it.productId,
+        storeId,
+        qty: -it.qty,
+        type: "ADJUSTMENT",
+        referenceType: "SALE",
+        referenceId: saleId,
+        note: `Edit ${existing.invoice_number}`,
+        createdById: input.createdById,
+      });
+    }
+  }
+
+  // Omitted payment fields keep the stored settlement. A full reprice that
+  // omits paidAmount means "collected in full" for cash/UPI/card.
+  const { paidAmount, dueAmount } = splitPayment(
+    grantTotal,
+    paymentMode,
+    partial ? (input.paidAmount !== undefined ? input.paidAmount : Number(existing.paid_amount)) : input.paidAmount,
+  );
+  const dueDate = dueAmount > 0 ? (input.udhaar?.dueDate || toYmd(existing.due_date) || null) : null;
 
   const updated = await db.qOne<SaleRow>(
     `UPDATE sales
@@ -819,13 +908,13 @@ export async function updateSale(
       customerId ?? null,
       subtotal,
       billDiscount,
-      discountType ?? "FLAT",
+      discountType,
       taxTotal,
       grantTotal,
       paidAmount,
       dueAmount,
       paymentMode,
-      udhaar?.dueDate || null,
+      dueDate,
       input.notes !== undefined ? input.notes : existing.notes,
       saleId,
       storeId,
@@ -833,63 +922,56 @@ export async function updateSale(
   );
   if (!updated) throw new Error("Sale update failed");
 
-  for (const it of items) {
-    await db.q(
-      `INSERT INTO sale_items (sale_id, product_id, product_name, barcode, qty, unit_price, discount, gst_percent, tax_amount, line_total)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
-      [saleId, it.productId, it.productName, it.barcode, it.qty, it.unitPrice, it.discount, it.gstPercent, it.taxAmount, it.lineTotal],
-    );
-    if (!it.productId) continue;
-    await createStockMovement(db, {
-      productId: it.productId,
-      storeId,
-      qty: -it.qty,
-      type: "ADJUSTMENT",
-      referenceType: "SALE",
-      referenceId: saleId,
-      note: `Edit ${existing.invoice_number}`,
-      createdById: input.createdById,
-    });
+  const paidChanged = input.paidAmount !== undefined && !money(input.paidAmount).eq(dec(existing.paid_amount));
+  const modeChanged = input.paymentMode !== undefined && input.paymentMode !== existing.payment_mode;
+  const customerChanged = (customerId ?? null) !== (existing.customer_id ?? null);
+  const totalChanged = !money(grantTotal).eq(dec(existing.total));
+  const dueChanged = !money(dueAmount).eq(dec(existing.due_amount));
+  if (!partial || paidChanged || modeChanged || customerChanged || totalChanged || dueChanged) {
+    await db.q(`DELETE FROM udhaari_entries WHERE sale_id = $1`, [saleId]);
+    if (existing.customer_id && Number(existing.due_amount) > 0) {
+      await createLedgerEntry(db, {
+        customerId: existing.customer_id,
+        storeId,
+        type: "CREDIT",
+        amount: Number(existing.due_amount),
+        referenceType: "SALE",
+        referenceId: saleId,
+        note: `Edit ${existing.invoice_number} (revert old credit)`,
+      });
+    }
+    if (customerId && dueAmount > 0) {
+      await createLedgerEntry(db, {
+        customerId,
+        storeId,
+        type: "DEBIT",
+        amount: dueAmount,
+        referenceType: "SALE",
+        referenceId: saleId,
+        note: `Credit sale ${existing.invoice_number}`,
+      });
+      await linkUdhaariEntry(
+        db,
+        storeId,
+        customerId,
+        existing,
+        dueAmount,
+        { dueDate: dueDate ?? undefined },
+        input.createdById,
+      );
+    }
   }
 
-  // Reconcile ledger (append-only): reverse the old credit, then book the new one.
-  // Re-point the linked udhaari entry to the new credit amount (or drop it when
-  // the invoice is no longer a credit sale).
-  await db.q(`DELETE FROM udhaari_entries WHERE sale_id = $1`, [saleId]);
-  if (existing.payment_mode === "CREDIT" && existing.customer_id && existing.due_amount > 0) {
-    await createLedgerEntry(db, {
-      customerId: existing.customer_id,
-      storeId,
-      type: "CREDIT",
-      amount: existing.due_amount,
-      referenceType: "SALE",
-      referenceId: saleId,
-      note: `Edit ${existing.invoice_number} (revert old credit)`,
-    });
-  }
-  if (input.paymentMode === "CREDIT" && customerId && dueAmount > 0) {
-    await createLedgerEntry(db, {
-      customerId,
-      storeId,
-      type: "DEBIT",
-      amount: dueAmount,
-      referenceType: "SALE",
-      referenceId: saleId,
-      note: `Credit sale ${existing.invoice_number}`,
-    });
-    await linkUdhaariEntry(db, storeId, customerId, existing, dueAmount, udhaar, input.createdById);
-  }
-
-  if (touchesPayment) {
+  if (!partial || paidChanged || modeChanged) {
     await db.q(`DELETE FROM payments WHERE sale_id = $1`, [saleId]);
-    if (paymentMode !== "CREDIT" && paidAmount > 0) {
+    if (paidAmount > 0) {
       await insertPayment(db, {
         storeId,
         customerId: customerId ?? null,
         saleId,
         amount: paidAmount,
         type: "RECEIVED",
-        mode: paymentMode,
+        mode: paymentMode === "CREDIT" ? "CASH" : paymentMode,
         referenceType: "SALE",
         referenceId: saleId,
         note: `Payment for ${existing.invoice_number}`,
@@ -944,7 +1026,7 @@ export async function recordSalePayment(
   const allocated = await settleLinkedUdhaari(db, storeId, sale, amountNum, mode, userId);
   const remainder = money(dec(amountNum).minus(allocated));
   if (remainder.gt(0)) {
-    if (sale.payment_mode === "CREDIT" && sale.customer_id) {
+    if (sale.customer_id) {
       await createLedgerEntry(db, {
         customerId: sale.customer_id,
         storeId,

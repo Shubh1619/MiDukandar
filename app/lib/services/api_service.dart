@@ -72,6 +72,18 @@ String _extractRefreshTokenFromCookies(http.Response response) {
   return '';
 }
 
+class InvoiceListPage {
+  const InvoiceListPage({
+    required this.invoices,
+    required this.totalRevenue,
+    required this.pendingAmount,
+  });
+
+  final List<InvoiceRecord> invoices;
+  final num totalRevenue;
+  final num pendingAmount;
+}
+
 class ApiService {
   ApiService({String? baseUrl, http.Client? client})
     : _baseUrl = AppConfig.normalize(
@@ -430,6 +442,15 @@ class ApiService {
     return verifyLoginOtp(email: email, otp: password);
   }
 
+  Future<void> requestRegisterOtp({required String email}) async {
+    await _request(
+      '/api/auth/otp/request',
+      method: 'POST',
+      body: {'email': email.trim().toLowerCase(), 'purpose': 'REGISTER'},
+      auth: false,
+    );
+  }
+
   Future<void> register({
     required String email,
     required String ownerName,
@@ -444,6 +465,7 @@ class ApiService {
     required String currency,
     required String language,
     required String invoicePrefix,
+    required String otp,
   }) async {
     final body = jsonEncode({
       'email': email,
@@ -459,6 +481,7 @@ class ApiService {
       'currency': currency,
       'language': language,
       'invoicePrefix': invoicePrefix,
+      'otp': otp,
     });
     final uri = AppConfig.uri('/api/auth/register', baseUrl: _baseUrl);
     http.Response response;
@@ -639,8 +662,8 @@ class ApiService {
     await _request('/api/products/$id', method: 'DELETE');
   }
 
-  Future<List<Product>> getProducts() async {
-    final data = await _request('/api/products');
+  Future<List<Product>> getProducts({int limit = 50}) async {
+    final data = await _request('/api/products?limit=$limit');
     final items = data['products'] is List
         ? data['products'] as List
         : const [];
@@ -787,12 +810,20 @@ class ApiService {
     return data;
   }
 
-  Future<List<InvoiceRecord>> getInvoices() async {
-    final data = await _request('/api/sales');
+  Future<InvoiceListPage> getInvoices() async {
+    final data = await _request('/api/sales?limit=200');
     final items = data['sales'] is List ? data['sales'] as List : const [];
-    return items
-        .map((json) => InvoiceRecord.fromJson(json as Map<String, dynamic>))
-        .toList();
+    final summary = data['summary'] is Map
+        ? Map<String, dynamic>.from(data['summary'] as Map)
+        : const <String, dynamic>{};
+    num readNum(Object? value) => value is num ? value : num.tryParse('$value') ?? 0;
+    return InvoiceListPage(
+      invoices: items
+          .map((json) => InvoiceRecord.fromJson(json as Map<String, dynamic>))
+          .toList(),
+      totalRevenue: readNum(summary['totalRevenue']),
+      pendingAmount: readNum(summary['pendingAmount']),
+    );
   }
 
   Future<Map<String, dynamic>> reverseSale(

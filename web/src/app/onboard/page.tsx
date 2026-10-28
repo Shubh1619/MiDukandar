@@ -104,6 +104,8 @@ export default function OnboardPage() {
     invoicePrefix: "INV",
   });
   const [submitting, setSubmitting] = useState(false);
+  const [sendingCode, setSendingCode] = useState(false);
+  const [otp, setOtp] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -130,6 +132,28 @@ export default function OnboardPage() {
     if (ref) setReferralCode(ref.trim().toUpperCase());
   }, []);
 
+  const sendCode = async () => {
+    const address = form.email.trim().toLowerCase();
+    if (!EMAIL_RE.test(address)) {
+      setError("Enter a valid email address.");
+      return;
+    }
+    setSendingCode(true);
+    setError(null);
+    try {
+      await apiFetch("/api/auth/otp/request", {
+        method: "POST",
+        noAuth: true,
+        body: { email: address, purpose: "REGISTER" },
+      });
+      toast.success("Code sent. Enter it below to finish registration.");
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Could not send the code. Try again.");
+    } finally {
+      setSendingCode(false);
+    }
+  };
+
   const submit = async () => {
     if (isRegistration) {
       const address = form.email.trim().toLowerCase();
@@ -143,6 +167,10 @@ export default function OnboardPage() {
       }
       if (form.ownerName.trim().length < 2) {
         setError("Enter the shop owner's name");
+        return;
+      }
+      if (otp.trim().length < 4) {
+        setError("Enter the code sent to this email.");
         return;
       }
     }
@@ -171,6 +199,7 @@ export default function OnboardPage() {
             currency: form.currency,
             language: form.language,
             invoicePrefix: form.invoicePrefix.trim() || "INV",
+            otp: otp.trim(),
             ...(referralCode ? { referralCode } : {}),
           },
         });
@@ -248,15 +277,38 @@ export default function OnboardPage() {
         >
           {isRegistration && (
             <>
-              <Field label="Account Email">
+              <Field label="Account Email" hint="We'll send a code to confirm this inbox">
+                <div className="flex gap-2">
+                  <input
+                    type="email"
+                    autoComplete="email"
+                    value={form.email}
+                    onChange={(e) => {
+                      set("email", e.target.value);
+                    }}
+                    placeholder="owner@yourstore.in"
+                    className={inputClass}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => void sendCode()}
+                    disabled={sendingCode}
+                    className="h-11 shrink-0 rounded-lg border border-navy-200 px-3 text-sm font-semibold text-navy-700 hover:bg-navy-50 disabled:opacity-60"
+                  >
+                    {sendingCode ? "Sending…" : "Send code"}
+                  </button>
+                </div>
+              </Field>
+              <Field label="Email code">
                 <input
-                  type="email"
-                  autoComplete="email"
-                  value={form.email}
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  value={otp}
                   onChange={(e) => {
-                    set("email", e.target.value);
+                    setOtp(e.target.value.replace(/\D/g, "").slice(0, 10));
+                    setError(null);
                   }}
-                  placeholder="owner@yourstore.in"
+                  placeholder="6-digit code"
                   className={inputClass}
                 />
               </Field>
