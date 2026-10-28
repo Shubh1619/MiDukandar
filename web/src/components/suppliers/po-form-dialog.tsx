@@ -69,6 +69,9 @@ function startingLines(): LineDraft[] {
 const selectClass =
   "h-8 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
 
+const gridInput =
+  "h-9 rounded-none border-0 bg-transparent px-2 shadow-none focus-visible:bg-background focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-ring";
+
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -242,7 +245,7 @@ export function PurchaseOrderFormDialog({ open, onOpenChange, supplierId = "", s
         onOpenChange(o);
       }}
     >
-      <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-4xl">
+      <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-6xl">
         <DialogHeader>
           <DialogTitle>{editing ? t("editPo") : t("newPo")}</DialogTitle>
           <DialogDescription>{supplierLabel || t("challanSupplierRequired")}</DialogDescription>
@@ -294,100 +297,123 @@ export function PurchaseOrderFormDialog({ open, onOpenChange, supplierId = "", s
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <Label>{t("items")}</Label>
-            <span className="text-xs text-muted-foreground">{lines.length}</span>
+            <Button type="button" variant="outline" size="sm" onClick={addLine}>
+              <Plus className="size-4" /> {t("addItem")}
+            </Button>
           </div>
-          {lines.map((line, index) => {
-            const money = line.product
-              ? challanLine({
-                  quantity: Number(line.qty) || 0,
-                  rate: Number(line.rate) || 0,
-                  discountPercent: Number(line.discountPct) || 0,
-                  taxRate: Number(line.taxRate) || 0,
-                })
-              : null;
-            return (
-              <div key={line.key} className="space-y-3 rounded-lg border p-3">
-                <div className="flex items-start gap-2">
-                  <span className="mt-2 w-5 shrink-0 text-xs font-medium text-muted-foreground">{index + 1}</span>
-                  <div className="min-w-0 flex-1">
-                    {line.product ? (
-                      <div>
-                        <p className="truncate text-sm font-medium">{line.product.name}</p>
-                        <p className="text-[11px] text-muted-foreground">
-                          {line.stock != null ? `${t("inStock")} ${line.stock}` : t("challanProduct")}
-                        </p>
-                      </div>
-                    ) : (
-                      <ProductSearch
-                        onSelect={(p) =>
-                          updateLine(line.key, {
-                            product: p,
-                            pack: p.unit || "",
-                            rate: p.purchasePrice != null ? String(p.purchasePrice) : "",
-                            mrp: p.mrp != null ? String(p.mrp) : "",
-                            taxRate: String(p.gstPercent ?? 0),
-                            expiry: p.expiryDate?.slice(0, 10) ?? "",
-                            stock: p.stock,
-                            qty: line.qty || "1",
-                          })
-                        }
-                      />
-                    )}
-                  </div>
-                  <Button type="button" variant="ghost" size="icon" onClick={() => removeLine(line.key)} aria-label={t("delete")}>
-                    <X className="size-4" />
-                  </Button>
-                </div>
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                  <label className="space-y-1">
-                    <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{t("unit")}</span>
-                    <Input value={line.pack} onChange={(e) => updateLine(line.key, { pack: e.target.value })} />
-                  </label>
-                  <label className="space-y-1">
-                    <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{t("challanBatch")}</span>
-                    <Input value={line.batch} onChange={(e) => updateLine(line.key, { batch: e.target.value })} />
-                  </label>
-                  <label className="space-y-1">
-                    <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{t("challanExpiry")}</span>
-                    <Input type="date" value={line.expiry} onChange={(e) => updateLine(line.key, { expiry: e.target.value })} />
-                  </label>
-                  <label className="space-y-1">
-                    <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{t("qty")}</span>
-                    <NumberInput value={line.qty} onChange={(v) => updateLine(line.key, { qty: v })} decimals={3} />
-                  </label>
-                  <label className="space-y-1">
-                    <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{t("challanTab")}</span>
-                    <NumberInput value={line.tab} onChange={(v) => updateLine(line.key, { tab: v })} decimals={3} />
-                  </label>
-                  <label className="space-y-1">
-                    <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{t("challanFree")}</span>
-                    <NumberInput value={line.free} onChange={(v) => updateLine(line.key, { free: v })} decimals={3} />
-                  </label>
-                  <label className="space-y-1">
-                    <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{t("rate")}</span>
-                    <NumberInput value={line.rate} onChange={(v) => updateLine(line.key, { rate: v })} />
-                  </label>
-                  <label className="space-y-1">
-                    <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{t("mrp")}</span>
-                    <NumberInput value={line.mrp} onChange={(v) => updateLine(line.key, { mrp: v })} />
-                  </label>
-                  <label className="space-y-1">
-                    <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{t("challanDis1")}</span>
-                    <NumberInput value={line.discountPct} onChange={(v) => updateLine(line.key, { discountPct: v })} max={100} />
-                  </label>
-                  <div className="space-y-1 sm:col-span-3">
-                    <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{t("amount")}</span>
-                    <p className="flex h-8 items-center justify-end text-sm font-semibold tabular-nums">
-                      {money && Number(line.qty) > 0 ? formatINR(money.taxable) : "—"}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-          <Button type="button" variant="outline" size="sm" onClick={addLine}>
-            <Plus className="size-4" /> {t("addItem")}
-          </Button>
+          <div className="overflow-x-auto rounded-lg border">
+            <table className="w-full min-w-[1080px] border-collapse text-sm">
+              <thead>
+                <tr className="bg-muted text-muted-foreground">
+                  {[
+                    t("challanProduct"),
+                    t("unit"),
+                    t("challanBatch"),
+                    t("challanExpiry"),
+                    t("qty"),
+                    t("challanTab"),
+                    t("challanFree"),
+                    t("rate"),
+                    t("mrp"),
+                    t("challanDis1"),
+                    t("amount"),
+                  ].map((label, i) => (
+                    <th
+                      key={label}
+                      className={`border-b border-r px-2 py-2 text-[10px] font-semibold uppercase tracking-wide ${i >= 4 ? "text-right" : "text-left"}`}
+                    >
+                      {label}
+                    </th>
+                  ))}
+                  <th className="w-9 border-b" />
+                </tr>
+              </thead>
+              <tbody>
+                {lines.map((line) => {
+                  const money = line.product
+                    ? challanLine({
+                        quantity: Number(line.qty) || 0,
+                        rate: Number(line.rate) || 0,
+                        discountPercent: Number(line.discountPct) || 0,
+                        taxRate: Number(line.taxRate) || 0,
+                      })
+                    : null;
+                  return (
+                    <tr key={line.key} className="border-b last:border-b-0 hover:bg-muted/40">
+                      <td className="min-w-[200px] border-r p-0">
+                        {line.product ? (
+                          <button
+                            type="button"
+                            className="h-9 w-full truncate px-2 text-left text-sm font-medium"
+                            title={line.stock != null ? `${line.product.name} · ${t("inStock")} ${line.stock}` : line.product.name}
+                            onClick={() => updateLine(line.key, { product: null })}
+                          >
+                            {line.product.name}
+                          </button>
+                        ) : (
+                          <ProductSearch
+                            inputClassName={`${gridInput} pr-7`}
+                            onSelect={(p) =>
+                              updateLine(line.key, {
+                                product: p,
+                                pack: p.unit || "",
+                                rate: p.purchasePrice != null ? String(p.purchasePrice) : "",
+                                mrp: p.mrp != null ? String(p.mrp) : "",
+                                taxRate: String(p.gstPercent ?? 0),
+                                expiry: p.expiryDate?.slice(0, 10) ?? "",
+                                stock: p.stock,
+                                qty: line.qty || "1",
+                              })
+                            }
+                          />
+                        )}
+                      </td>
+                      <td className="w-20 border-r p-0">
+                        <Input value={line.pack} onChange={(e) => updateLine(line.key, { pack: e.target.value })} className={gridInput} />
+                      </td>
+                      <td className="w-24 border-r p-0">
+                        <Input value={line.batch} onChange={(e) => updateLine(line.key, { batch: e.target.value })} className={gridInput} />
+                      </td>
+                      <td className="w-36 border-r p-0">
+                        <Input type="date" value={line.expiry} onChange={(e) => updateLine(line.key, { expiry: e.target.value })} className={gridInput} />
+                      </td>
+                      <td className="w-16 border-r p-0">
+                        <NumberInput value={line.qty} onChange={(v) => updateLine(line.key, { qty: v })} decimals={3} className={`${gridInput} text-right`} />
+                      </td>
+                      <td className="w-16 border-r p-0">
+                        <NumberInput value={line.tab} onChange={(v) => updateLine(line.key, { tab: v })} decimals={3} className={`${gridInput} text-right`} />
+                      </td>
+                      <td className="w-20 border-r p-0">
+                        <NumberInput value={line.free} onChange={(v) => updateLine(line.key, { free: v })} decimals={3} className={`${gridInput} text-right`} />
+                      </td>
+                      <td className="w-24 border-r p-0">
+                        <NumberInput value={line.rate} onChange={(v) => updateLine(line.key, { rate: v })} className={`${gridInput} text-right`} />
+                      </td>
+                      <td className="w-24 border-r p-0">
+                        <NumberInput value={line.mrp} onChange={(v) => updateLine(line.key, { mrp: v })} className={`${gridInput} text-right`} />
+                      </td>
+                      <td className="w-20 border-r p-0">
+                        <NumberInput value={line.discountPct} onChange={(v) => updateLine(line.key, { discountPct: v })} max={100} className={`${gridInput} text-right`} />
+                      </td>
+                      <td className="w-24 border-r px-2 text-right text-sm font-medium tabular-nums">
+                        {money && Number(line.qty) > 0 ? formatINR(money.taxable) : "—"}
+                      </td>
+                      <td className="w-9 p-0 text-center">
+                        <button
+                          type="button"
+                          className="inline-flex size-9 items-center justify-center text-muted-foreground hover:text-destructive"
+                          onClick={() => removeLine(line.key)}
+                          aria-label={t("delete")}
+                        >
+                          <X className="size-3.5" />
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
 
         <div className="ml-auto w-full max-w-xs space-y-1 text-sm">
