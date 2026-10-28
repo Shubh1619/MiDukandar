@@ -52,18 +52,9 @@ class MiDukandarApp extends StatelessWidget {
           locale: LocaleController.instance.locale,
           localizationsDelegates: AppLocalizations.localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
-          // Dense shop-dashboard screens have little room for wrapped words.
-          // Beyond ~1.3x the OS font scale, labels start breaking mid-word
-          // ("invoi / ce"), so cap how far the system scale may stretch text.
-          builder: (context, child) {
-            final media = MediaQuery.of(context);
-            return MediaQuery(
-              data: media.copyWith(
-                textScaler: media.textScaler.clamp(maxScaleFactor: 1.3),
-              ),
-              child: child ?? const SizedBox.shrink(),
-            );
-          },
+          // Text size follows the phone's Display size / Font size setting
+          // exactly as the user set it. Layouts must therefore absorb large
+          // scales (wrapping, scrolling, ellipsis) instead of shrinking text.
           home: const AuthGate(),
         );
       },
