@@ -2,33 +2,21 @@
 
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { Plus, X, Loader2 } from "lucide-react";
+import { Loader2, X } from "lucide-react";
 import { apiFetch, ApiError } from "@/lib/api";
 import { useI18n } from "@/components/i18n-provider";
 import { formatINR } from "@/lib/format";
-import type { Product, PurchaseOrderDetail } from "@/lib/types";
+import type { Product, PurchaseOrderDetail, Supplier } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { NumberInput } from "@/components/ui/number-input";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
 import { ProductSearch } from "./product-search";
-
-const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
+import { challanLine, challanTotals, formatChallanDate } from "./challan";
 
 function today(): string {
   return new Date().toISOString().slice(0, 10);
@@ -37,22 +25,46 @@ function today(): string {
 interface LineDraft {
   key: string;
   product: Product | null;
+  pack: string;
+  batch: string;
   qty: string;
+  tab: string;
+  free: string;
   rate: string;
   mrp: string;
+  discountPct: string;
   taxRate: string;
+  expiry: string;
+  stock: number | null;
 }
 
 function newLine(): LineDraft {
-  return { key: Math.random().toString(36).slice(2), product: null, qty: "1", rate: "", mrp: "", taxRate: "" };
+  return {
+    key: Math.random().toString(36).slice(2),
+    product: null,
+    pack: "",
+    batch: "",
+    qty: "",
+    tab: "",
+    free: "",
+    rate: "",
+    mrp: "",
+    discountPct: "",
+    taxRate: "",
+    expiry: "",
+    stock: null,
+  };
 }
 
-function lineTotal(l: LineDraft): number {
-  const qty = Number(l.qty) || 0;
-  const rate = Number(l.rate) || 0;
-  const tax = Number(l.taxRate) || 0;
-  return round2(qty * rate + (qty * rate * tax) / 100);
+function padLines(lines: LineDraft[]): LineDraft[] {
+  const next = [...lines];
+  while (next.length < 8) next.push(newLine());
+  return next;
 }
+
+const cell = "border border-[#d3e4cc] p-0 align-middle";
+const field =
+  "h-7 rounded-none border-0 bg-transparent px-1 text-xs shadow-none focus-visible:ring-1 focus-visible:ring-[#1f6feb]/40";
 
 interface Props {
   open: boolean;
@@ -65,67 +77,123 @@ interface Props {
 
 export function PurchaseOrderFormDialog({ open, onOpenChange, supplierId = "", supplierName = "", editing, onSaved }: Props) {
   const { t } = useI18n();
-  const [lines, setLines] = useState<LineDraft[]>(() => [newLine()]);
+  const [lines, setLines] = useState<LineDraft[]>(() => padLines([newLine()]));
   const [orderDate, setOrderDate] = useState(today());
-  const [expectedDate, setExpectedDate] = useState("");
+  const [partyNumber, setPartyNumber] = useState("");
+  const [partyDate, setPartyDate] = useState("");
+  const [challanType, setChallanType] = useState<"CASH" | "CREDIT">("CASH");
   const [status, setStatus] = useState<"draft" | "sent">("draft");
+  const [chosenSupplierId, setChosenSupplierId] = useState(supplierId);
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [activeKey, setActiveKey] = useState<string>("");
   const [busy, setBusy] = useState(false);
 
+  const lockedSupplier = Boolean(supplierId);
+
   const seed = () => {
+    setChosenSupplierId(supplierId);
     if (editing) {
-      setLines(
-        editing.items.map((it) => ({
-          key: Math.random().toString(36).slice(2),
-          product: {
-            id: it.productId,
-            name: it.name ?? "",
-            barcode: null,
-            sku: null,
-            category: null,
-            unit: "",
-            purchasePrice: Number(it.rate),
-            sellingPrice: Number(it.rate) || 0,
-            mrp: null,
-            gstPercent: Number(it.taxRate),
-            minStock: 0,
-            supplier: null,
-            imageUrl: null,
-            isArchived: false,
-            stock: 0,
-            isLow: false,
-            createdAt: "",
-          },
-          qty: String(Number(it.quantity) || 1),
-          rate: String(Number(it.rate) || ""),
-          mrp: it.mrp != null ? String(Number(it.mrp) || "") : "",
-          taxRate: String(Number(it.taxRate) || ""),
-        })),
-      );
+      const seeded = editing.items.map((it) => ({
+        key: Math.random().toString(36).slice(2),
+        product: {
+          id: it.productId,
+          name: it.name ?? "",
+          barcode: null,
+          sku: null,
+          category: null,
+          unit: it.pack ?? "",
+          purchasePrice: Number(it.rate),
+          sellingPrice: Number(it.rate) || 0,
+          mrp: it.mrp != null ? Number(it.mrp) : null,
+          gstPercent: Number(it.taxRate),
+          minStock: 0,
+          supplier: null,
+          imageUrl: null,
+          isArchived: false,
+          stock: 0,
+          isLow: false,
+          createdAt: "",
+        } satisfies Product,
+        pack: it.pack ?? "",
+        batch: it.batch ?? "",
+        qty: String(Number(it.quantity) || ""),
+        tab: it.tabQty != null && Number(it.tabQty) !== 0 ? String(Number(it.tabQty)) : "",
+        free: it.freeQty != null && Number(it.freeQty) !== 0 ? String(Number(it.freeQty)) : "",
+        rate: String(Number(it.rate) || ""),
+        mrp: it.mrp != null && Number(it.mrp) !== 0 ? String(Number(it.mrp)) : "",
+        discountPct: it.discountPercent != null && Number(it.discountPercent) !== 0 ? String(Number(it.discountPercent)) : "",
+        taxRate: String(Number(it.taxRate) || ""),
+        expiry: it.expiryDate?.slice(0, 10) ?? "",
+        stock: null,
+      }));
+      const padded = padLines(seeded.length ? seeded : [newLine()]);
+      setLines(padded);
+      setActiveKey(padded[0]?.key ?? "");
       setOrderDate(editing.orderDate?.slice(0, 10) || today());
-      setExpectedDate(editing.expectedDate?.slice(0, 10) || "");
+      setPartyNumber(editing.partyNumber ?? "");
+      setPartyDate(editing.partyDate?.slice(0, 10) ?? "");
+      setChallanType(editing.challanType === "CREDIT" ? "CREDIT" : "CASH");
       setStatus(editing.status === "sent" ? "sent" : "draft");
     } else {
-      setLines([newLine()]);
+      const padded = padLines([newLine()]);
+      setLines(padded);
+      setActiveKey(padded[0]?.key ?? "");
       setOrderDate(today());
-      setExpectedDate("");
+      setPartyNumber("");
+      setPartyDate("");
+      setChallanType("CASH");
       setStatus("draft");
     }
   };
 
+  const loadSuppliers = async () => {
+    if (supplierId) return;
+    try {
+      const data = await apiFetch<{ suppliers: Supplier[] }>("/api/suppliers?limit=200");
+      setSuppliers(data.suppliers ?? []);
+    } catch {
+      setSuppliers([]);
+    }
+  };
+
   const updateLine = (key: string, patch: Partial<LineDraft>) =>
-    setLines((prev) => prev.map((l) => (l.key === key ? { ...l, ...patch } : l)));
+    setLines((prev) => {
+      const next = prev.map((l) => (l.key === key ? { ...l, ...patch } : l));
+      if (patch.product && next[next.length - 1]?.product) next.push(newLine());
+      return next;
+    });
 
-  const addLine = () => setLines((p) => [...p, newLine()]);
+  const clearLine = (key: string) =>
+    setLines((prev) => {
+      const remaining = prev.filter((l) => l.key !== key);
+      return padLines(remaining.length ? remaining : [newLine()]);
+    });
 
-  const removeLine = (key: string) => setLines((p) => (p.length > 1 ? p.filter((l) => l.key !== key) : p));
+  const active = lines.find((l) => l.key === activeKey) ?? lines[0];
 
   const pricing = useMemo(() => {
-    const valid = lines.filter((l) => l.product && Number(l.qty) > 0);
-    const total = round2(valid.reduce((acc, l) => acc + lineTotal(l), 0));
-    return { total, lineCount: valid.length };
+    const priced = lines
+      .filter((l) => l.product && Number(l.qty) > 0)
+      .map((l) =>
+        challanLine({
+          quantity: Number(l.qty) || 0,
+          rate: Number(l.rate) || 0,
+          discountPercent: Number(l.discountPct) || 0,
+          taxRate: Number(l.taxRate) || 0,
+        }),
+      );
+    return { ...challanTotals(priced), lineCount: priced.length };
   }, [lines]);
 
+  const supplierLabel =
+    supplierName || suppliers.find((s) => s.id === chosenSupplierId)?.name || "";
+
   const save = async () => {
+    const sid = supplierId || chosenSupplierId;
+    if (!sid) {
+      toast.error(t("challanSupplierRequired"));
+      return;
+    }
     const valid = lines.filter((l) => l.product && Number(l.qty) > 0);
     if (valid.length === 0) {
       toast.error(t("productRequired"));
@@ -134,9 +202,11 @@ export function PurchaseOrderFormDialog({ open, onOpenChange, supplierId = "", s
     setBusy(true);
     try {
       const body = {
-        supplierId,
+        supplierId: sid,
         orderDate,
-        expectedDate: expectedDate || undefined,
+        partyNumber: partyNumber.trim(),
+        partyDate: partyDate || null,
+        challanType,
         status,
         lines: valid.map((l) => ({
           productId: l.product!.id,
@@ -144,15 +214,20 @@ export function PurchaseOrderFormDialog({ open, onOpenChange, supplierId = "", s
           rate: Number(l.rate) || 0,
           mrp: Number(l.mrp) || 0,
           taxRate: Number(l.taxRate) || 0,
+          pack: l.pack.trim(),
+          batch: l.batch.trim(),
+          expiryDate: l.expiry || undefined,
+          tabQty: Number(l.tab) || 0,
+          freeQty: Number(l.free) || 0,
+          discountPercent: Number(l.discountPct) || 0,
         })),
       };
       if (editing) {
         await apiFetch(`/api/purchase-orders/${editing.id}`, { method: "PATCH", body });
-        toast.success(t("success"));
       } else {
         await apiFetch("/api/purchase-orders", { method: "POST", body });
-        toast.success(t("success"));
       }
+      toast.success(t("success"));
       onSaved();
       onOpenChange(false);
     } catch (err) {
@@ -162,118 +237,260 @@ export function PurchaseOrderFormDialog({ open, onOpenChange, supplierId = "", s
     }
   };
 
+  const head = [
+    t("challanProduct"),
+    t("challanPack"),
+    t("challanBatch"),
+    t("challanStrip"),
+    t("challanTab"),
+    t("challanFree"),
+    t("challanPRate"),
+    t("challanDis1"),
+    t("challanAmount"),
+  ];
+
   return (
-    <Dialog open={open} onOpenChange={(o) => { if (o) seed(); onOpenChange(o); }}>
-      <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-3xl">
-        <DialogHeader>
-          <DialogTitle>{editing ? t("editPo") : t("newPo")}</DialogTitle>
-          <DialogDescription>{supplierName}</DialogDescription>
-        </DialogHeader>
+    <Dialog
+      open={open}
+      onOpenChange={(o) => {
+        if (o) {
+          seed();
+          void loadSuppliers();
+        }
+        onOpenChange(o);
+      }}
+    >
+      <DialogContent className="max-h-[94vh] gap-0 overflow-y-auto p-0 sm:max-w-5xl [&_[data-slot=dialog-close]]:text-white [&_[data-slot=dialog-close]]:hover:bg-white/15">
+        <div className="bg-[#1f6feb] px-10 py-1.5 text-center">
+          <DialogTitle className="text-sm font-bold tracking-wide text-white">{t("challanTitle")}</DialogTitle>
+        </div>
 
-        <div className="space-y-4">
-          <div className="grid gap-3 sm:grid-cols-3">
-            <div className="space-y-1.5">
-              <Label>{t("poDate")}</Label>
-              <Input type="date" value={orderDate} onChange={(e) => setOrderDate(e.target.value)} />
-            </div>
-            <div className="space-y-1.5">
-              <Label>{t("expectedDate")}</Label>
-              <Input type="date" value={expectedDate} onChange={(e) => setExpectedDate(e.target.value)} />
-            </div>
-            <div className="space-y-1.5">
-              <Label>{t("status")}</Label>
-              <Select value={status} onValueChange={(v) => setStatus(v as "draft" | "sent")}>
-                <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="draft">{t("statusDraft")}</SelectItem>
-                  <SelectItem value="sent">{t("statusSent")}</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+        <div className="grid gap-x-6 gap-y-1.5 bg-[#f3f7fb] px-3 py-2 text-[12px] text-[#1c2b3a] sm:grid-cols-2">
+          <label className="flex items-center gap-2">
+            <span className="w-20 shrink-0">{t("challanName")} :</span>
+            {lockedSupplier ? (
+              <span className="min-w-0 flex-1 truncate border-b border-[#9bb0c7] px-1 py-0.5 font-medium">{supplierLabel}</span>
+            ) : (
+              <select
+                value={chosenSupplierId}
+                onChange={(e) => setChosenSupplierId(e.target.value)}
+                className="h-7 min-w-0 flex-1 border border-[#9bb0c7] bg-white px-1 text-xs"
+              >
+                <option value="">{t("challanSupplierRequired")}</option>
+                {suppliers.map((s) => (
+                  <option key={s.id} value={s.id}>{s.name}</option>
+                ))}
+              </select>
+            )}
+          </label>
+          <label className="flex items-center gap-2">
+            <span className="w-16 shrink-0">{t("challanDate")} :</span>
+            <Input type="date" value={orderDate} onChange={(e) => setOrderDate(e.target.value)} className="h-7 flex-1 rounded-none border-[#9bb0c7] bg-white text-xs" />
+          </label>
+          <div className="flex items-center gap-2">
+            <span className="w-20 shrink-0">{t("challanEntryNo")} :</span>
+            <span className="flex-1 border-b border-[#9bb0c7] px-1 py-0.5 tabular-nums">{editing?.poNumber || "—"}</span>
           </div>
+          <label className="flex items-center gap-2">
+            <span className="w-16 shrink-0">{t("challanType")} :</span>
+            <select
+              value={challanType}
+              onChange={(e) => setChallanType(e.target.value as "CASH" | "CREDIT")}
+              className="h-7 flex-1 border border-[#9bb0c7] bg-white px-1 text-xs"
+            >
+              <option value="CASH">{t("challanCash")}</option>
+              <option value="CREDIT">{t("challanCredit")}</option>
+            </select>
+          </label>
+          <label className="flex items-center gap-2">
+            <span className="w-20 shrink-0">{t("challanPartyNo")} :</span>
+            <Input value={partyNumber} onChange={(e) => setPartyNumber(e.target.value)} className="h-7 flex-1 rounded-none border-[#9bb0c7] bg-white text-xs" />
+          </label>
+          <span />
+          <label className="flex items-center gap-2">
+            <span className="w-20 shrink-0">{t("challanDt")} :</span>
+            <Input type="date" value={partyDate} onChange={(e) => setPartyDate(e.target.value)} className="h-7 flex-1 rounded-none border-[#9bb0c7] bg-white text-xs" />
+          </label>
+        </div>
 
-          <div className="space-y-2">
-            <Label>{t("items")}</Label>
-            {lines.map((line) => (
-              <div key={line.key} className="space-y-2 rounded-lg border p-2.5">
-                <div className="flex items-start justify-between gap-2">
-                  {line.product ? (
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium">{line.product.name}</p>
-                      <p className="text-[11px] text-muted-foreground">
-                        {formatINR(line.product.purchasePrice)}
-                        {line.product.barcode ? ` · ${line.product.barcode}` : ""}
-                      </p>
-                    </div>
-                  ) : (
-                    <ProductSearch
-                      onSelect={(p) =>
-                        updateLine(line.key, {
-                          product: p,
-                          rate: String(p.purchasePrice || ""),
-                          mrp: p.mrp != null ? String(p.mrp) : "",
-                          taxRate: String(p.gstPercent ?? 0),
-                        })
-                      }
-                    />
-                  )}
-                  <Button type="button" variant="ghost" size="icon" onClick={() => removeLine(line.key)} aria-label={t("delete")}>
-                    <X className="size-4" />
-                  </Button>
-                </div>
+        <div className="overflow-x-auto bg-white">
+          <table className="w-full min-w-[880px] border-collapse text-[12px]">
+            <thead>
+              <tr className="bg-[#d9ead3] text-[#1e3a2f]">
+                {head.map((label, i) => (
+                  <th
+                    key={label}
+                    className={`border border-[#b7c9b0] px-1 py-1 text-[11px] font-semibold uppercase ${i >= 3 ? "text-right" : "text-left"}`}
+                  >
+                    {label}
+                  </th>
+                ))}
+                <th className="w-7 border border-[#b7c9b0]" />
+              </tr>
+            </thead>
+            <tbody>
+              {lines.map((line) => {
+                const money = line.product
+                  ? challanLine({
+                      quantity: Number(line.qty) || 0,
+                      rate: Number(line.rate) || 0,
+                      discountPercent: Number(line.discountPct) || 0,
+                      taxRate: Number(line.taxRate) || 0,
+                    })
+                  : null;
+                const selected = line.key === active?.key;
+                return (
+                  <tr
+                    key={line.key}
+                    onClick={() => setActiveKey(line.key)}
+                    className={selected ? "bg-[#e7f1ff]" : "bg-white"}
+                  >
+                    <td className={`${cell} min-w-[180px]`}>
+                      {line.product ? (
+                        <span className="block truncate px-1 py-1 font-medium">{line.product.name}</span>
+                      ) : selected ? (
+                        <ProductSearch
+                          onSelect={(p) =>
+                            updateLine(line.key, {
+                              product: p,
+                              pack: p.unit || "",
+                              rate: p.purchasePrice != null ? String(p.purchasePrice) : "",
+                              mrp: p.mrp != null ? String(p.mrp) : "",
+                              taxRate: String(p.gstPercent ?? 0),
+                              expiry: p.expiryDate?.slice(0, 10) ?? "",
+                              stock: p.stock,
+                              qty: line.qty || "1",
+                            })
+                          }
+                        />
+                      ) : (
+                        <span className="block h-7" />
+                      )}
+                    </td>
+                    <td className={`${cell} w-16`}>
+                      <Input value={line.pack} onChange={(e) => updateLine(line.key, { pack: e.target.value })} className={field} />
+                    </td>
+                    <td className={`${cell} w-24`}>
+                      <Input value={line.batch} onChange={(e) => updateLine(line.key, { batch: e.target.value })} className={field} />
+                    </td>
+                    <td className={`${cell} w-16`}>
+                      <NumberInput value={line.qty} onChange={(v) => updateLine(line.key, { qty: v })} decimals={3} className={`${field} text-right`} />
+                    </td>
+                    <td className={`${cell} w-14`}>
+                      <NumberInput value={line.tab} onChange={(v) => updateLine(line.key, { tab: v })} decimals={3} className={`${field} text-right`} />
+                    </td>
+                    <td className={`${cell} w-14`}>
+                      <NumberInput value={line.free} onChange={(v) => updateLine(line.key, { free: v })} decimals={3} className={`${field} text-right`} />
+                    </td>
+                    <td className={`${cell} w-20`}>
+                      <NumberInput value={line.rate} onChange={(v) => updateLine(line.key, { rate: v })} className={`${field} text-right`} />
+                    </td>
+                    <td className={`${cell} w-16`}>
+                      <NumberInput value={line.discountPct} onChange={(v) => updateLine(line.key, { discountPct: v })} max={100} className={`${field} text-right`} />
+                    </td>
+                    <td className={`${cell} w-24 px-1 text-right tabular-nums`}>
+                      {money && Number(line.qty) > 0 ? formatINR(money.taxable) : ""}
+                    </td>
+                    <td className={cell}>
+                      {line.product ? (
+                        <button
+                          type="button"
+                          className="flex size-7 items-center justify-center text-muted-foreground hover:text-destructive"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            clearLine(line.key);
+                          }}
+                          aria-label={t("delete")}
+                        >
+                          <X className="size-3.5" />
+                        </button>
+                      ) : null}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
 
-                {line.product && (
-                  <>
-                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                      <label className="space-y-1">
-                        <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{t("qty")}</span>
-                        <NumberInput value={line.qty} onChange={(v) => updateLine(line.key, { qty: v })} />
-                      </label>
-                      <label className="space-y-1">
-                        <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{t("rate")}</span>
-                        <NumberInput value={line.rate} onChange={(v) => updateLine(line.key, { rate: v })} />
-                      </label>
-                      <label className="space-y-1">
-                        <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{t("mrp")}</span>
-                        <NumberInput value={line.mrp} onChange={(v) => updateLine(line.key, { mrp: v })} />
-                      </label>
-                      <label className="space-y-1">
-                        <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{t("gstPercent")}</span>
-                        <NumberInput max={100} value={line.taxRate} onChange={(v) => updateLine(line.key, { taxRate: v })} />
-                      </label>
-                    </div>
-                    <div className="flex justify-between text-xs text-muted-foreground">
-                      <span>
-                        {Number(line.mrp) > 0 && Number(line.rate) > 0
-                          ? `${t("mrp")}: ${formatINR(Number(line.mrp))} · ${t("rate")}: ${formatINR(Number(line.rate))}`
-                          : null}
-                      </span>
-                      <span className="font-semibold text-foreground">{formatINR(lineTotal(line))}</span>
-                    </div>
-                  </>
-                )}
-              </div>
-            ))}
-
-            <Button type="button" variant="outline" size="sm" onClick={addLine}>
-              <Plus className="size-4" /> {t("addItem")}
-            </Button>
+        <div className="grid border-t border-[#c5d0dc] text-[12px] sm:grid-cols-2">
+          <div className="grid grid-cols-[auto_1fr_auto_1fr] items-center gap-x-2 gap-y-1 border-[#c5d0dc] px-3 py-2 sm:border-r">
+            <span>{t("challanItem")} :</span>
+            <span className="col-span-3 truncate font-medium">{active?.product?.name ?? ""}</span>
+            <span>{t("challanBatch")} :</span>
+            <Input
+              value={active?.batch ?? ""}
+              onChange={(e) => active && updateLine(active.key, { batch: e.target.value })}
+              className="h-7 rounded-none border-[#9bb0c7] bg-white text-xs"
+            />
+            <span />
+            <span />
+            <span>{t("challanExpiry")} :</span>
+            <Input
+              type="date"
+              value={active?.expiry ?? ""}
+              onChange={(e) => active && updateLine(active.key, { expiry: e.target.value })}
+              className="h-7 rounded-none border-[#9bb0c7] bg-white text-xs"
+            />
+            <span>{t("challanStock")} :</span>
+            <span className="tabular-nums">{active?.stock != null ? active.stock : ""}</span>
+            <span>{t("challanMrp")} :</span>
+            <NumberInput
+              value={active?.mrp ?? ""}
+              onChange={(v) => active && updateLine(active.key, { mrp: v })}
+              className="h-7 rounded-none border-[#9bb0c7] bg-white text-xs"
+            />
+            <span>{t("challanRate")} :</span>
+            <NumberInput
+              value={active?.rate ?? ""}
+              onChange={(v) => active && updateLine(active.key, { rate: v })}
+              className="h-7 rounded-none border-[#9bb0c7] bg-white text-xs"
+            />
+            <span>{t("challanChall")} :</span>
+            <span className="truncate">{partyNumber || editing?.poNumber || ""}</span>
+            <span>{t("challanDate")} :</span>
+            <span className="tabular-nums">{formatChallanDate(orderDate)}</span>
           </div>
-
-          <div className="ml-auto w-full max-w-xs space-y-1 text-sm sm:w-64">
-            <div className="flex justify-between border-t pt-1 font-display text-lg font-bold">
-              <span>{t("total")}</span>
-              <span className="tabular-nums">{formatINR(pricing.total)}</span>
+          <div className="space-y-1 px-3 py-2">
+            <div className="flex items-center justify-between gap-3">
+              <span>{t("challanValue")} :</span>
+              <span className="tabular-nums">{formatINR(pricing.goods)}</span>
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <span>{t("challanDiscount")} :</span>
+              <span className="tabular-nums">{formatINR(pricing.discount)}</span>
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <span>{t("challanGst")} :</span>
+              <span className="tabular-nums">{formatINR(pricing.gst)}</span>
+            </div>
+            <div className="flex items-center justify-between gap-3 border-t border-[#c5d0dc] pt-1 font-semibold">
+              <span>{t("challanNet")} :</span>
+              <span className="tabular-nums">{formatINR(pricing.net)}</span>
             </div>
           </div>
         </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={busy}>{t("cancel")}</Button>
-          <Button onClick={() => void save()} disabled={busy || pricing.lineCount === 0} className="min-w-32">
-            {busy ? <Loader2 className="size-4 animate-spin" /> : editing ? t("updatePo") : t("newPo")}
-          </Button>
-        </DialogFooter>
+        <div className="flex flex-wrap items-center justify-between gap-2 bg-[#1a2744] px-3 py-2 text-white">
+          <span className="text-sm font-bold tracking-wide">{t("challanFooter")}</span>
+          <div className="flex flex-wrap items-center gap-2">
+            <select
+              value={status}
+              onChange={(e) => setStatus(e.target.value as "draft" | "sent")}
+              className="h-8 border border-white/30 bg-white/10 px-2 text-xs text-white"
+              aria-label={t("status")}
+            >
+              <option value="draft" className="text-black">{t("statusDraft")}</option>
+              <option value="sent" className="text-black">{t("statusSent")}</option>
+            </select>
+            <Button type="button" variant="outline" size="sm" onClick={() => onOpenChange(false)} disabled={busy} className="border-white/40 bg-transparent text-white hover:bg-white/10 hover:text-white">
+              {t("cancel")}
+            </Button>
+            <Button type="button" size="sm" onClick={() => void save()} disabled={busy || pricing.lineCount === 0} className="min-w-28 bg-white text-[#1a2744] hover:bg-white/90">
+              {busy ? <Loader2 className="size-4 animate-spin" /> : t("save")}
+            </Button>
+          </div>
+        </div>
       </DialogContent>
     </Dialog>
   );

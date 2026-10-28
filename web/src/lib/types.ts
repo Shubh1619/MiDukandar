@@ -460,6 +460,9 @@ export interface PurchaseOrder {
   status: PurchaseOrderStatus;
   orderDate: string;
   expectedDate: string | null;
+  partyNumber?: string | null;
+  partyDate?: string | null;
+  challanType?: "CASH" | "CREDIT" | null;
   totalAmount: number | string;
   itemCount?: number;
   isOverdue?: boolean;
@@ -476,6 +479,12 @@ export interface PurchaseOrderItem {
   mrp?: number | string | null;
   taxRate: number | string;
   lineTotal: number | string;
+  pack?: string | null;
+  batch?: string | null;
+  expiryDate?: string | null;
+  tabQty?: number | string | null;
+  freeQty?: number | string | null;
+  discountPercent?: number | string | null;
 }
 
 export interface PurchaseOrderDetail extends PurchaseOrder {

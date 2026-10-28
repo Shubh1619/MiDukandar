@@ -8,37 +8,101 @@ import { ROLES } from "../middlewares/auth.types.js";
 import { createStockMovement } from "../services/stock.service.js";
 import { logger } from "../lib/logger.js";
 
+const dateField = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
+
 const poLineSchema = z.object({
   productId: z.string().min(1),
   quantity: z.coerce.number().positive(),
   rate: z.coerce.number().min(0).default(0),
   mrp: z.coerce.number().min(0).default(0),
   taxRate: z.coerce.number().min(0).max(100).default(0),
+  pack: z.string().max(40).optional(),
+  batch: z.string().max(40).optional(),
+  expiryDate: dateField.optional().or(z.literal("")),
+  tabQty: z.coerce.number().min(0).default(0),
+  freeQty: z.coerce.number().min(0).default(0),
+  discountPercent: z.coerce.number().min(0).max(100).default(0),
 });
 
 const poSchema = z.object({
   supplierId: z.string().min(1),
-  orderDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
-  expectedDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  orderDate: dateField.optional(),
+  expectedDate: dateField.optional(),
+  partyNumber: z.string().max(40).optional(),
+  partyDate: dateField.nullable().optional().or(z.literal("")),
+  challanType: z.enum(["CASH", "CREDIT"]).optional(),
   status: z.enum(["draft", "sent"]).default("draft"),
   lines: z.array(poLineSchema).min(1),
 });
 
 const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
 
-function lineToRs(item: { quantity: number; rate: number; mrp: number; taxRate: number }): {
+function lineToRs(item: z.infer<typeof poLineSchema>): {
   lineTotal: number;
   qty: string;
   rate: string;
   mrp: string;
+  taxRate: string;
+  pack: string;
+  batch: string;
+  expiry: string | null;
+  tabQty: string;
+  freeQty: string;
+  discountPercent: string;
 } {
   const qty = Number(item.quantity);
   const rate = Number(item.rate);
   const mrp = Number(item.mrp);
-  const taxRate = Number(item.taxRate);
-  const gross = qty * rate;
-  const lineTotal = round2(gross + (gross * taxRate) / 100);
-  return { lineTotal, qty: String(qty), rate: String(rate), mrp: String(mrp) };
+  const taxRate = Math.min(Math.max(Number(item.taxRate) || 0, 0), 100);
+  const discPct = Math.min(Math.max(Number(item.discountPercent) || 0, 0), 100);
+  // Same rounding as the challan screen: amount is after Dis1% and before GST.
+  const goods = round2(qty * rate);
+  const discount = round2((goods * discPct) / 100);
+  const taxable = round2(Math.max(goods - discount, 0));
+  const lineTotal = round2(taxable + round2((taxable * taxRate) / 100));
+  return {
+    lineTotal,
+    qty: String(qty),
+    rate: String(rate),
+    mrp: String(mrp),
+    taxRate: String(taxRate),
+    pack: (item.pack ?? "").trim().slice(0, 40),
+    batch: (item.batch ?? "").trim().slice(0, 40),
+    expiry: item.expiryDate ? item.expiryDate : null,
+    tabQty: String(Number(item.tabQty) || 0),
+    freeQty: String(Number(item.freeQty) || 0),
+    discountPercent: String(discPct),
+  };
+}
+
+async function insertPoLines(tx: DbClient, poId: string, lines: z.infer<typeof poLineSchema>[]): Promise<number> {
+  const totals = lines.map((line) => lineToRs(line));
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const t = totals[i];
+    await tx.q(
+      `INSERT INTO purchase_order_items
+         (po_id, product_id, quantity, rate, mrp, tax_rate, line_total,
+          pack, batch, expiry_date, tab_qty, free_qty, discount_percent)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
+      [
+        poId,
+        line.productId,
+        t.qty,
+        t.rate,
+        t.mrp,
+        t.taxRate,
+        String(t.lineTotal),
+        t.pack,
+        t.batch,
+        t.expiry,
+        t.tabQty,
+        t.freeQty,
+        t.discountPercent,
+      ],
+    );
+  }
+  return round2(totals.reduce((acc, t) => acc + t.lineTotal, 0));
 }
 
 async function nextPoNumber(tx: DbClient, storeId: string): Promise<string> {
@@ -134,13 +198,11 @@ export async function purchaseOrderRoutes(app: FastifyInstance) {
         await tx.q(`SELECT id FROM stores WHERE id = $1 FOR UPDATE`, [storeId]);
         const poNumber = await nextPoNumber(tx, storeId);
 
-        const totals = body.lines.map((l) => lineToRs(l));
-        const totalAmount = round2(totals.reduce((acc, t) => acc + t.lineTotal, 0));
-
         const po = await tx.qOne<Row>(
           `INSERT INTO purchase_orders
-             (store_id, supplier_id, po_number, status, order_date, expected_date, total_amount, created_by_id)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+             (store_id, supplier_id, po_number, status, order_date, expected_date, total_amount, created_by_id,
+              party_number, party_date, challan_type)
+           VALUES ($1, $2, $3, $4, $5, $6, 0, $7, $8, $9, $10) RETURNING *`,
           [
             storeId,
             body.supplierId,
@@ -148,21 +210,19 @@ export async function purchaseOrderRoutes(app: FastifyInstance) {
             body.status,
             body.orderDate ?? new Date().toISOString().slice(0, 10),
             body.expectedDate ? body.expectedDate : null,
-            String(totalAmount),
             userId,
+            (body.partyNumber ?? "").trim().slice(0, 40),
+            body.partyDate ? body.partyDate : null,
+            body.challanType ?? "CASH",
           ],
         );
 
-        for (let i = 0; i < body.lines.length; i++) {
-          const line = body.lines[i];
-          const t = totals[i];
-          await tx.q(
-            `INSERT INTO purchase_order_items (po_id, product_id, quantity, rate, mrp, tax_rate, line_total)
-             VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-            [po?.id, line.productId, t.qty, t.rate, t.mrp, String(line.taxRate), String(t.lineTotal)],
-          );
-        }
-        return po;
+        const totalAmount = await insertPoLines(tx, String(po?.id), body.lines);
+        const saved = await tx.qOne<Row>(
+          `UPDATE purchase_orders SET total_amount = $1 WHERE id = $2 RETURNING *`,
+          [String(totalAmount), po?.id],
+        );
+        return saved ?? po;
       });
 
       logger.info("purchase-order: created", { storeId, poId: purchaseOrder?.id, poNumber: purchaseOrder?.po_number });
@@ -233,8 +293,14 @@ export async function purchaseOrderRoutes(app: FastifyInstance) {
           lines = body.lines;
         }
 
-        const totals = lines ? lines.map((l) => lineToRs(l)) : null;
-        const totalAmount = totals ? round2(totals.reduce((acc, t) => acc + t.lineTotal, 0)) : undefined;
+        let totalAmount: number | undefined;
+        if (lines) {
+          await tx.q(`DELETE FROM purchase_order_items WHERE po_id = $1`, [id]);
+          totalAmount = await insertPoLines(tx, id, lines);
+        }
+
+        const partyDate =
+          body.partyDate === undefined ? undefined : body.partyDate ? body.partyDate : null;
 
         const upd = await tx.qOne<Row>(
           `UPDATE purchase_orders
@@ -242,29 +308,23 @@ export async function purchaseOrderRoutes(app: FastifyInstance) {
                order_date = COALESCE($2, order_date),
                expected_date = CASE WHEN $3::date IS NULL THEN expected_date ELSE $3::date END,
                total_amount = COALESCE($4, total_amount),
+               party_number = COALESCE($5, party_number),
+               party_date = CASE WHEN $6::boolean THEN $7::date ELSE party_date END,
+               challan_type = COALESCE($8, challan_type),
                updated_at = now()
-           WHERE id = $5 RETURNING *, (SELECT name FROM suppliers WHERE id = supplier_id) AS supplier_name`,
+           WHERE id = $9 RETURNING *, (SELECT name FROM suppliers WHERE id = supplier_id) AS supplier_name`,
           [
             supplierId ?? null,
             body.orderDate ?? null,
             body.expectedDate ? body.expectedDate : null,
             totalAmount !== undefined ? String(totalAmount) : null,
+            body.partyNumber !== undefined ? body.partyNumber.trim().slice(0, 40) : null,
+            body.partyDate !== undefined,
+            partyDate ?? null,
+            body.challanType ?? null,
             id,
           ],
         );
-
-        if (lines) {
-          await tx.q(`DELETE FROM purchase_order_items WHERE po_id = $1`, [id]);
-          for (let i = 0; i < lines.length; i++) {
-            const line = lines[i];
-            const t = totals![i];
-            await tx.q(
-              `INSERT INTO purchase_order_items (po_id, product_id, quantity, rate, mrp, tax_rate, line_total)
-               VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-              [id, line.productId, t.qty, t.rate, t.mrp, String(line.taxRate), String(t.lineTotal)],
-            );
-          }
-        }
         return upd;
       });
 
@@ -311,10 +371,12 @@ export async function purchaseOrderRoutes(app: FastifyInstance) {
           await tx.q(`DELETE FROM stock_movements WHERE reference_type = 'PURCHASE_ORDER' AND reference_id = $1`, [id]);
           const items = await tx.q<Row>(`SELECT * FROM purchase_order_items WHERE po_id = $1`, [id]);
           for (const item of items) {
+            const qtyIn = Number(item.quantity) + Number(item.free_qty ?? 0);
+            if (!(qtyIn > 0)) continue;
             await createStockMovement(tx, {
               productId: item.product_id as string,
               storeId,
-              qty: Number(item.quantity),
+              qty: qtyIn,
               type: "PURCHASE",
               referenceType: "PURCHASE_ORDER",
               referenceId: id,
