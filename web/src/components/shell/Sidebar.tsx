@@ -256,9 +256,6 @@ export default function Sidebar({ collapsed, onToggle, items, roleKey, mobileOpe
               </span>
             )}
             {navCollapsed && <Wifi className="size-3.5 text-emerald-400" />}
-            {!navCollapsed && (
-              <span className="font-mono text-[10px] text-navy-500">v3.4.2</span>
-            )}
           </div>
         </div>
       </aside>
