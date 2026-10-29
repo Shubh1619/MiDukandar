@@ -11,6 +11,8 @@ const navLinks = [
   { href: "#how-it-works", label: "How It Works" },
   { href: "#benefits", label: "Benefits" },
   { href: "#faq", label: "FAQ" },
+  { href: "/pricing", label: "Pricing" },
+  { href: "/terms", label: "Terms of Service" },
   { href: "#contact", label: "Contact" },
 ];
 
@@ -87,7 +89,7 @@ export default function LandingHeader() {
         <div className="border-t border-navy-100 bg-white lg:hidden">
           <nav className="mx-auto flex max-w-7xl flex-col px-5 py-2 sm:px-8" aria-label="Mobile navigation">
             {navLinks.map((link) => (
-              <a
+              <Link
                 key={link.href}
                 href={link.href}
                 onClick={(e) => {
@@ -101,7 +103,7 @@ export default function LandingHeader() {
                 className="px-1 py-2.5 text-sm font-semibold text-navy-700 transition-colors hover:text-royal-600"
               >
                 {link.label}
-              </a>
+              </Link>
             ))}
             <div className="mt-2 flex flex-col gap-2 border-t border-navy-100 pt-3">
               <Link href="/login" className="rounded-xl px-1 py-2.5 text-sm font-semibold text-navy-700">

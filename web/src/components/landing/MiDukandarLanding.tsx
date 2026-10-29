@@ -12,11 +12,15 @@ import {
   ClipboardList,
   ShieldCheck,
   CheckCircle2,
+  Check,
+  Sparkles,
+  TrendingUp,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import LandingHeader from "./LandingHeader";
 import LandingFooter from "./LandingFooter";
+import { PLAN_COMPARISON_ROWS, formatPlanPrice, getPlanModule, planFeatureList, type PlanDefinition } from "@/lib/plan-catalog";
 
 const features = [
   {
@@ -181,7 +185,49 @@ const faqs = [
   },
 ];
 
-export default function MiDukandarLanding() {
+type BillingCycle = "monthly" | "yearly";
+type PlanValue = boolean | string;
+
+function planIsFree(plan: PlanDefinition) {
+  return plan.isDefault || plan.name.trim().toLowerCase() === "free";
+}
+
+function planPrice(plan: PlanDefinition, billing: BillingCycle) {
+  const value = billing === "monthly" ? plan.priceMonthly : plan.priceYearly;
+  if (planIsFree(plan)) return { value: "₹0", suffix: "forever" };
+  if (value <= 0) return { value: "Contact Us", suffix: "tailored pricing" };
+  return { value: formatPlanPrice(value), suffix: billing === "monthly" ? "/ month" : "/ year" };
+}
+
+function savingPercent(plan: PlanDefinition) {
+  if (plan.priceMonthly <= 0 || plan.priceYearly <= 0) return 0;
+  return Math.max(0, Math.round((1 - plan.priceYearly / (plan.priceMonthly * 12)) * 100));
+}
+
+function planCta(plan: PlanDefinition) {
+  if (planIsFree(plan)) return { label: "Start Free Trial", href: "/onboard", external: false };
+  const message = encodeURIComponent(`Hello MiDukandar, I would like to know more about the ${plan.name} plan.`);
+  return { label: "Talk to Sales", href: `https://wa.me/918000629385?text=${message}`, external: true };
+}
+
+function moduleValue(plan: PlanDefinition, row: (typeof PLAN_COMPARISON_ROWS)[number]): PlanValue {
+  if (row.ads) return !plan.adsEnabled;
+  if (!row.moduleKey) return false;
+  const planModule = getPlanModule(plan, row.moduleKey);
+  if (!planModule?.enabled) return false;
+  if (planModule.moduleKey === "PRODUCTS") return planModule.limitValue === 0 ? "Unlimited products" : planModule.limitValue == null ? true : `Up to ${planModule.limitValue}`;
+  if (planModule.moduleKey === "USERS_ROLES") return planModule.limitValue === 0 ? "Unlimited staff" : planModule.limitValue == null ? true : `Up to ${planModule.limitValue} staff`;
+  if (planModule.moduleKey === "MULTI_STORE") return planModule.limitValue === 0 ? "Unlimited stores" : planModule.limitValue == null ? true : `Up to ${planModule.limitValue} stores`;
+  return true;
+}
+
+function ValueCell({ value }: { value: PlanValue }) {
+  if (value === true) return <Check className="mx-auto size-4 text-emerald-500" strokeWidth={2.5} aria-label="Included" />;
+  if (value === false) return <Check className="mx-auto size-4 text-navy-200" aria-label="Not included" style={{ display: 'none' }} />;
+  return <span className="text-[11px] font-semibold text-navy-700">{value}</span>;
+}
+
+export default function MiDukandarLanding({ initialPlans = [] }: { initialPlans?: PlanDefinition[] }) {
   return (
     <div className="min-h-screen bg-white text-navy-950">
       <LandingHeader />
@@ -464,6 +510,81 @@ export default function MiDukandarLanding() {
                   <p className="mt-2 text-sm text-navy-600">{item.desc}</p>
                 </div>
               ))}
+            </div>
+          </div>
+        </section>
+
+        <section id="pricing" className="border-t border-navy-100 bg-white">
+          <div className="mx-auto max-w-7xl px-5 py-16 sm:px-8 lg:px-10 lg:py-20">
+            <div className="mx-auto max-w-3xl text-center">
+              <p className="mb-4 inline-flex items-center rounded-full border border-navy-100 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-navy-600">
+                Pricing
+              </p>
+              <h2 className="font-display text-3xl font-bold tracking-tight sm:text-4xl">Simple, transparent pricing</h2>
+              <p className="mt-4 text-lg text-navy-600">
+                Start free and upgrade as your business grows. Plans are managed by the superadmin and reflect live pricing.
+              </p>
+            </div>
+            {initialPlans.length > 0 ? (
+              <div className="mt-12 grid gap-6 lg:grid-cols-3">
+                {initialPlans.map((plan, index) => {
+                  const price = planPrice(plan, "monthly");
+                  const cta = planCta(plan);
+                  const Icon = index % 2 === 0 ? Sparkles : TrendingUp;
+                  return (
+                    <article key={plan.id} className={`relative flex flex-col rounded-3xl border p-6 shadow-[0_20px_60px_-40px_rgb(15_39_71/0.5)] transition-all hover:-translate-y-1 ${plan.isPopular ? "border-royal-500/40 bg-white ring-2 ring-royal-500/10" : "border-navy-100 bg-white"}`}>
+                      {plan.isPopular && <div className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-royal-600 px-4 py-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-white">Most popular</div>}
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.12em] ${plan.isPopular ? "bg-royal-50 text-royal-700" : "bg-navy-50 text-navy-600"}`}>
+                            <Icon className="size-3" aria-hidden />
+                            {plan.isPopular ? "Recommended" : "Plan"}
+                          </span>
+                          <h3 className="mt-4 font-display text-2xl font-bold text-navy-950">{plan.name}</h3>
+                          <p className="mt-1 text-xs font-semibold text-navy-500">{plan.supportTier || "Standard support"}</p>
+                        </div>
+                      </div>
+                      <div className="mt-7 min-h-[76px] border-b border-navy-100 pb-5">
+                        <p className="font-display text-3xl font-bold tracking-tight text-navy-950">{price.value}</p>
+                        <p className="mt-1 text-xs font-medium text-navy-500">{price.suffix}{plan.trialDays > 0 && planIsFree(plan) ? " · trial included" : ""}</p>
+                      </div>
+                      <p className="mt-5 min-h-12 text-sm leading-relaxed text-navy-500">{plan.description || "A flexible plan for your business."}</p>
+                      {cta.external ? (
+                        <a href={cta.href} target="_blank" rel="noreferrer" className="mt-6 inline-flex h-12 items-center justify-center gap-2 rounded-xl border border-navy-200 bg-white px-4 text-sm font-bold text-navy-800 transition-colors hover:border-royal-400 hover:text-royal-700">
+                          {cta.label}
+                          <ArrowRight className="size-4" aria-hidden />
+                        </a>
+                      ) : (
+                        <Link href={cta.href} className={`group mt-6 inline-flex h-12 items-center justify-center gap-2 rounded-xl px-4 text-sm font-bold transition-all ${plan.isPopular ? "bg-royal-600 text-white shadow-[0_10px_24px_-10px_rgb(20_115_230/0.7)] hover:bg-royal-700" : "bg-navy-950 text-white hover:bg-navy-800"}`}>
+                          {cta.label}
+                          <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" aria-hidden />
+                        </Link>
+                      )}
+                      <div className="mt-7 border-t border-navy-100 pt-6">
+                        <p className="text-xs font-bold uppercase tracking-[0.12em] text-navy-500">What's included</p>
+                        <ul className="mt-4 space-y-3">
+                          {planFeatureList(plan).slice(0, 6).map((feature) => (
+                            <li key={feature} className="flex items-start gap-2.5 text-sm text-navy-600">
+                              <Check className="mt-0.5 size-4 shrink-0 text-emerald-500" strokeWidth={2.5} aria-hidden />
+                              {feature}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="mt-12 rounded-2xl border border-navy-100 bg-navy-50/50 p-8 text-center text-sm text-navy-600">
+                Pricing plans will appear here once configured.
+              </div>
+            )}
+            <div className="mt-8 text-center">
+              <Link href="/pricing" className="group inline-flex items-center gap-2 rounded-xl border border-navy-200 px-5 py-3 text-sm font-semibold text-navy-700 transition-colors hover:bg-navy-50">
+                View full pricing details
+                <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" aria-hidden />
+              </Link>
             </div>
           </div>
         </section>
