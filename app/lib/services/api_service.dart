@@ -97,6 +97,27 @@ class ApiService {
   String? _refreshToken;
   Future<_RefreshOutcome>? _refreshFuture;
 
+  /// Called once when the server rejects our refresh token. `AuthGate` hooks
+  /// this up to force a sign-out, so screens don't sit forever showing
+  /// "session expired" while every retry fails.
+  static Future<void> Function()? onSessionExpired;
+  static bool _sessionExpiryNotified = false;
+
+  Future<void> _notifySessionExpired() async {
+    if (_sessionExpiryNotified) return;
+    _sessionExpiryNotified = true;
+    final handler = onSessionExpired;
+    if (handler == null) return;
+    try {
+      await handler();
+    } catch (_) {
+      // A failed sign-out must not mask the original 401.
+    }
+  }
+
+  /// Allows a fresh sign-in to re-arm the expiry broadcast.
+  static void resetSessionExpiredFlag() => _sessionExpiryNotified = false;
+
   static const _timeout = Duration(seconds: 20);
 
   String? get accessToken => _accessToken;
@@ -216,6 +237,7 @@ class ApiService {
         // Server explicitly rejected the refresh token (expired/revoked).
         // This is the ONLY server-driven case that ends a session.
         await _clearAll();
+        await _notifySessionExpired();
         throw const SessionExpiredException();
       }
       // Network/transient failure during refresh: keep the stored refresh

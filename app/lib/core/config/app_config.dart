@@ -1,5 +1,8 @@
 /// Central runtime configuration for the Flutter app.
-///
+library;
+
+import 'package:flutter/foundation.dart';
+
 /// By default the app talks to the hosted API at [productionBaseUrl]. The URL
 /// can be overridden at build/run time (e.g. for local development):
 ///
@@ -23,7 +26,15 @@ class AppConfig {
 
   static String get baseUrl {
     final configured = _configuredApiUrl.trim();
-    return normalize(configured.isEmpty ? productionBaseUrl : configured);
+    final url = normalize(configured.isEmpty ? productionBaseUrl : configured);
+    // A leftover `--dart-define=API_URL=http://...` must never ship: in a
+    // release build every request (including bearer tokens) would be plaintext.
+    if (kReleaseMode && !url.startsWith('https://')) {
+      throw StateError(
+        'Refusing to use a non-HTTPS API endpoint in a release build: $url',
+      );
+    }
+    return url;
   }
 
   static String normalize(String value) {

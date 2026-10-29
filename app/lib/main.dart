@@ -95,6 +95,12 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _apiService = ApiService();
+    // A rejected refresh token anywhere in the app must land the user back on
+    // the login screen, not leave them stuck on a screen that only errors.
+    ApiService.onSessionExpired = () async {
+      if (!mounted) return;
+      await _signOut(showError: true);
+    };
     WidgetsBinding.instance.addPostFrameCallback((_) => _bootstrap());
   }
 
@@ -228,6 +234,8 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
       });
       await _loadDashboardStats();
       if (!mounted) return;
+      // Re-arm the "session expired" broadcast for this new session.
+      ApiService.resetSessionExpiredFlag();
       setState(() {
         _isAuthenticated = true;
       });

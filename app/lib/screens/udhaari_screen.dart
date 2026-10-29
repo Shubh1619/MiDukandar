@@ -482,6 +482,11 @@ class _UdhaariScreenState extends State<UdhaariScreen> {
       // The balance list is derived from the entries, so reload it (not just
       // the reminder counts) or the new row looks like it was never saved.
       _load();
+    } catch (e) {
+      // Without this the sheet would close as if the entry was saved even
+      // though the request failed — the owner would think the udhaari exists.
+      if (context.mounted) AppDialogs.showError(context, l.errCreateUdhaari('$e'));
+      return;
     } finally {
       if (context.mounted) AppDialogs.hideLoading(context);
     }

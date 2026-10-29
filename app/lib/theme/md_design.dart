@@ -380,6 +380,49 @@ class MdEmptyState extends StatelessWidget {
   }
 }
 
+/// Failure state for a list that could not be loaded, with a retry action.
+/// Silently empty lists are indistinguishable from "no data", which reads as
+/// data loss to a shop owner, so screens must use this instead.
+class MdErrorState extends StatelessWidget {
+  const MdErrorState({
+    super.key,
+    required this.message,
+    required this.retryLabel,
+    required this.onRetry,
+  });
+
+  final String message;
+  final String retryLabel;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.cloud_off_outlined, size: 48, color: MdColors.red700),
+            const SizedBox(height: 12),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: MdColors.mutedForeground, fontSize: 12),
+            ),
+            const SizedBox(height: 12),
+            FilledButton.icon(
+              onPressed: onRetry,
+              icon: const Icon(Icons.refresh, size: 18),
+              label: Text(retryLabel),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 /// App-wide light theme using the web's navy primary + tokens.
 ThemeData buildMdTheme() {
   final colorScheme = ColorScheme.fromSeed(

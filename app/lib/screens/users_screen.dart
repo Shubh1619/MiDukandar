@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../l10n/generated/app_localizations.dart';
 import '../models/app_models.dart';
 import '../services/api_service.dart';
+import '../theme/md_design.dart';
 import '../widgets/app_dialogs.dart';
 import '../widgets/md_inputs.dart';
 
@@ -28,6 +29,7 @@ class UsersScreen extends StatefulWidget {
 
 class _UsersScreenState extends State<UsersScreen> {
   List<AppUser> _users = const [];
+  String? _error;
 
   @override
   void initState() {
@@ -41,9 +43,12 @@ class _UsersScreenState extends State<UsersScreen> {
       if (!mounted) return;
       setState(() {
         _users = users;
+        _error = null;
       });
     } catch (e) {
       debugPrint('Failed to load users: $e');
+      if (!mounted) return;
+      setState(() => _error = e.toString());
     }
   }
 
@@ -370,7 +375,13 @@ class _UsersScreenState extends State<UsersScreen> {
           ),
           const SizedBox(height: 12),
           Expanded(
-            child: _users.isEmpty
+            child: _error != null
+                ? MdErrorState(
+                    message: _error!,
+                    retryLabel: l.retry,
+                    onRetry: _load,
+                  )
+                : _users.isEmpty
                 ? Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,

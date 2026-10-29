@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../l10n/generated/app_localizations.dart';
 import '../models/app_models.dart';
 import '../services/api_service.dart';
+import '../theme/md_design.dart';
 import '../widgets/app_dialogs.dart';
 import '../widgets/md_inputs.dart';
 
@@ -22,6 +23,7 @@ class ExpensesScreen extends StatefulWidget {
 class _ExpensesScreenState extends State<ExpensesScreen> {
   List<Expense> _expenses = const [];
   ExpenseSummary _summary = const ExpenseSummary(thisMonth: 0, lastMonth: 0, byCategory: []);
+  String? _error;
 
   @override
   void initState() {
@@ -40,9 +42,12 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
       setState(() {
         _expenses = results[0] as List<Expense>;
         _summary = results[1] as ExpenseSummary;
+        _error = null;
       });
     } catch (e) {
       debugPrint('Failed to load expenses: $e');
+      if (!mounted) return;
+      setState(() => _error = e.toString());
     }
   }
 
@@ -341,7 +346,13 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
           ],
           const SizedBox(height: 16),
           Expanded(
-            child: _expenses.isEmpty
+            child: _error != null
+                ? MdErrorState(
+                    message: _error!,
+                    retryLabel: l.retry,
+                    onRetry: _load,
+                  )
+                : _expenses.isEmpty
                 ? Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,

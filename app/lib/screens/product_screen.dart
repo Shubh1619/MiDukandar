@@ -38,6 +38,7 @@ class _ProductScreenState extends State<ProductScreen> {
   ProductSummary? _summary;
   List<String> _categories = [];
   List<Product> _products = const [];
+  String? _error;
 
   @override
   void initState() {
@@ -57,9 +58,12 @@ class _ProductScreenState extends State<ProductScreen> {
         _products = results[0] as List<Product>;
         _summary = results[1] as ProductSummary;
         _categories = results[2] as List<String>;
+        _error = null;
       });
     } catch (e) {
       debugPrint('Failed to load products: $e');
+      if (!mounted) return;
+      setState(() => _error = e.toString());
     }
   }
 
@@ -524,7 +528,7 @@ class _ProductScreenState extends State<ProductScreen> {
                   children: [
                     const Icon(Icons.event, size: 18, color: MdColors.navy700),
                     const SizedBox(width: 8),
-                    Text('Expiry: ${product.expiryDate.toString().substring(0, 10)}', style: const TextStyle(fontWeight: FontWeight.w600)),
+                    Text('Expiry: ${_expiryLabel(product.expiryDate)}', style: const TextStyle(fontWeight: FontWeight.w600)),
                   ],
                 ),
               ),
@@ -659,6 +663,15 @@ class _ProductScreenState extends State<ProductScreen> {
     }
   }
 
+  /// `expiryDate` arrives as a free-form string, so it can be empty or shorter
+  /// than a full ISO date. Slicing it blindly throws a RangeError and takes the
+  /// whole product screen down.
+  String _expiryLabel(String? raw) {
+    final value = (raw ?? '').trim();
+    if (value.isEmpty) return '';
+    return value.length > 10 ? value.substring(0, 10) : value;
+  }
+
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
@@ -729,7 +742,13 @@ class _ProductScreenState extends State<ProductScreen> {
           ],
           const SizedBox(height: 16),
           Expanded(
-            child: filtered.isEmpty
+            child: _error != null
+                ? MdErrorState(
+                    message: _error!,
+                    retryLabel: l.retry,
+                    onRetry: _load,
+                  )
+                : filtered.isEmpty
                 ? MdEmptyState(
                     icon: Icons.inventory_2_outlined,
                     title: l.prodEmptyTitle,
@@ -779,7 +798,7 @@ class _ProductScreenState extends State<ProductScreen> {
                                   if (product.expiryDate != null && product.expiryDate!.toString().isNotEmpty) ...[
                                     const SizedBox(height: 2),
                                     Text(
-                                      'Exp: ${product.expiryDate.toString().substring(0, 10)}',
+                                      'Exp: ${_expiryLabel(product.expiryDate)}',
                                       style: const TextStyle(fontSize: 10, color: MdColors.mutedForeground),
                                     ),
                                   ],
