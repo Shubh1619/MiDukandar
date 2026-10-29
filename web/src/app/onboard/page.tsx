@@ -461,7 +461,8 @@ export default function OnboardPage() {
           <div className="flex items-center gap-4 font-semibold text-royal-600">
             <Link href="/pricing" className="hover:text-royal-700">Pricing</Link>
             <Link href="/terms" className="hover:text-royal-700">Terms of Service</Link>
-            <a href="mailto:support@midukandar.com" className="hover:text-royal-700">Support</a>
+            <Link href="/privacy" className="hover:text-royal-700">Privacy</Link>
+            <a href="mailto:trinetraservices.ltd@gmail.com" className="hover:text-royal-700">Support</a>
           </div>
         </div>
       </footer>

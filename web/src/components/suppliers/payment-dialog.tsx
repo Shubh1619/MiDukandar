@@ -4,7 +4,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { apiFetch, ApiError } from "@/lib/api";
 import { useI18n } from "@/components/i18n-provider";
-import { formatINR } from "@/lib/format";
+import { formatINR, todayLocalKey } from "@/lib/format";
 import type { Supplier, SupplierPaymentMode } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -38,7 +38,7 @@ interface Props {
 }
 
 function today(): string {
-  return new Date().toISOString().slice(0, 10);
+  return todayLocalKey();
 }
 
 export function PaymentDialog({ open, onOpenChange, supplier, onSaved }: Props) {

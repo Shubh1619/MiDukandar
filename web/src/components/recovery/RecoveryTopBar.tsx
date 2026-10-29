@@ -15,17 +15,17 @@ export default function RecoveryTopBar() {
           <span className="mx-2 hidden h-5 w-px bg-navy-100 sm:block" />
           <div className="hidden items-center gap-1.5 sm:flex">
             <span className="inline-flex items-center gap-1.5 rounded-full border border-navy-100 bg-navy-50 px-2.5 py-1 text-[10px] font-semibold text-navy-600">
-              <ShieldCheck className="size-3 text-green-700" /> ISO 27001
+              <ShieldCheck className="size-3 text-green-700" /> Secure sessions
             </span>
             <span className="inline-flex items-center gap-1.5 rounded-full border border-navy-100 bg-navy-50 px-2.5 py-1 text-[10px] font-semibold text-navy-600">
-              <LockKeyhole className="size-3 text-royal-600" /> 256-Bit SSL
+              <LockKeyhole className="size-3 text-royal-600" /> HTTPS encrypted
             </span>
           </div>
         </div>
 
         <div className="flex items-center gap-2.5 sm:gap-4">
           <a
-            href="tel:1800629393852"
+            href="tel:18006393852"
             className="hidden items-center gap-1.5 text-xs font-semibold text-navy-700 hover:text-royal-600 md:flex"
           >
             <Phone className="size-3.5 text-royal-600" />

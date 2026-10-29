@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { Plus, Eye, HandCoins, X, Loader2 } from "lucide-react";
 import { apiFetch, ApiError } from "@/lib/api";
 import { useI18n } from "@/components/i18n-provider";
-import { formatINR, formatDateTime } from "@/lib/format";
+import { formatINR, formatDateTime, todayLocalKey } from "@/lib/format";
 import { UDHAARI_STATUS_BADGE } from "@/lib/badges";
 import type {
   Customer,
@@ -61,7 +61,7 @@ const REMINDER_SCOPES: Array<{ value: "all" | "overdue" | "today" | "upcoming"; 
 ];
 
 function todayStr(): string {
-  return new Date().toISOString().slice(0, 10);
+  return todayLocalKey();
 }
 
 function formatDateOnly(d: string | null | undefined): string {

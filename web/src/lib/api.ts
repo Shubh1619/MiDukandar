@@ -114,37 +114,57 @@ let refreshPromise: Promise<RefreshOutcome> | null = null;
  *                      original failure is surfaced; a later refresh attempt
  *                      (or page reload, on the shared cookie) recovers.
  */
+const REFRESH_LOCK_NAME = "midukandar:token-refresh";
+
+/**
+ * Serializes the refresh across same-origin TABS. The backend rotates the
+ * refresh cookie on every use, so two tabs refreshing at the same moment would
+ * make one present an already-rotated token; the server answers 401 and the
+ * loser used to broadcast a logout to every tab, wiping unsaved work. With the
+ * Web Locks API the second tab starts only after the first has stored the new
+ * cookie, so its refresh succeeds. Browsers without the API fall back to the
+ * previous per-tab behaviour.
+ */
+async function withRefreshLock<T>(fn: () => Promise<T>): Promise<T> {
+  const locks = typeof navigator !== "undefined" ? navigator.locks : undefined;
+  if (!locks?.request) return fn();
+  return locks.request(REFRESH_LOCK_NAME, fn) as Promise<T>;
+}
+
 export function refreshAccessToken(): Promise<RefreshOutcome> {
   if (!refreshPromise) {
-    const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), 8_000);
-    refreshPromise = fetch(`${API_BASE}/api/auth/refresh`, {
+    refreshPromise = withRefreshLock(performRefresh).finally(() => {
+      refreshPromise = null;
+    });
+  }
+  return refreshPromise;
+}
+
+async function performRefresh(): Promise<RefreshOutcome> {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 8_000);
+  try {
+    const res = await fetch(`${API_BASE}/api/auth/refresh`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       credentials: "include",
       signal: ctrl.signal,
-    })
-      .then(
-        async (res): Promise<RefreshOutcome> => {
-          if (!res.ok) {
-            return res.status === 401 || res.status === 403 ? "rejected" : "network-error";
-          }
-          const data = (await res.json().catch(() => null)) as { accessToken?: string } | null;
-          if (data?.accessToken) {
-            accessToken = data.accessToken;
-            scheduleProactiveRefresh();
-            return "success";
-          }
-          return "network-error";
-        },
-      )
-      .catch((): RefreshOutcome => "network-error")
-      .finally(() => {
-        clearTimeout(timer);
-        refreshPromise = null;
-      });
+    });
+    if (!res.ok) {
+      return res.status === 401 || res.status === 403 ? "rejected" : "network-error";
+    }
+    const data = (await res.json().catch(() => null)) as { accessToken?: string } | null;
+    if (data?.accessToken) {
+      accessToken = data.accessToken;
+      scheduleProactiveRefresh();
+      return "success";
+    }
+    return "network-error";
+  } catch {
+    return "network-error";
+  } finally {
+    clearTimeout(timer);
   }
-  return refreshPromise;
 }
 
 // ---------------------------------------------------------------------------

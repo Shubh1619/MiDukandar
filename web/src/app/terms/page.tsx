@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { AlertTriangle, CalendarDays, CheckCircle2, FileText, Mail, MessageCircle, Phone } from "lucide-react";
+import { CalendarDays, CheckCircle2, FileText, Mail, MessageCircle, Phone } from "lucide-react";
 import PublicFooter from "@/components/public/PublicFooter";
 import PublicHeader from "@/components/public/PublicHeader";
 import TermsToc, { type TermsSectionLink } from "@/components/public/TermsToc";
@@ -140,12 +140,12 @@ const sections: TermsSection[] = [
     id: "section-15",
     title: "Contact Information",
     paragraphs: [
-      "Questions about these Terms, the Service, billing, or a data request can be sent to support@midukandar.com. You can also call the MiDukandar support desk at 1800-MI-DUKAN (1800-639-3852) or message the WhatsApp support desk for general assistance.",
-      "The legal operating entity name, registered address, and final support email must be inserted and verified before these Terms are published. Do not send passwords, full payment-card details, or other unnecessary sensitive information by email or chat.",
+      "Questions about these Terms, the Service, billing, or a data request can be sent to trinetraservices.ltd@gmail.com. You can also call the MiDukandar support desk at +91 99703 68016 or message the WhatsApp support desk for general assistance.",
+      "Please do not send passwords, full payment-card details, or other unnecessary sensitive information by email or chat.",
     ],
     bullets: [
-      "Email: support@midukandar.com",
-      "Phone: 1800-MI-DUKAN (1800-639-3852)",
+      "Email: trinetraservices.ltd@gmail.com",
+      "Phone: +91 99703 68016",
       "WhatsApp: available through the MiDukandar support desk",
     ],
   },
@@ -189,11 +189,11 @@ function LegalSection({ section }: { section: TermsSection }) {
           )}
           {section.id === "section-15" && (
             <div className="mt-5 flex flex-wrap gap-3">
-              <a href="mailto:support@midukandar.com" className="inline-flex items-center gap-2 rounded-xl bg-navy-950 px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-navy-800">
+              <a href="mailto:trinetraservices.ltd@gmail.com" className="inline-flex items-center gap-2 rounded-xl bg-navy-950 px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-navy-800">
                 <Mail className="size-4" aria-hidden />
                 Email support
               </a>
-              <a href="tel:18006393852" className="inline-flex items-center gap-2 rounded-xl border border-navy-200 bg-white px-4 py-2.5 text-sm font-bold text-navy-800 transition-colors hover:border-royal-300 hover:text-royal-700">
+              <a href="tel:+919970368016" className="inline-flex items-center gap-2 rounded-xl border border-navy-200 bg-white px-4 py-2.5 text-sm font-bold text-navy-800 transition-colors hover:border-royal-300 hover:text-royal-700">
                 <Phone className="size-4" aria-hidden />
                 Call support
               </a>
@@ -217,8 +217,6 @@ export default function TermsPage() {
         <div className="mx-auto flex max-w-5xl items-center justify-center gap-2 px-5 py-2.5 text-center text-xs font-semibold text-navy-500 sm:px-8">
           <CalendarDays className="size-3.5 text-royal-600" aria-hidden />
           <span>Last updated: 24 September 2026</span>
-          <span className="hidden text-navy-300 sm:inline">·</span>
-          <span className="hidden sm:inline">Draft for legal review</span>
         </div>
       </div>
 
@@ -234,10 +232,6 @@ export default function TermsPage() {
               </span>
               <h1 className="mt-5 font-display text-3xl font-bold tracking-tight text-navy-950 sm:text-4xl">Terms &amp; Conditions</h1>
               <p className="mt-3 max-w-2xl text-base leading-7 text-navy-500">Clear terms for using MiDukandar to run your shop and business.</p>
-              <div className="mt-6 flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-4 text-sm leading-6 text-amber-900">
-                <AlertTriangle className="mt-0.5 size-5 shrink-0 text-amber-600" aria-hidden />
-                <p><span className="font-bold">Draft placeholder:</span> this document is for product and legal review. A qualified lawyer must review, finalise, and approve the wording, commercial policies, entity details, and contact information before the Service goes live.</p>
-              </div>
             </header>
 
             <div className="pt-8">

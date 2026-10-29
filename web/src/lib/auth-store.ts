@@ -137,13 +137,24 @@ export const useAuth = create<AuthState>((set, get) => ({
     // stored in memory by refreshAccessToken itself. A server rejection ends
     // the session; a network/5xx failure keeps it alive (matches mobile).
     const outcome = await refreshAccessToken();
-    if (outcome !== "success") {
+
+    // Server unreachable (offline, Render cold start, flaky wifi) is NOT a
+    // logout: the refresh cookie is untouched, so keep the cached identity and
+    // let the next successful request recover the session.
+    if (outcome === "network-error") {
+      if (cached) {
+        set({ user: cached.user, store: cached.store, ready: true });
+      } else {
+        set({ user: null, store: null, ready: true });
+      }
+      return;
+    }
+
+    if (outcome === "rejected") {
+      // Cookie expired/revoked → real session end, propagate to other tabs.
       clearSession();
       clearCache();
-      if (outcome === "rejected") {
-        // Cookie expired/revoked → real session end, propagate to other tabs.
-        broadcastLogout();
-      }
+      broadcastLogout();
       set({ user: null, store: null, ready: true });
       return;
     }

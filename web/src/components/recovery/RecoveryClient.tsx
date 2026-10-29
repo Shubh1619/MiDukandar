@@ -199,7 +199,7 @@ export default function RecoveryClient() {
                     </span>
                     <span className="inline-flex items-center gap-1.5 rounded-full border border-royal-200 bg-royal-50 px-3 py-1 text-[11px] font-bold text-royal-700">
                       <LockKeyhole className="size-3.5" />
-                      256-Bit Vault Protocol
+                      TLS-encrypted session
                     </span>
                   </div>
                   <h1 className="font-display text-2xl font-bold text-navy-900 sm:text-[26px]">
@@ -360,17 +360,17 @@ export default function RecoveryClient() {
       <footer className="border-t border-navy-100 bg-navy-950 text-white">
         <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-4 px-4 py-5 sm:px-6 lg:flex-row lg:px-8">
           <p className="text-center text-[10px] leading-relaxed text-navy-300 lg:text-left">
-            GST Suvidha Provider · RBI-compliant transaction processing · 256-Bit Financial Vault Security
+            GST-ready invoicing · Secure online payments · Encrypted in transit
             <br />
-            &copy; {new Date().getFullYear()} MiDukandar - All data stored on Indian servers.
+            &copy; {new Date().getFullYear()} MiDukandar - All rights reserved.
           </p>
           <div className="flex flex-wrap items-center justify-center gap-2 sm:justify-end">
             <Link href="/pricing" className="rounded-full border border-navy-700/60 bg-navy-800/60 px-2.5 py-1 text-[10px] font-medium text-navy-200 transition-colors hover:border-royal-400/60 hover:text-white">Pricing</Link>
             <Link href="/terms" className="rounded-full border border-navy-700/60 bg-navy-800/60 px-2.5 py-1 text-[10px] font-medium text-navy-200 transition-colors hover:border-royal-400/60 hover:text-white">Terms of Service</Link>
             {[
-              { icon: <FileLock2 className="size-3.5" />, label: "GST Suvidha Provider" },
-              { icon: <ShieldCheck className="size-3.5" />, label: "256-Bit Vault" },
-              { icon: <Sparkles className="size-3.5" />, label: "RBI Compliant" },
+              { icon: <FileLock2 className="size-3.5" />, label: "GST-ready invoices" },
+              { icon: <ShieldCheck className="size-3.5" />, label: "Encrypted in transit" },
+              { icon: <Sparkles className="size-3.5" />, label: "Razorpay payments" },
             ].map((b) => (
               <span
                 key={b.label}

@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { Loader2, Plus, X } from "lucide-react";
 import { apiFetch, ApiError } from "@/lib/api";
 import { useI18n } from "@/components/i18n-provider";
-import { formatINR } from "@/lib/format";
+import { formatINR, localDateKey } from "@/lib/format";
 import type { Customer, PaymentMode, Product, SaleDetail } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -53,7 +53,7 @@ const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
 function todayPlus(days: number): string {
   const d = new Date();
   d.setDate(d.getDate() + days);
-  return d.toISOString().slice(0, 10);
+  return localDateKey(d);
 }
 
 function newLine(): LineDraft {

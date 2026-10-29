@@ -34,6 +34,12 @@ export default function PublicFooter({ compact = false, dark = false }: PublicFo
           <Link href="/terms" className={link}>
             Terms of Service
           </Link>
+          <Link href="/privacy" className={link}>
+            Privacy
+          </Link>
+          <Link href="/refund" className={link}>
+            Refunds
+          </Link>
           <a href="mailto:trinetraservices.ltd@gmail.com" className={`inline-flex items-center gap-1.5 ${link}`}>
             <Mail className="size-3.5" aria-hidden />
             Support
@@ -47,7 +53,7 @@ export default function PublicFooter({ compact = false, dark = false }: PublicFo
         </div>
       </div>
       {!compact && (
-        <div className={`border-t px-5 py-3 text-center text-[10px ${muted} sm:px-8 lg:px-10`}>
+        <div className={`border-t px-5 py-3 text-center text-[10px] ${muted} sm:px-8 lg:px-10`}>
           <span className="inline-flex items-center gap-1.5">
             <ShieldCheck className="size-3.5 text-emerald-500" aria-hidden />
             © {new Date().getFullYear()} MiDukandar. Built for Shops & Businesses.

@@ -358,7 +358,7 @@ export default function MiDukandarLanding({ initialPlans = [] }: { initialPlans?
             <div className="mx-auto max-w-3xl text-center">
               <h2 className="font-display text-3xl font-bold tracking-tight sm:text-4xl">Simplify Every Purchase</h2>
               <p className="mt-4 text-lg text-navy-600">
-                Record incoming goods from suppliers with a purchase challan workflow before reconciling the supplier's purchase invoice.
+                Record incoming goods from suppliers with a purchase challan workflow before reconciling the supplier&apos;s purchase invoice.
               </p>
             </div>
             <div className="mt-10 grid gap-8 lg:grid-cols-[1.1fr_1fr] lg:items-start">
@@ -561,7 +561,7 @@ export default function MiDukandarLanding({ initialPlans = [] }: { initialPlans?
                         </Link>
                       )}
                       <div className="mt-7 border-t border-navy-100 pt-6">
-                        <p className="text-xs font-bold uppercase tracking-[0.12em] text-navy-500">What's included</p>
+                        <p className="text-xs font-bold uppercase tracking-[0.12em] text-navy-500">What&apos;s included</p>
                         <ul className="mt-4 space-y-3">
                           {planFeatureList(plan).slice(0, 6).map((feature) => (
                             <li key={feature} className="flex items-start gap-2.5 text-sm text-navy-600">
@@ -621,7 +621,7 @@ export default function MiDukandarLanding({ initialPlans = [] }: { initialPlans?
                   Spend Less Time Managing Records. Focus More on Your Business.
                 </h2>
                 <p className="mt-4 text-lg text-white/80">
-                  Bring your shop's daily operations together with MiDukandar.
+                  Bring your shop&apos;s daily operations together with MiDukandar.
                 </p>
                 <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
                   <Link

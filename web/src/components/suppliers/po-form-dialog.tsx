@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { Loader2, Plus, X } from "lucide-react";
 import { apiFetch, ApiError } from "@/lib/api";
 import { useI18n } from "@/components/i18n-provider";
-import { formatINR } from "@/lib/format";
+import { formatINR, todayLocalKey } from "@/lib/format";
 import type { Product, PurchaseOrderDetail, Supplier } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,7 +23,7 @@ import { ProductSearch } from "./product-search";
 import { challanLine, challanTotals } from "./challan";
 
 function today(): string {
-  return new Date().toISOString().slice(0, 10);
+  return todayLocalKey();
 }
 
 interface LineDraft {

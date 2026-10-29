@@ -74,7 +74,14 @@ export default function LandingFooter() {
                 </Link>
               </li>
               <li>
-                <span className="text-navy-500">Privacy Policy</span>
+                <Link href="/privacy" className="transition-colors hover:text-royal-600">
+                  Privacy Policy
+                </Link>
+              </li>
+              <li>
+                <Link href="/refund" className="transition-colors hover:text-royal-600">
+                  Refund Policy
+                </Link>
               </li>
             </ul>
           </div>
