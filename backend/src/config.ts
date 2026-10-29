@@ -96,6 +96,7 @@ const EnvSchema = z.object({
     .min(1, "DATABASE_URL is required"),
   ALLOW_REMOTE_DB_IN_DEV: bool(false),
   ALLOW_UNVERIFIED_MAIL_SENDER: z.string().optional(),
+  ALLOW_LOG_MAIL_IN_PRODUCTION: z.string().optional(),
   APP_URL: z.string().optional(),
   APP_NAME: z.string().optional(),
   MAIL_MODE: z.string().optional(),
@@ -252,6 +253,11 @@ const dbHost = hostOf(databaseUrl);
 
 const allowUnverifiedMailSender =
   (env.ALLOW_UNVERIFIED_MAIL_SENDER ?? "").trim().toLowerCase() === "true";
+
+// Escape hatch for a production deploy that genuinely cannot send mail yet
+// (e.g. a staging copy of prod). Never enable it on a real deployment.
+const allowLogMailInProduction =
+  (env.ALLOW_LOG_MAIL_IN_PRODUCTION ?? "").trim().toLowerCase() === "true";
 
 const mailModeRaw = env.MAIL_MODE?.trim().toLowerCase() || (isProd ? "brevo" : "log");
 if (mailModeRaw !== "log" && mailModeRaw !== "brevo") {
@@ -493,6 +499,16 @@ function assertProductionSecrets(): void {
   if (config.masterOtp) {
     problems.push(
       "OTP_MASTER must not be set in production (it bypasses OTP verification for every account)",
+    );
+  }
+
+  // MAIL_MODE=log writes every OTP into the process log: anyone with log access
+  // (or a support dump) could sign in as any user, and real users never receive
+  // their code. A production deploy must explicitly opt in to that.
+  if (config.mailMode === "log" && !allowLogMailInProduction) {
+    problems.push(
+      "MAIL_MODE=log is not allowed in production — it prints login codes to the log and sends no email. " +
+        "Set MAIL_MODE=brevo with BREVO_API_KEY/BREVO_SENDER_EMAIL, or set ALLOW_LOG_MAIL_IN_PRODUCTION=true deliberately.",
     );
   }
 

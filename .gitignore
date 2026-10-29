@@ -33,10 +33,7 @@ __pycache__/
 !/.vscode/launch.json
 /*.local/
 
-# === Package-lock and snapshot files ===
-package-lock.json
-yarn.lock
-pnpm-lockfile
+# === Lockfiles are committed on purpose (reproducible builds) ===
 
 # === Next.js / Nuxt / build outputs ===
 /nuxt/

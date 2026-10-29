@@ -10,8 +10,14 @@ import pg from "pg";
  *
  * Container/auto-create:
  *   SUPERADMIN_EMAIL / SUPERADMIN_NAME / SUPERADMIN_PASSWORD env vars. The
- *   backend container entrypoint runs this automatically after migrations;
- *   it is idempotent (upsert on email) and exits cleanly when not configured.
+ *   backend container entrypoint runs this automatically after migrations.
+ *
+ * Rotation: the bootstrap is create-only. Re-setting the password on every
+ * boot meant an operator could never change it (the next deploy would restore
+ * the env value) and any stale SUPERADMIN_PASSWORD in the environment silently
+ * re-opened a known credential. Pass `--rotate` (or set
+ * SUPERADMIN_ROTATE_PASSWORD=true) when you genuinely want to replace the
+ * stored hash.
  */
 
 const args = process.argv.slice(2);
@@ -19,6 +25,11 @@ const get = (k: string) => {
   const idx = args.indexOf(k);
   return idx >= 0 ? args[idx + 1] : undefined;
 };
+const shouldRotate =
+  args.includes("--rotate") ||
+  ["1", "true", "yes"].includes(
+    (process.env.SUPERADMIN_ROTATE_PASSWORD ?? "").trim().toLowerCase(),
+  );
 
 async function main() {
   const email = (get("--email") ?? process.env.SUPERADMIN_EMAIL ?? "").trim().toLowerCase();
@@ -48,15 +59,34 @@ async function main() {
 
   const passwordHash = bcrypt.hashSync(password, 10);
   try {
+    // Create-only by default: an existing account keeps whatever password the
+    // operator last set. `--rotate` is the single explicit way to replace it.
     const { rows } = await client.query(
-      `INSERT INTO super_admins (name, email, password_hash)
-       VALUES ($1, $2, $3)
-       ON CONFLICT (email) DO UPDATE SET name = EXCLUDED.name, password_hash = EXCLUDED.password_hash, updated_at = now()
-       RETURNING id, email`,
+      shouldRotate
+        ? `INSERT INTO super_admins (name, email, password_hash)
+           VALUES ($1, $2, $3)
+           ON CONFLICT (email) DO UPDATE
+             SET name = EXCLUDED.name,
+                 password_hash = EXCLUDED.password_hash,
+                 updated_at = now()
+           RETURNING id, email, (xmax = 0) AS created`
+        : `INSERT INTO super_admins (name, email, password_hash)
+           VALUES ($1, $2, $3)
+           ON CONFLICT (email) DO UPDATE SET name = EXCLUDED.name, updated_at = now()
+           RETURNING id, email, (xmax = 0) AS created`,
       [name, email, passwordHash],
     );
-    const row = rows[0] as { id: string; email: string };
-    console.log(`superadmin: ${row.email} (id ${row.id}) ready.`);
+    const row = rows[0] as { id: string; email: string; created: boolean };
+    if (row.created) {
+      console.log(`superadmin: ${row.email} (id ${row.id}) created.`);
+    } else if (shouldRotate) {
+      console.log(`superadmin: ${row.email} (id ${row.id}) password rotated.`);
+    } else {
+      console.log(
+        `superadmin: ${row.email} (id ${row.id}) already exists - password left unchanged ` +
+          `(pass --rotate or set SUPERADMIN_ROTATE_PASSWORD=true to replace it).`,
+      );
+    }
   } finally {
     await client.end();
   }
