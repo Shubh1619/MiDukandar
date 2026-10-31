@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_contacts/flutter_contacts.dart';
 import 'package:intl/intl.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 import '../l10n/generated/app_localizations.dart';
 import '../l10n/status_labels.dart';
@@ -38,6 +40,7 @@ class _UdhaariScreenState extends State<UdhaariScreen> {
   String? _error;
   List<UdhaariCustomer> _udhaari = const [];
   List<Customer> _customers = const [];
+  List<Contact> _contacts = const [];
 
   @override
   void initState() {
@@ -56,11 +59,24 @@ class _UdhaariScreenState extends State<UdhaariScreen> {
         widget.apiService.getCustomers(),
         widget.apiService.getUdhaariReminders(scope: 'all'),
       ]);
+      List<Contact> contacts = const [];
+      try {
+        final status = await Permission.contacts.status;
+        if (status.isGranted || status.isLimited) {
+          contacts = await FlutterContacts.getContacts(withProperties: true, withPhoto: false);
+        } else {
+          final req = await Permission.contacts.request();
+          if (req.isGranted || req.isLimited) {
+            contacts = await FlutterContacts.getContacts(withProperties: true, withPhoto: false);
+          }
+        }
+      } catch (_) {}
       if (!mounted) return;
       setState(() {
         _udhaari = results[0] as List<UdhaariCustomer>;
         _customers = results[1] as List<Customer>;
         _counts = (results[2] as ({List<UdhaariReminder> reminders, UdhaariReminderCounts counts})).counts;
+        _contacts = contacts;
         _loading = false;
       });
     } catch (e) {
@@ -350,11 +366,48 @@ class _UdhaariScreenState extends State<UdhaariScreen> {
                               : null,
                         ),
                       ),
+                      ..._contacts.where((ct) {
+                        final hasPhone = ct.phones.isNotEmpty;
+                        if (!hasPhone) return false;
+                        final phone = ct.phones.first.number.replaceAll(RegExp(r'[^0-9+]'), '');
+                        final exists = _customers.any((c) => c.mobile != null && c.mobile!.replaceAll(RegExp(r'[^0-9]'), '') == phone.replaceAll(RegExp(r'[^0-9]'), ''));
+                        return !exists;
+                      }).take(50).map(
+                        (ct) {
+                          final phone = ct.phones.first.number;
+                          return MdPickerOption(
+                            value: 'contact:${ct.id}:$phone',
+                            label: ct.displayName.isNotEmpty ? ct.displayName : ct.name.first,
+                            trailing: Text(phone, style: const TextStyle(fontSize: 12, color: MdColors.mutedForeground)),
+                          );
+                        },
+                      ),
                     ],
-                    onChanged: (v) => setSheetState(() => selectedCustomer = v),
+                    onChanged: (v) {
+                      setSheetState(() {
+                        selectedCustomer = v;
+                        if (v != null && v.startsWith('contact:')) {
+                          final parts = v.split(':');
+                          if (parts.length >= 3) {
+                            final phone = parts.sublist(2).join(':');
+                            final digits = phone.replaceAll(RegExp(r'[^0-9]'), '');
+                            newMobileController.text = digits.length > 10 ? digits.substring(digits.length - 10) : digits;
+                            // try to set name
+                            final contact = _contacts.firstWhere((c) => c.id == parts[1], orElse: () => Contact());
+                            final name = contact.displayName;
+                            if (name.isNotEmpty) {
+                              newNameController.text = name;
+                            } else {
+                              final name2 = contact.name.first;
+                              if (name2.isNotEmpty) newNameController.text = name2;
+                            }
+                          }
+                        }
+                      });
+                    },
                   ),
                   const SizedBox(height: 12),
-                  if (selectedCustomer == '__new__') ...[
+                  if (selectedCustomer == '__new__' || (selectedCustomer?.startsWith('contact:') ?? false)) ...[
                     TextField(
                       controller: newNameController,
                       decoration: InputDecoration(labelText: l.custNameLabel),
@@ -425,13 +478,14 @@ class _UdhaariScreenState extends State<UdhaariScreen> {
                       const SizedBox(width: 8),
                       FilledButton(
                         onPressed: () {
-                          final isNewCustomer = selectedCustomer == '__new__';
+                          final isNewCustomer = selectedCustomer == '__new__' || (selectedCustomer?.startsWith('contact:') == true);
                           final amount = num.tryParse(amountController.text.trim()) ?? 0;
                           if (isNewCustomer && newNameController.text.trim().isEmpty) {
                             Navigator.pop(sheetContext);
                             return;
                           }
-                          if (newMobileKey.currentState?.validate() != null) {
+                          final mv = newMobileKey.currentState?.validate();
+                          if (mv != null && mv.toString().isNotEmpty) {
                             return;
                           }
                           if (amount.toDouble() <= 0) {
