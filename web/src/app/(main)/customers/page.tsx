@@ -1,9 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Plus, Eye, Pencil, Trash2, HandCoins, Loader2 } from "lucide-react";
+import { Plus, Eye, Pencil, Trash2, HandCoins, Loader2, Upload } from "lucide-react";
 import { apiFetch, ApiError } from "@/lib/api";
 import { useI18n } from "@/components/i18n-provider";
 import { formatINR, formatDateTime } from "@/lib/format";
@@ -62,6 +62,9 @@ export default function CustomersPage() {
 
   const [deleteTarget, setDeleteTarget] = useState<Customer | null>(null);
   const [deleting, setDeleting] = useState(false);
+
+  const [importing, setImporting] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const limit = 50;
 
@@ -146,6 +149,79 @@ export default function CustomersPage() {
     }
   };
 
+  const parseVCard = (text: string) => {
+    const cards = text.split(/END:VCARD/i);
+    const results: Array<{ name: string; mobile?: string }> = [];
+    for (const card of cards) {
+      if (!/BEGIN:VCARD/i.test(card)) continue;
+      let name = "";
+      let mobile = "";
+      const nameMatch = card.match(/FN[^:\r\n]*:(.*)/i) || card.match(/N[^:\r\n]*:(.*)/i);
+      if (nameMatch) {
+        name = nameMatch[1].replace(/;/g, " ").replace(/\\/g, "").trim();
+      }
+      const telMatch = card.match(/TEL[^:\r\n]*:(.*)/i);
+      if (telMatch) {
+        mobile = telMatch[1].replace(/[^0-9+]/g, "").trim();
+      }
+      if (name) results.push({ name, mobile: mobile || undefined });
+    }
+    return results;
+  };
+
+  const parseCsv = (text: string) => {
+    const lines = text.split(/\r?\n/).filter((l) => l.trim());
+    if (lines.length === 0) return [];
+    const results: Array<{ name: string; mobile?: string }> = [];
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      const parts = line.split(/,(?=(?:[^"]*"[^"]*")*[^"]*$)/).map((p) => p.replace(/^"|"$/g, "").trim());
+      if (i === 0) {
+        const lower = parts.map((p) => p.toLowerCase());
+        if (lower.includes("name") || lower.includes("mobile") || lower.includes("phone") || lower.includes("number")) continue;
+      }
+      const name = parts[0] || parts[1] || "";
+      const mobile = (parts[1] || parts[2] || "").replace(/[^0-9+]/g, "");
+      if (name) results.push({ name, mobile: mobile || undefined });
+    }
+    return results;
+  };
+
+  const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImporting(true);
+    try {
+      const text = await file.text();
+      let items: Array<{ name: string; mobile?: string }> = [];
+      if (file.name.toLowerCase().endsWith(".vcf") || /BEGIN:VCARD/i.test(text)) {
+        items = parseVCard(text);
+      } else if (file.name.toLowerCase().endsWith(".csv") || text.includes(",")) {
+        items = parseCsv(text);
+      } else {
+        toast.error("Unsupported file. Upload .vcf or .csv");
+        return;
+      }
+      let added = 0;
+      for (const item of items) {
+        if (!item.name.trim()) continue;
+        try {
+          await apiFetch("/api/customers", { method: "POST", body: { name: item.name.trim(), mobile: item.mobile || "" } });
+          added++;
+        } catch {
+          // skip duplicates/errors
+        }
+      }
+      toast.success(`Imported ${added} customer(s)`);
+      void load();
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Failed to import");
+    } finally {
+      setImporting(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
   const pages = Math.max(1, Math.ceil(total / limit));
 
   return (
@@ -155,9 +231,15 @@ export default function CustomersPage() {
           <h1 className="font-display text-xl font-bold">{t("navCustomers")}</h1>
           <p className="text-xs text-muted-foreground">{t("customerCount", { count: total })}</p>
         </div>
-        <Button onClick={openAdd}>
-          <Plus className="size-4" /> {t("addCustomer")}
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <input ref={fileInputRef} type="file" accept=".vcf,.csv,text/vcard,text/csv" className="hidden" onChange={handleImport} />
+          <Button variant="outline" onClick={() => fileInputRef.current?.click()} disabled={importing}>
+            {importing ? <Loader2 className="size-4 animate-spin" /> : <Upload className="size-4" />} Import vCard/CSV
+          </Button>
+          <Button onClick={openAdd}>
+            <Plus className="size-4" /> {t("addCustomer")}
+          </Button>
+        </div>
       </div>
 
       <TableSearch value={search} onChange={(v) => { setSearch(v); setPage(1); }} />

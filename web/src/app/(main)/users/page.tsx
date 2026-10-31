@@ -151,7 +151,13 @@ export default function UsersPage() {
     }
   };
 
+  const currentUser = useAuth((s) => s.user);
+
   const toggleUser = async (u: AppUser) => {
+    if (u.role === "OWNER" && currentUser?.id === u.id) {
+      toast.error("Owner cannot deactivate own account");
+      return;
+    }
     try {
       await apiFetch(`/api/users/${u.id}/status`, { method: "PATCH", body: { status: u.isActive ? "inactive" : "active" } });
       await loadAll();
@@ -161,6 +167,10 @@ export default function UsersPage() {
   };
 
   const removeUser = async (u: AppUser) => {
+    if (u.role === "OWNER" && currentUser?.id === u.id) {
+      toast.error("Owner cannot delete own account");
+      return;
+    }
     if (!window.confirm(`Remove ${u.name || u.email}?`)) return;
     try {
       await apiFetch(`/api/users/${u.id}`, { method: "DELETE" });
@@ -261,8 +271,12 @@ export default function UsersPage() {
                         {canManage ? (
                           <div className="flex justify-end gap-1">
                             <Button variant="ghost" size="icon" title="Edit" onClick={() => { setEdit({ id: u.id, name: u.name, role: u.role, status: u.status }); setEditOpen(true); }}><Edit2 className="size-4" /></Button>
-                            <Button variant="ghost" size="icon" title={u.isActive ? "Deactivate" : "Activate"} onClick={() => void toggleUser(u)}>{u.isActive ? <PowerOff className="size-4" /> : <Power className="size-4" />}</Button>
-                            <Button variant="ghost" size="icon" title="Remove" onClick={() => void removeUser(u)}><Trash2 className="size-4" /></Button>
+                            {(u.role !== "OWNER" || currentUser?.id !== u.id) && (
+                              <>
+                                <Button variant="ghost" size="icon" title={u.isActive ? "Deactivate" : "Activate"} onClick={() => void toggleUser(u)}>{u.isActive ? <PowerOff className="size-4" /> : <Power className="size-4" />}</Button>
+                                <Button variant="ghost" size="icon" title="Remove" onClick={() => void removeUser(u)}><Trash2 className="size-4" /></Button>
+                              </>
+                            )}
                           </div>
                         ) : (
                           <span className="text-muted-foreground">—</span>

@@ -250,9 +250,9 @@ export default function DashboardPage() {
             </p>
           ) : (
             <>
-              <div className="hidden overflow-x-auto md:block">
+              <div className="hidden max-h-[420px] overflow-y-auto overflow-x-auto md:block">
                 <table className="w-full min-w-[560px] text-left text-sm">
-                  <thead>
+                  <thead className="sticky top-0 bg-white">
                     <tr className="border-b border-navy-100 text-[10px] uppercase tracking-wide text-muted-foreground">
                       <th className="py-2 pr-3 font-semibold">Type</th>
                       <th className="py-2 pr-3 font-semibold">No.</th>
@@ -288,7 +288,7 @@ export default function DashboardPage() {
                 </table>
               </div>
 
-              <div className="space-y-2 md:hidden">
+              <div className="max-h-[420px] space-y-2 overflow-y-auto md:hidden">
                 {stats.recentTransactions.map((tx) => {
                   const meta = TX_META[tx.type] ?? TX_META.SALE;
                   return (

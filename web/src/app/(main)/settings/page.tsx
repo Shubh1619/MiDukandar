@@ -20,6 +20,7 @@ import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { TableSkeleton } from "@/components/shared/table-skeleton";
 import { EmptyState } from "@/components/shared/empty-state";
+import { planHasModule } from "@/lib/plan-catalog";
 
 const LANGUAGES = [
   { code: "en", label: "English", short: "ENG" },
@@ -44,7 +45,10 @@ export default function SettingsPage() {
   const { t, setLocale } = useI18n();
   const setAuthStore = useAuth((s) => s.setStore);
   const user = useAuth((s) => s.user);
+  const storePlan = useAuth((s) => s.store);
+  const plan = storePlan?.planDetails;
   const canManageSms = user?.role === "OWNER" || user?.role === "MANAGER";
+  const canManageSettings = planHasModule(plan, "USERS_ROLES") || user?.role === "OWNER";
   const [store, setStoreState] = useState<Store | null>(null);
   const [storeLoading, setStoreLoading] = useState(true);
   const [savingStore, setSavingStore] = useState(false);
@@ -347,8 +351,8 @@ export default function SettingsPage() {
           <TabsTrigger value="store">{t("storeDetails")}</TabsTrigger>
           <TabsTrigger value="staff">{t("staff")}</TabsTrigger>
           <TabsTrigger value="language">{t("language")}</TabsTrigger>
-          <TabsTrigger value="sms">SMS</TabsTrigger>
-          <TabsTrigger value="legal">Legal</TabsTrigger>
+          {(planHasModule(plan, "USERS_ROLES") || user?.role === "OWNER") && <TabsTrigger value="sms">SMS</TabsTrigger>}
+          {(planHasModule(plan, "USERS_ROLES") || user?.role === "OWNER") && <TabsTrigger value="legal">Legal</TabsTrigger>}
           <TabsTrigger value="referral">Refer</TabsTrigger>
         </TabsList>
 
@@ -558,6 +562,7 @@ export default function SettingsPage() {
           </div>
         </TabsContent>
 
+        {(planHasModule(plan, "USERS_ROLES") || user?.role === "OWNER") && (
         <TabsContent value="sms">
           <div className="max-w-2xl space-y-4">
             <div className="rounded-lg border bg-card p-5">
@@ -656,7 +661,9 @@ export default function SettingsPage() {
             </div>
           </div>
         </TabsContent>
+        )}
 
+        {(planHasModule(plan, "USERS_ROLES") || user?.role === "OWNER") ? (
         <TabsContent value="legal">
           <div className="max-w-2xl space-y-4">
             <div className="rounded-lg border bg-card p-5">
@@ -706,6 +713,7 @@ export default function SettingsPage() {
             </div>
           </div>
         </TabsContent>
+        ) : null}
 
         <TabsContent value="referral">
           <div className="max-w-2xl space-y-4">
