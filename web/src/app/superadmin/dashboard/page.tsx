@@ -71,7 +71,6 @@ export default function DashboardPage() {
     { label: "Active", value: String(summary.active), icon: CircleCheck, tone: "text-emerald-700 bg-emerald-100" },
     { label: "Suspended", value: String(summary.suspended), icon: CircleOff, tone: "text-red-700 bg-red-100" },
     { label: "Paid plan", value: String(summary.onPaidPlan), icon: CreditCard, tone: "text-indigo-700 bg-indigo-100" },
-    { label: "Merchant invoice revenue", value: formatINR(summary.totalRevenue), icon: TrendingUp, tone: "text-amber-700 bg-amber-100" },
   ];
 
   return (
@@ -81,7 +80,7 @@ export default function DashboardPage() {
         <p className="text-sm text-slate-500">Platform overview across all tenants.</p>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         {cards.map((c) => (
           <div key={c.label} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
             <span className={`mb-3 inline-flex h-9 w-9 items-center justify-center rounded-lg ${c.tone}`}>
