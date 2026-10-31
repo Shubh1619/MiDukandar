@@ -58,13 +58,12 @@ class SharedPreferencesSimPreference implements SimPreference {
 /// Sends the udhaari SMS that the API returned as `pendingSms`.
 ///
 /// Flow:
-///   1. Ask for `SEND_SMS` + `READ_PHONE_STATE` (Android runtime permissions).
-///   2. Pick the SIM: one SIM is used directly; with two or more the owner
-///      chooses once and the choice is remembered (a SIM without recharge can
-///      still have signal, so guessing the default would silently lose SMS).
-///   3. Send silently through that SIM and report `SENT`.
-///   4. If denied or sending fails, open the SMS app prefilled and report
-///      `HANDED_OFF` so the owner can still send it with one tap.
+///   1. This build deliberately does not declare `SEND_SMS` or
+///      `READ_PHONE_STATE` (Play restricts them), so the permission check
+///      always answers "not granted" and no silent send is attempted.
+///   2. The SMS app opens prefilled with the recipient and body.
+///   3. The outcome is reported as `HANDED_OFF`, so the owner can send it with
+///      one tap and the backend still records the attempt.
 ///
 /// The backend already reserved the daily allowance and recorded the message,
 /// so every outcome is reported back. Reporting failures are swallowed: the

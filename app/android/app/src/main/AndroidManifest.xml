@@ -1,10 +1,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.INTERNET"/>
-    <!-- Udhaari SMS is sent from the shop's own SIM (SMS_MODE=device). -->
-    <uses-permission android:name="android.permission.SEND_SMS"/>
-    <!-- Dual-SIM phones: needed to list the active SIMs so the owner can pick
-         the one that has SMS recharge. Sending itself only needs SEND_SMS. -->
-    <uses-permission android:name="android.permission.READ_PHONE_STATE"/>
+    <!-- Udhaari SMS is handed to the phone's own SMS app (the `sms:` composer).
+         The app deliberately does NOT declare SEND_SMS or READ_PHONE_STATE:
+         Play treats those as restricted permissions and a shop-management app
+         cannot reliably justify auto-sending, so the owner taps Send instead. -->
     <application
         android:label="MiDukandar"
         android:name="${applicationName}"

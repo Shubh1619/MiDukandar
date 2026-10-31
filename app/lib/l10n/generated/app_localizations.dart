@@ -2083,7 +2083,7 @@ abstract class AppLocalizations {
   /// No description provided for @smsDeviceNote.
   ///
   /// In en, this message translates to:
-  /// **'Sent from this phone\'s SIM. Entries created or payments recorded on another device or on the web are not texted.'**
+  /// **'Opens your phone\'s SMS app with the message ready. You tap Send, and it goes from your SIM. Entries made on another device or on the web are not texted.'**
   String get smsDeviceNote;
 
   /// No description provided for @smsChooseSimTitle.

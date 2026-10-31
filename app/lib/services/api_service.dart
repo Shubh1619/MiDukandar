@@ -488,6 +488,7 @@ class ApiService {
     required String language,
     required String invoicePrefix,
     required String otp,
+    String? referralCode,
   }) async {
     final body = jsonEncode({
       'email': email,
@@ -504,6 +505,8 @@ class ApiService {
       'language': language,
       'invoicePrefix': invoicePrefix,
       'otp': otp,
+      if (referralCode != null && referralCode.trim().isNotEmpty)
+        'referralCode': referralCode.trim(),
     });
     final uri = AppConfig.uri('/api/auth/register', baseUrl: _baseUrl);
     http.Response response;

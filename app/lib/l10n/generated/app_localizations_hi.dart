@@ -1101,7 +1101,7 @@ class AppLocalizationsHi extends AppLocalizations {
 
   @override
   String get smsDeviceNote =>
-      'इस फ़ोन की सिम से भेजा जाता है। किसी दूसरे डिवाइस या वेब पर बनाई गई प्रविष्टियों या दर्ज किए गए भुगतानों के लिए संदेश नहीं जाता।';
+      'आपके फ़ोन के SMS ऐप में संदेश तैयार होकर खुलता है। आप Send दबाते हैं और संदेश आपके SIM से जाता है। दूसरे डिवाइस या वेब पर बनी एंट्री का SMS नहीं जाता।';
 
   @override
   String get smsChooseSimTitle => 'एसएमएस किस सिम से भेजें?';

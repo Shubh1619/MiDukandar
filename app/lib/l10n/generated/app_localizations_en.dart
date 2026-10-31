@@ -1100,7 +1100,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get smsDeviceNote =>
-      'Sent from this phone\'s SIM. Entries created or payments recorded on another device or on the web are not texted.';
+      'Opens your phone\'s SMS app with the message ready. You tap Send, and it goes from your SIM. Entries made on another device or on the web are not texted.';
 
   @override
   String get smsChooseSimTitle => 'Which SIM should send the SMS?';

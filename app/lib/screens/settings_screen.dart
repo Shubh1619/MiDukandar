@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:intl/intl.dart';
 
 import '../l10n/generated/app_localizations.dart';
 import '../l10n/locale_controller.dart';
-import '../l10n/status_labels.dart';
 import '../models/app_models.dart';
 import '../services/api_service.dart';
 import '../theme/md_design.dart';
@@ -41,13 +39,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   late final TextEditingController _gst;
   late final TextEditingController _invoicePrefix;
   String _language = 'en';
-  SmsUsage? _sms;
-  List<SmsMessage> _smsMessages = const [];
-  bool _smsLoading = true;
-  bool _smsBusy = false;
 
-  bool get _canManageSms =>
-      widget.userRole == 'OWNER' || widget.userRole == 'MANAGER';
 
   static const Map<String, String> _languageLabels = {
     'en': 'English',
@@ -72,7 +64,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _gst = TextEditingController(text: store.gst ?? '');
     _invoicePrefix = TextEditingController(text: store.invoicePrefix);
     _language = store.language;
-    _loadSms();
   }
 
   @override
@@ -181,109 +172,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Future<void> _loadSms() async {
-    try {
-      final usage = await widget.apiService.getSmsUsage();
-      var messages = const <SmsMessage>[];
-      if (_canManageSms) {
-        try {
-          messages = await widget.apiService.getSmsMessages(limit: 5);
-        } catch (_) {
-          // The usage meter is still useful without the delivery log.
-        }
-      }
-      if (!mounted) return;
-      setState(() {
-        _sms = usage;
-        _smsMessages = messages;
-        _smsLoading = false;
-      });
-    } catch (_) {
-      // SMS is an optional channel; never block the rest of Settings on it.
-      if (mounted) setState(() => _smsLoading = false);
-    }
-  }
-
-  Future<void> _toggleSms(bool enabled) async {
-    final l = AppLocalizations.of(context)!;
-    setState(() => _smsBusy = true);
-    try {
-      final value = await widget.apiService.updateSmsSettings(enabled);
-      if (!mounted) return;
-      setState(() => _sms = _sms?.copyWith(enabled: value));
-      AppDialogs.showSuccess(
-        context,
-        enabled ? l.smsEnabledToast : l.smsDisabledToast,
-      );
-    } catch (error) {
-      if (!mounted) return;
-      AppDialogs.showError(context, l.smsUpdateFailed(error.toString()));
-    } finally {
-      if (mounted) setState(() => _smsBusy = false);
-    }
-  }
-
-  String _smsDate(String? raw) {
-    if (raw == null || raw.isEmpty) return '';
-    final dt = DateTime.tryParse(raw)?.toLocal();
-    return dt == null ? '' : DateFormat('d MMM, HH:mm').format(dt);
-  }
-
-  Widget _smsMessageTile(AppLocalizations l, SmsMessage message) {
-    final failed = message.status == 'FAILED';
-    final sent = message.status == 'SENT';
-    final name = message.customerName?.trim() ?? '';
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  name.isEmpty ? message.toPhone : name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 13,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  [message.toPhone, _smsDate(message.createdAt)]
-                      .where((part) => part.isNotEmpty)
-                      .join(' · '),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 11,
-                    color: MdColors.mutedForeground,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 8),
-          MdChip(
-            label: localizedSmsStatus(context, message.status),
-            background: failed
-                ? MdColors.red50
-                : sent
-                    ? MdColors.green100
-                    : MdColors.navy100,
-            foreground: failed
-                ? MdColors.red700
-                : sent
-                    ? MdColors.green700
-                    : MdColors.navy600,
-          ),
-        ],
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
@@ -357,154 +245,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 },
               ),
             ),
-            const SizedBox(height: 20),
-            _SectionTitle(l.smsSectionTitle, Icons.sms_outlined),
-            const SizedBox(height: 12),
-            MdCard(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        child: Text(
-                          l.smsSectionSubtitle,
-                          style: TextStyle(
-                            color: Colors.grey.shade600,
-                            fontSize: 13,
-                          ),
-                        ),
-                      ),
-                      if (_sms != null && _sms!.mode == 'log')
-                        Padding(
-                          padding: const EdgeInsets.only(top: 2, right: 4),
-                          child: MdChip(label: l.smsLogOnly),
-                        )
-                      else if (_sms != null && _sms!.mode == 'device')
-                        Padding(
-                          padding: const EdgeInsets.only(top: 2, right: 4),
-                          child: MdChip(label: l.smsDeviceMode),
-                        ),
-                      Switch(
-                        value: _sms?.enabled ?? false,
-                        onChanged: (!_canManageSms || _smsBusy || _sms == null)
-                            ? null
-                            : _toggleSms,
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  if (_smsLoading)
-                    const LinearProgressIndicator(minHeight: 3)
-                  else if (_sms == null)
-                    Text(
-                      l.smsLoadFailed,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: MdColors.mutedForeground,
-                      ),
-                    )
-                  else ...[
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            l.smsTodayFree,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w600,
-                              fontSize: 13,
-                            ),
-                          ),
-                        ),
-                        Text(
-                          l.smsUsageCount(
-                            _sms!.used.toString(),
-                            _sms!.limit.toString(),
-                            _sms!.remaining.toString(),
-                          ),
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: MdColors.mutedForeground,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(999),
-                      child: LinearProgressIndicator(
-                        value: _sms!.progress,
-                        minHeight: 8,
-                        backgroundColor: MdColors.navy100,
-                        valueColor: AlwaysStoppedAnimation<Color>(
-                          _sms!.remaining == 0
-                              ? MdColors.red500
-                              : MdColors.royal600,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      l.smsResetNote,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: MdColors.mutedForeground,
-                      ),
-                    ),
-                    if (_sms!.mode == 'device') ...[
-                      const SizedBox(height: 6),
-                      Text(
-                        l.smsDeviceNote,
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: MdColors.mutedForeground,
-                        ),
-                      ),
-                    ],
-                  ],
-                  if (!_canManageSms) ...[
-                    const SizedBox(height: 10),
-                    Text(
-                      l.smsManagerOnly,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: MdColors.mutedForeground,
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            if (_canManageSms) ...[
-              const SizedBox(height: 20),
-              _SectionTitle(l.smsRecentTitle, Icons.history),
-              const SizedBox(height: 12),
-              MdCard(
-                padding: EdgeInsets.zero,
-                child: _smsMessages.isEmpty
-                    ? Padding(
-                        padding: const EdgeInsets.all(20),
-                        child: Center(
-                          child: Text(
-                            l.smsEmpty,
-                            style: const TextStyle(
-                              fontSize: 12,
-                              color: MdColors.mutedForeground,
-                            ),
-                          ),
-                        ),
-                      )
-                    : Column(
-                        children: [
-                          for (var i = 0; i < _smsMessages.length; i++) ...[
-                            if (i > 0) const Divider(height: 1),
-                            _smsMessageTile(l, _smsMessages[i]),
-                          ],
-                        ],
-                      ),
-              ),
-            ],
             const SizedBox(height: 20),
             _SectionTitle(l.referTitle, Icons.card_giftcard_outlined),
             const SizedBox(height: 12),

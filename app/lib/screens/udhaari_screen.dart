@@ -481,7 +481,7 @@ class _UdhaariScreenState extends State<UdhaariScreen> {
           : await widget.apiService.createUdhaari(result);
       // The balance list is derived from the entries, so reload it (not just
       // the reminder counts) or the new row looks like it was never saved.
-      _load();
+      await _load();
     } catch (e) {
       // Without this the sheet would close as if the entry was saved even
       // though the request failed — the owner would think the udhaari exists.
@@ -502,6 +502,10 @@ class _UdhaariScreenState extends State<UdhaariScreen> {
         apiService: widget.apiService,
         chooseSim: (sims) => showSimPicker(context, sims),
       ).handle(Map<String, dynamic>.from(pending));
+    }
+    // Ensure UI reflects updated balances after any payment/SMS flow
+    if (mounted) {
+      await _load();
     }
   }
 
@@ -766,7 +770,7 @@ class _UdhaariScreenState extends State<UdhaariScreen> {
       );
       // The outstanding balance changed, so refresh the list (and today's
       // reminder counts) before showing the confirmation.
-      _load();
+      await _load();
       if (context.mounted) {
         final l = AppLocalizations.of(context)!;
         AppDialogs.showSuccess(context, l.udhrPaymentReceived);

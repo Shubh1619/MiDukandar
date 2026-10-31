@@ -62,6 +62,22 @@ class MainActivity : FlutterActivity() {
             PackageManager.PERMISSION_GRANTED
 
     /**
+     * False in this build: the manifest does not request SEND_SMS or
+     * READ_PHONE_STATE, so there is nothing to ask the user for. Kept so the
+     * channel reports a clean "not granted" instead of firing a permission
+     * request that Android would deny immediately.
+     */
+    private fun declaresSmsPermissions(): Boolean {
+        val declared = packageManager
+            .getPackageInfo(packageName, PackageManager.GET_PERMISSIONS)
+            .requestedPermissions
+            ?.toSet()
+            .orEmpty()
+        return Manifest.permission.SEND_SMS in declared &&
+            Manifest.permission.READ_PHONE_STATE in declared
+    }
+
+    /**
      * Active SIMs, in slot order. Empty when there is no telephony hardware, no
      * SIM, or the phone-state permission was refused.
      */
@@ -98,6 +114,13 @@ class MainActivity : FlutterActivity() {
     }
 
     private fun requestPermissions(result: MethodChannel.Result) {
+        // The manifest intentionally does not declare these restricted
+        // permissions (Play policy), so asking for them would do nothing except
+        // log a denial. Report "not granted" and let Dart open the SMS app.
+        if (!declaresSmsPermissions()) {
+            result.success(false)
+            return
+        }
         if (hasSmsPermission() && hasPhoneStatePermission()) {
             result.success(true)
             return

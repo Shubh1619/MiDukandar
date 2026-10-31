@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'dart:async';
 
@@ -55,7 +56,7 @@ class MiDukandarApp extends StatelessWidget {
           // Text size follows the phone's Display size / Font size setting
           // exactly as the user set it. Layouts must therefore absorb large
           // scales (wrapping, scrolling, ellipsis) instead of shrinking text.
-          home: const AuthGate(),
+          home: const _LanguageFirstGate(),
         );
       },
     );
@@ -268,6 +269,7 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
     required String language,
     required String invoicePrefix,
     required String otp,
+    String? referralCode,
   }) async {
     try {
       setState(() => _isLoading = true);
@@ -286,6 +288,7 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
         language: language,
         invoicePrefix: invoicePrefix,
         otp: otp,
+        referralCode: referralCode,
       );
       if (!mounted) return;
       setState(() => _showRegister = false);
@@ -381,6 +384,124 @@ class _SplashScreen extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+class _LanguageFirstGate extends StatefulWidget {
+  const _LanguageFirstGate();
+
+  @override
+  State<_LanguageFirstGate> createState() => _LanguageFirstGateState();
+}
+
+class _LanguageFirstGateState extends State<_LanguageFirstGate> {
+  static const String _prefsKey = 'app_language_selected_first';
+  bool _checked = false;
+  bool _showPicker = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _check();
+  }
+
+  Future<void> _check() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final done = prefs.getBool(_prefsKey) ?? false;
+      if (!mounted) return;
+      setState(() {
+        _showPicker = !done;
+        _checked = true;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _showPicker = true;
+        _checked = true;
+      });
+    }
+  }
+
+  Future<void> _select(String code) async {
+    await LocaleController.instance.setLocale(code);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(_prefsKey, true);
+    } catch (_) {}
+    if (!mounted) return;
+    setState(() => _showPicker = false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_checked) return const _SplashScreen();
+    if (_showPicker) {
+      final l = AppLocalizations.of(context)!;
+      return Scaffold(
+        body: SafeArea(
+          child: Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 420),
+                child: Card(
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
+                    side: BorderSide(color: Colors.grey.shade200),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(14),
+                          child: Image.asset(
+                            'assets/logo.png',
+                            height: 80,
+                            fit: BoxFit.contain,
+                            errorBuilder: (_, _, _) => const Icon(
+                              Icons.storefront,
+                              size: 56,
+                              color: Color(0xFF1F4E79),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          l.settingsAppLanguage,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 12),
+                        FilledButton(
+                          onPressed: () => _select('en'),
+                          child: const Text('English'),
+                        ),
+                        const SizedBox(height: 8),
+                        FilledButton(
+                          onPressed: () => _select('hi'),
+                          child: const Text('हिन्दी'),
+                        ),
+                        const SizedBox(height: 8),
+                        FilledButton(
+                          onPressed: () => _select('mr'),
+                          child: const Text('मराठी'),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+    return const AuthGate();
   }
 }
 
@@ -610,6 +731,7 @@ class _AppShellState extends State<AppShell> {
     try {
       await widget.apiService.createCustomer(payload);
       unawaited(_refreshCurrentSection());
+      unawaited(_reloadStats());
     } catch (error) {
       if (!mounted) return;
       AppDialogs.showError(
@@ -626,6 +748,7 @@ class _AppShellState extends State<AppShell> {
     try {
       await widget.apiService.updateCustomer(id, payload);
       unawaited(_refreshCurrentSection());
+      unawaited(_reloadStats());
     } catch (error) {
       if (!mounted) return;
       AppDialogs.showError(
@@ -639,6 +762,7 @@ class _AppShellState extends State<AppShell> {
     try {
       await widget.apiService.deleteCustomer(id);
       unawaited(_refreshCurrentSection());
+      unawaited(_reloadStats());
     } catch (error) {
       if (!mounted) return;
       AppDialogs.showError(
@@ -718,7 +842,10 @@ class _AppShellState extends State<AppShell> {
 
   Future<Map<String, dynamic>?> _handleCreateUdhaari(Map<String, dynamic> payload) async {
     try {
-      return await widget.apiService.createUdhaari(payload);
+      final result = await widget.apiService.createUdhaari(payload);
+      unawaited(_refreshCurrentSection());
+      unawaited(_reloadStats());
+      return result;
     } catch (error) {
       if (!mounted) return null;
       AppDialogs.showError(
@@ -736,12 +863,15 @@ class _AppShellState extends State<AppShell> {
     String? note,
   }) async {
     try {
-      return await widget.apiService.receiveCustomerPayment(
+      final result = await widget.apiService.receiveCustomerPayment(
         customerId: customerId,
         amount: amount,
         mode: mode,
         note: note,
       );
+      unawaited(_refreshCurrentSection());
+      unawaited(_reloadStats());
+      return result;
     } catch (error) {
       if (!mounted) return null;
       AppDialogs.showError(

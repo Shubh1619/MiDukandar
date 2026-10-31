@@ -818,7 +818,7 @@
   "smsTodayFree": "Today's free SMS",
   "smsUsageCount": "{used} / {limit} used · {remaining} left",
   "smsResetNote": "Resets at midnight IST. Once the daily allowance is used, further udhaari messages are not sent.",
-  "smsDeviceNote": "Sent from this phone's SIM. Entries created or payments recorded on another device or on the web are not texted.",
+  "smsDeviceNote": "Opens your phone's SMS app with the message ready. You tap Send, and it goes from your SIM. Entries made on another device or on the web are not texted.",
   "smsChooseSimTitle": "Which SIM should send the SMS?",
   "smsChooseSimBody": "Pick the SIM that has SMS recharge. This phone remembers it for udhaari messages.",
   "smsSimSlot": "SIM {slot}",

@@ -33,6 +33,7 @@ class RegisterScreen extends StatefulWidget {
     required String language,
     required String invoicePrefix,
     required String otp,
+    String? referralCode,
   })? onRegister;
   final VoidCallback? onBackToLogin;
 
@@ -115,6 +116,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _gstController = TextEditingController();
   final _invoicePrefixController = TextEditingController(text: 'INV');
   final _otpController = TextEditingController();
+  final _referralController = TextEditingController();
 
   String _type = 'Kirana & General Store';
   String _state = 'Maharashtra';
@@ -136,6 +138,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     _gstController.dispose();
     _invoicePrefixController.dispose();
     _otpController.dispose();
+    _referralController.dispose();
     super.dispose();
   }
 
@@ -202,6 +205,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
         language: _language,
         invoicePrefix: _invoicePrefixController.text.trim().toUpperCase(),
         otp: _otpController.text.trim(),
+        referralCode: _referralController.text.trim().isEmpty
+            ? null
+            : _referralController.text.trim().toUpperCase(),
       );
 
       if (!mounted) return;
@@ -603,6 +609,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     monospace: true,
                     hint: l.regInvoicePrefixHint,
                   ),
+                ),
+                const SizedBox(height: 12),
+                _buildField(
+                  label: l.referTitle,
+                  controller: _referralController,
+                  validator: null,
+                  prefixIcon: Icons.card_giftcard_outlined,
+                  uppercase: true,
+                  hint: 'REFERRAL-CODE',
                 ),
 
                 const SizedBox(height: 16),
