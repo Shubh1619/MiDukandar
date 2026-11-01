@@ -337,8 +337,24 @@ class _UdhaariScreenState extends State<UdhaariScreen> {
     final newMobileKey = GlobalKey<MobileNumberFieldState>();
     final amountController = TextEditingController();
     final noteController = TextEditingController();
+    final searchController = TextEditingController();
     DateTime? entryDate;
     DateTime? dueDate;
+
+    // Ensure contacts are loaded
+    if (_contacts.isEmpty) {
+      try {
+        final status = await Permission.contacts.status;
+        if (status.isGranted || status.isLimited) {
+          _contacts = await FlutterContacts.getContacts(withProperties: true, withPhoto: false);
+        } else {
+          final req = await Permission.contacts.request();
+          if (req.isGranted || req.isLimited) {
+            _contacts = await FlutterContacts.getContacts(withProperties: true, withPhoto: false);
+          }
+        }
+      } catch (_) {}
+    }
 
     final result = await AppDialogs.showFormSheet<Map<String, dynamic>>(
       context,
@@ -346,18 +362,50 @@ class _UdhaariScreenState extends State<UdhaariScreen> {
       builder: (sheetContext) {
         return StatefulBuilder(
           builder: (_, setSheetState) {
+            final query = searchController.text.toLowerCase().trim();
+            final filteredCustomers = query.isEmpty
+                ? _customers
+                : _customers.where((c) => c.name.toLowerCase().contains(query) || (c.mobile ?? '').contains(query)).toList();
+            final filteredContacts = _contacts.where((ct) {
+              final hasPhone = ct.phones.isNotEmpty;
+              if (!hasPhone) return false;
+              final name = (ct.displayName.isNotEmpty ? ct.displayName : ct.name.first).toLowerCase();
+              if (query.isNotEmpty && !name.contains(query)) return false;
+              final phone = ct.phones.first.number.replaceAll(RegExp(r'[^0-9+]'), '');
+              final exists = _customers.any((c) => c.mobile != null && c.mobile!.replaceAll(RegExp(r'[^0-9]'), '') == phone.replaceAll(RegExp(r'[^0-9]'), ''));
+              return !exists;
+            }).toList();
+
             return SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                  TextField(
+                    controller: searchController,
+                    decoration: InputDecoration(
+                      labelText: 'Search name or number',
+                      prefixIcon: const Icon(Icons.search),
+                      suffixIcon: query.isNotEmpty
+                          ? IconButton(
+                              icon: const Icon(Icons.clear),
+                              onPressed: () {
+                                searchController.clear();
+                                setSheetState(() {});
+                              },
+                            )
+                          : null,
+                    ),
+                    onChanged: (_) => setSheetState(() {}),
+                  ),
+                  const SizedBox(height: 12),
                   MdPickerField<String>(
                     selected: selectedCustomer,
                     label: l.udhrSelectCustomer,
                     prefixIcon: Icons.person_outline,
                     options: [
                       MdPickerOption(value: '__new__', label: l.udhrAddNewCustomer, icon: Icons.person_add_outlined),
-                      ..._customers.map(
+                      ...filteredCustomers.map(
                         (c) => MdPickerOption(
                           value: c.id,
                           label: c.name,
@@ -366,18 +414,13 @@ class _UdhaariScreenState extends State<UdhaariScreen> {
                               : null,
                         ),
                       ),
-                      ..._contacts.where((ct) {
-                        final hasPhone = ct.phones.isNotEmpty;
-                        if (!hasPhone) return false;
-                        final phone = ct.phones.first.number.replaceAll(RegExp(r'[^0-9+]'), '');
-                        final exists = _customers.any((c) => c.mobile != null && c.mobile!.replaceAll(RegExp(r'[^0-9]'), '') == phone.replaceAll(RegExp(r'[^0-9]'), ''));
-                        return !exists;
-                      }).take(50).map(
+                      ...filteredContacts.map(
                         (ct) {
                           final phone = ct.phones.first.number;
+                          final name = ct.displayName.isNotEmpty ? ct.displayName : ct.name.first;
                           return MdPickerOption(
                             value: 'contact:${ct.id}:$phone',
-                            label: ct.displayName.isNotEmpty ? ct.displayName : ct.name.first,
+                            label: name,
                             trailing: Text(phone, style: const TextStyle(fontSize: 12, color: MdColors.mutedForeground)),
                           );
                         },
@@ -400,6 +443,15 @@ class _UdhaariScreenState extends State<UdhaariScreen> {
                             } else {
                               final name2 = contact.name.first;
                               if (name2.isNotEmpty) newNameController.text = name2;
+                            }
+                          }
+                        } else if (v != null && v != '__new__') {
+                          final matches = _customers.where((x) => x.id == v);
+                          if (matches.isNotEmpty) {
+                            final c = matches.first;
+                            if (c.mobile != null && c.mobile!.isNotEmpty) {
+                              final digits = c.mobile!.replaceAll(RegExp(r'[^0-9]'), '');
+                              newMobileController.text = digits.length > 10 ? digits.substring(digits.length - 10) : digits;
                             }
                           }
                         }
