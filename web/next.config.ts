@@ -32,6 +32,7 @@ const adsenseScriptOrigins = adsenseEnabled
       "https://www.googletagservices.com",
       "https://adservice.google.com",
       "https://fundingchoicesmessages.google.com",
+      "https://*.adtrafficquality.google",
     ]
   : [];
 const adsenseConnectOrigins = adsenseEnabled
@@ -40,7 +41,7 @@ const adsenseConnectOrigins = adsenseEnabled
       "https://googleads.g.doubleclick.net",
       "https://adservice.google.com",
       "https://fundingchoicesmessages.google.com",
-      "https://ep1.adtrafficquality.google",
+      "https://*.adtrafficquality.google",
       "https://www.google.com",
     ]
   : [];
