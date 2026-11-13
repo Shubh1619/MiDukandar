@@ -40,6 +40,7 @@ void _complete(Completer<bool> completer, bool value) {
 Future<bool> showInterstitialAd() async {
   final unitId = _interstitialUnitId;
   if (unitId.isEmpty) return false;
+  await initializeAds();
 
   final completer = Completer<bool>();
   try {
@@ -85,6 +86,7 @@ Future<bool> showInterstitialAd() async {
 Future<bool> showRewardedAd() async {
   final unitId = _rewardedUnitId;
   if (unitId.isEmpty) return false;
+  await initializeAds();
 
   final completer = Completer<bool>();
   var earned = false;

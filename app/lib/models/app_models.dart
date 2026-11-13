@@ -61,6 +61,8 @@ class AuthUser {
     required this.phone,
     required this.role,
     required this.storeId,
+    this.grantedPages = const <String>{},
+    this.disabledPages = const <String>{},
   });
 
   final String id;
@@ -70,7 +72,16 @@ class AuthUser {
   final String role;
   final String storeId;
 
+  /// Pages the platform superadmin unlocked beyond the store's plan.
+  final Set<String> grantedPages;
+
+  /// Pages the platform superadmin explicitly turned off for this store.
+  final Set<String> disabledPages;
+
   factory AuthUser.fromJson(Map<String, dynamic> json) {
+    final access = json['access'] is Map
+        ? Map<String, dynamic>.from(json['access'] as Map)
+        : const <String, dynamic>{};
     return AuthUser(
       id: _firstValue(json, const ['id']) ?? '',
       name: _firstValue(json, const ['name']) ?? '',
@@ -78,8 +89,18 @@ class AuthUser {
       phone: _firstValue(json, const ['phone']) ?? '',
       role: _firstValue(json, const ['role']) ?? 'OWNER',
       storeId: _firstValue(json, const ['storeId', 'store_id']) ?? '',
+      grantedPages: _stringSet(access['grantedPages'] ?? access['granted_pages']),
+      disabledPages: _stringSet(access['disabledPages'] ?? access['disabled_pages']),
     );
   }
+}
+
+Set<String> _stringSet(Object? raw) {
+  if (raw is! List) return const <String>{};
+  return raw
+      .where((value) => value != null)
+      .map((value) => value.toString())
+      .toSet();
 }
 
 class StorePlanDetails {
@@ -88,6 +109,7 @@ class StorePlanDetails {
     required this.adsTier,
     required this.status,
     this.name,
+    this.modules = const <String, bool>{},
   });
 
   final bool adsEnabled;
@@ -95,14 +117,44 @@ class StorePlanDetails {
   final String status;
   final String? name;
 
+  /// Module key (`DASHBOARD`, `SUPPLIERS`, `GST_REPORTS`, ...) mapped to whether
+  /// the plan includes it. Empty means the payload did not describe modules, so
+  /// callers should keep every module visible instead of hiding the whole app.
+  final Map<String, bool> modules;
+
+  /// Whether this plan includes [moduleKey]. Unknown keys are treated as
+  /// excluded once the plan has told us its module list.
+  bool allowsModule(String moduleKey) {
+    if (modules.isEmpty) return true;
+    return modules[moduleKey.trim().toUpperCase()] ?? false;
+  }
+
   factory StorePlanDetails.fromJson(Map<String, dynamic> json) {
     return StorePlanDetails(
       adsEnabled: _firstBool(json, const ['adsEnabled', 'ads_enabled']),
       adsTier: _firstValue(json, const ['adsTier', 'ads_tier']) ?? 'STANDARD',
       status: _firstValue(json, const ['status']) ?? 'ACTIVE',
       name: _firstValue(json, const ['name']),
+      modules: _parsePlanModules(json['modules']),
     );
   }
+}
+
+/// Parses `planDetails.modules` (`[{ moduleKey, enabled, limitValue }]`) into a
+/// simple lookup. Keys are normalized to upper case; malformed rows are skipped.
+Map<String, bool> _parsePlanModules(Object? raw) {
+  if (raw is! List) return const <String, bool>{};
+  final modules = <String, bool>{};
+  for (final entry in raw) {
+    if (entry is! Map) continue;
+    final key = _firstValue(Map<String, dynamic>.from(entry), const ['moduleKey', 'module_key']);
+    if (key == null || key.trim().isEmpty) continue;
+    modules[key.trim().toUpperCase()] = _firstBool(
+      Map<String, dynamic>.from(entry),
+      const ['enabled'],
+    );
+  }
+  return modules;
 }
 
 class Store {

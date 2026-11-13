@@ -208,6 +208,22 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
   Future<void> _refreshOnResume() async {
     final ok = await _apiService.restoreSession();
     if (!ok) return;
+    // Plans and per-store access overrides can change while the app is
+    // backgrounded (upgrade/downgrade in the portal). Re-read both so module
+    // visibility and ad gating follow them.
+    Store? store;
+    AuthUser? user;
+    try {
+      store = await _apiService.getStore();
+    } catch (_) {}
+    try {
+      user = await _apiService.getCurrentUser();
+    } catch (_) {}
+    if (!mounted) return;
+    setState(() {
+      if (store != null) _store = store;
+      if (user != null) _user = user;
+    });
     await _loadDashboardStats();
   }
 
@@ -318,6 +334,13 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
     try {
       setState(() => _isLoading = true);
       final user = await _apiService.verifyLoginOtp(email: email, otp: otp);
+      // `/otp/verify` returns the basic user only; `/me` adds the store's
+      // access overrides used to hide/show modules beyond the plan. Fall back
+      // to the verify payload if the extra read fails.
+      AuthUser currentUser = user;
+      try {
+        currentUser = await _apiService.getCurrentUser();
+      } catch (_) {}
       Store? store;
       try {
         store = await _apiService.getStore();
@@ -325,7 +348,7 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
       if (!mounted) return;
 
       setState(() {
-        _user = user;
+        _user = currentUser;
         _store = store;
       });
       await _loadDashboardStats();
@@ -683,29 +706,108 @@ class _AppShellState extends State<AppShell> {
 
   bool get _isOwner => widget.user?.role == 'OWNER';
 
-  String get _sectionKey => switch (_section) {
-    AppSection.dashboard => 'dashboard',
-    AppSection.products => 'products',
-    AppSection.invoices => 'invoices',
-    AppSection.customers => 'customers',
-    AppSection.udhaari => 'udhaari',
-    AppSection.suppliers => 'suppliers',
-    AppSection.supplierInvoices => 'supplierInvoices',
-    AppSection.expenses => 'expenses',
-    AppSection.reports => 'reports',
-    AppSection.settings => 'settings',
-    AppSection.users => 'users',
-    AppSection.inventory => 'inventory',
-    AppSection.purchases => 'purchases',
-    AppSection.payments => 'payments',
+  /// Drawer/nav key for each [AppSection]; also the page key the superadmin
+  /// console uses for per-store access overrides.
+  static const Map<AppSection, String> _sectionNavKeys = {
+    AppSection.dashboard: 'dashboard',
+    AppSection.products: 'products',
+    AppSection.invoices: 'invoices',
+    AppSection.customers: 'customers',
+    AppSection.udhaari: 'udhaari',
+    AppSection.suppliers: 'suppliers',
+    AppSection.supplierInvoices: 'supplierInvoices',
+    AppSection.expenses: 'expenses',
+    AppSection.reports: 'reports',
+    AppSection.settings: 'settings',
+    AppSection.users: 'users',
+    AppSection.inventory: 'inventory',
+    AppSection.purchases: 'purchases',
+    AppSection.payments: 'payments',
   };
 
-  int get _bottomNavIndex => switch (_section) {
-    AppSection.invoices => 0,
-    AppSection.customers => 1,
-    AppSection.udhaari => 2,
-    _ => 3,
+  /// Plan module that gates each nav key. Keys without an entry (e.g.
+  /// Settings) are always reachable.
+  static const Map<String, String> _navKeyModules = {
+    'dashboard': 'DASHBOARD',
+    'products': 'PRODUCTS',
+    'invoices': 'SALES_INVOICES',
+    'customers': 'CUSTOMERS_UDHAARI',
+    'udhaari': 'CUSTOMERS_UDHAARI',
+    'suppliers': 'SUPPLIERS',
+    'supplierInvoices': 'PURCHASES',
+    'expenses': 'EXPENSES',
+    'reports': 'GST_REPORTS',
+    'users': 'USERS_ROLES',
+    'inventory': 'INVENTORY',
+    'purchases': 'PURCHASES',
+    'payments': 'CUSTOMERS_UDHAARI',
   };
+
+  /// Hides anything the store's plan does not include. A superadmin grant for
+  /// the page keeps it visible, and an explicit per-store restriction wins.
+  /// When the backend omits the module list every section stays visible.
+  bool _canUseNavKey(String key) {
+    if (widget.user?.disabledPages.contains(key) ?? false) return false;
+    final moduleKey = _navKeyModules[key];
+    if (moduleKey == null) return true;
+    if (widget.store?.planDetails?.allowsModule(moduleKey) ?? true) return true;
+    // The plan excludes the module: show the page only if the superadmin
+    // granted it for this store.
+    return widget.user?.grantedPages.contains(key) ?? false;
+  }
+
+  bool _canUseSection(AppSection section) =>
+      _canUseNavKey(_sectionNavKeys[section] ?? '');
+
+  String get _sectionKey => _sectionNavKeys[_section] ?? '';
+
+  int get _bottomNavIndex {
+    final entries = _bottomNavEntries;
+    final index = entries.indexWhere((entry) => entry.section == _section);
+    return index >= 0 ? index : entries.length - 1;
+  }
+
+  /// Bottom tabs are derived from the plan too, so a store without a module
+  /// never sees a tab that opens it. The trailing "More" tab is always present.
+  List<_BottomNavEntry> get _bottomNavEntries {
+    final l = AppLocalizations.of(context)!;
+    return [
+      if (_canUseSection(AppSection.invoices))
+        _BottomNavEntry(
+          section: AppSection.invoices,
+          item: _MdBottomBarItem(
+            icon: Icons.receipt_long_outlined,
+            activeIcon: Icons.receipt_long,
+            label: l.billInvoices,
+          ),
+        ),
+      if (_canUseSection(AppSection.customers))
+        _BottomNavEntry(
+          section: AppSection.customers,
+          item: _MdBottomBarItem(
+            icon: Icons.people_alt_outlined,
+            activeIcon: Icons.people_alt,
+            label: l.navCustomers,
+          ),
+        ),
+      if (_canUseSection(AppSection.udhaari))
+        _BottomNavEntry(
+          section: AppSection.udhaari,
+          item: _MdBottomBarItem(
+            icon: Icons.payments_outlined,
+            activeIcon: Icons.payments,
+            label: l.tabUdhari,
+          ),
+        ),
+      _BottomNavEntry(
+        item: _MdBottomBarItem(
+          icon: Icons.more_horiz,
+          activeIcon: Icons.more_horiz,
+          label: l.moreTitle,
+        ),
+      ),
+    ];
+  }
 
   @override
   void initState() {
@@ -718,6 +820,15 @@ class _AppShellState extends State<AppShell> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.store != widget.store) {
       AdPolicy.instance.updateFromStore(widget.store);
+    }
+    if (oldWidget.store != widget.store || oldWidget.user != widget.user) {
+      // A store can change plan or per-store access while the shell is alive
+      // (sign-in refresh, resume). Leave a section no longer included.
+      if (!_canUseSection(_section)) {
+        _section = AppSection.dashboard;
+        _inventoryLowOnly = false;
+        _sectionEpoch++;
+      }
     }
     if (oldWidget.stats != widget.stats) {
       _stats = widget.stats;
@@ -751,17 +862,14 @@ class _AppShellState extends State<AppShell> {
   }
 
   void _onBottomNavTap(int index) {
-    if (index == 3) {
+    final entries = _bottomNavEntries;
+    if (index < 0 || index >= entries.length) return;
+    final target = entries[index].section;
+    if (target == null) {
       _scaffoldKey.currentState?.openDrawer();
       return;
     }
-    final section = switch (index) {
-      0 => AppSection.invoices,
-      1 => AppSection.customers,
-      2 => AppSection.udhaari,
-      _ => AppSection.invoices,
-    };
-    _selectSection(section);
+    _selectSection(target);
   }
 
   Future<bool> _onWillPop() async {
@@ -1162,14 +1270,17 @@ class _AppShellState extends State<AppShell> {
   // ---------------- NAVIGATION ----------------
 
   void _selectSection(AppSection section, {bool lowOnly = false}) {
+    // Never open a screen the plan does not include (defensive: dashboard.tsx
+    // cards and taps from elsewhere also come through here).
+    final target = _canUseSection(section) ? section : AppSection.dashboard;
     setState(() {
       // Selecting the tab you are already on is the mobile convention for
       // "refresh this screen": give it a new epoch so it re-fetches.
-      if (_section == section) _sectionEpoch++;
-      _section = section;
+      if (_section == target) _sectionEpoch++;
+      _section = target;
       _inventoryLowOnly = lowOnly;
     });
-    if (section == AppSection.dashboard) unawaited(_reloadStats());
+    if (target == AppSection.dashboard) unawaited(_reloadStats());
   }
 
   void _onDrawerSelect(String key) {
@@ -1295,28 +1406,7 @@ class _AppShellState extends State<AppShell> {
         bottomNavigationBar: _MdBottomBar(
           selectedIndex: _bottomNavIndex,
           onTap: _onBottomNavTap,
-          items: [
-            _MdBottomBarItem(
-              icon: Icons.receipt_long_outlined,
-              activeIcon: Icons.receipt_long,
-              label: l.billInvoices,
-            ),
-            _MdBottomBarItem(
-              icon: Icons.people_alt_outlined,
-              activeIcon: Icons.people_alt,
-              label: l.navCustomers,
-            ),
-            _MdBottomBarItem(
-              icon: Icons.payments_outlined,
-              activeIcon: Icons.payments,
-              label: l.tabUdhari,
-            ),
-            _MdBottomBarItem(
-              icon: Icons.more_horiz,
-              activeIcon: Icons.more_horiz,
-              label: l.moreTitle,
-            ),
-          ],
+          items: [for (final entry in _bottomNavEntries) entry.item],
         ),
         drawer: Drawer(
           backgroundColor: MdColors.navy950,
@@ -1324,6 +1414,7 @@ class _AppShellState extends State<AppShell> {
             current: _sectionKey,
             role: user?.role,
             onSelect: _onDrawerSelect,
+            isAllowed: _canUseNavKey,
             width: MediaQuery.sizeOf(context).width * 0.8,
           ),
         ),
@@ -1359,6 +1450,7 @@ class _AppShellState extends State<AppShell> {
           stats: _stats,
           storeName: widget.store?.name ?? l.myStore,
           onNavigate: _selectSection,
+          canAccess: _canUseSection,
           onLowStockTap: () =>
               _selectSection(AppSection.inventory, lowOnly: true),
           onInvoiceDetailTap: () => _selectSection(AppSection.invoices),
@@ -1480,6 +1572,15 @@ case AppSection.purchases:
       AppDialogs.showError(context, 'Failed to create supplier invoice: ${error.toString()}');
     }
   }
+}
+
+/// One bottom-bar slot. A `null` section is the "More" action that opens the
+/// drawer; the others navigate to their section.
+class _BottomNavEntry {
+  const _BottomNavEntry({required this.item, this.section});
+
+  final _MdBottomBarItem item;
+  final AppSection? section;
 }
 
 /// Items for the app's bottom bar. Kept as plain data so the bar itself can

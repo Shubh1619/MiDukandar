@@ -19,6 +19,8 @@ import { cn } from "@/lib/utils";
 import { apiFetch } from "@/lib/api";
 import { formatDateTime, formatINR } from "@/lib/format";
 import { useDashQuery } from "@/lib/use-dash-query";
+import { useAuth } from "@/lib/auth-store";
+import { planHasModule, type PlanModuleKey } from "@/lib/plan-catalog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatCard } from "@/components/shared/stat-card";
@@ -69,13 +71,43 @@ function DigitalClock() {
   );
 }
 
+/**
+ * Plan gate shared by the dashboard cards. A missing `planDetails` keeps every
+ * card visible (older payloads); a superadmin grant can unlock a plan-excluded
+ * page, while an explicit per-store restriction always wins.
+ */
+function useModuleAccess() {
+  const plan = useAuth((s) => s.store?.planDetails);
+  const grantedPages = useAuth((s) => s.user?.access?.grantedPages);
+  const disabledPages = useAuth((s) => s.user?.access?.disabledPages);
+
+  return (moduleKey: PlanModuleKey, pageKeys: string[]) => {
+    if (pageKeys.some((key) => disabledPages?.includes(key))) return false;
+    return (
+      !plan ||
+      planHasModule(plan, moduleKey) ||
+      pageKeys.some((key) => grantedPages?.includes(key))
+    );
+  };
+}
+
 function QuickControls() {
+  const allows = useModuleAccess();
   const actions = [
-    { label: "Products", icon: PackagePlus, href: "/products" },
-    { label: "Invoices", icon: FileText, href: "/invoices" },
-    { label: "Udhaari", icon: HandCoins, href: "/customers" },
-    { label: "Reports", icon: BarChart3, href: "/reports" },
+    ...(allows("PRODUCTS", ["products"])
+      ? [{ label: "Products", icon: PackagePlus, href: "/products" }]
+      : []),
+    ...(allows("SALES_INVOICES", ["invoices"])
+      ? [{ label: "Invoices", icon: FileText, href: "/invoices" }]
+      : []),
+    ...(allows("CUSTOMERS_UDHAARI", ["udhaari", "customers"])
+      ? [{ label: "Udhaari", icon: HandCoins, href: "/customers" }]
+      : []),
+    ...(allows("GST_REPORTS", ["reports"])
+      ? [{ label: "Reports", icon: BarChart3, href: "/reports" }]
+      : []),
   ];
+  if (actions.length === 0) return null;
   return (
     <Card className="border-navy-900 bg-navy-950 text-white">
       <CardHeader className="flex-row items-center justify-between space-y-0">
@@ -119,6 +151,16 @@ const TX_META: Record<string, { label: string; chip: string }> = {
 
 export default function DashboardPage() {
   const [error, setError] = useState<string | null>(null);
+  const allows = useModuleAccess();
+  const showPurchases = allows("PURCHASES", ["purchases"]);
+  const showInvoices = allows("SALES_INVOICES", ["invoices"]);
+  const showCustomers = allows("CUSTOMERS_UDHAARI", ["udhaari", "customers"]);
+  const showInventory = allows("INVENTORY", ["inventory"]);
+  const statCardCount =
+    (showInvoices ? 1 : 0) +
+    (showPurchases ? 1 : 0) +
+    1 +
+    (showCustomers ? 1 : 0);
 
   const fetcher = useCallback(async () => {
     const res = await apiFetch<DashboardResponse>("/api/reports/dashboard");
@@ -156,21 +198,25 @@ export default function DashboardPage() {
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {!stats ? (
-          Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-[104px] rounded-xl" />)
+          Array.from({ length: statCardCount }).map((_, i) => <Skeleton key={i} className="h-[104px] rounded-xl" />)
         ) : (
           <>
-            <StatCard
-              icon={Banknote}
-              label="Sales Today"
-              value={formatINR(stats.todaySales)}
-              sub="Confirmed bills today"
-            />
-            <StatCard
-              icon={ShoppingCart}
-              label="Purchases Today"
-              value={formatINR(stats.todayPurchases)}
-              sub="Stock purchases today"
-            />
+            {showInvoices && (
+              <StatCard
+                icon={Banknote}
+                label="Sales Today"
+                value={formatINR(stats.todaySales)}
+                sub="Confirmed bills today"
+              />
+            )}
+            {showPurchases && (
+              <StatCard
+                icon={ShoppingCart}
+                label="Purchases Today"
+                value={formatINR(stats.todayPurchases)}
+                sub="Stock purchases today"
+              />
+            )}
             <StatCard
               icon={BadgeIndianRupee}
               label="Est. Profit Today"
@@ -178,12 +224,14 @@ export default function DashboardPage() {
               sub="Margin before tax today"
               tone="text-emerald-600"
             />
-            <StatCard
-              icon={Wallet}
-              label="Customer Udhaari"
-              value={formatINR(stats.receivables)}
-              sub="Total outstanding ledger"
-            />
+            {showCustomers && (
+              <StatCard
+                icon={Wallet}
+                label="Customer Udhaari"
+                value={formatINR(stats.receivables)}
+                sub="Total outstanding ledger"
+              />
+            )}
           </>
         )}
       </div>
@@ -191,45 +239,47 @@ export default function DashboardPage() {
       <AdSlot placement="dashboard" />
 
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-        {!stats ? (
-          <Skeleton className="h-[112px] rounded-xl" />
-        ) : (
-          <Card>
-            <CardHeader className="flex-row items-center justify-between space-y-0">
-              <CardTitle className="flex items-center gap-1.5 text-sm">
-                <Wallet className="size-4 text-navy-600" />
-                Supplier Payables
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="font-display text-lg font-bold tabular-nums">{formatINR(stats.payables)}</p>
-              <p className="text-[11px] text-muted-foreground">Due on open purchase invoices</p>
-            </CardContent>
-          </Card>
-        )}
-
-        {!stats ? (
-          <Skeleton className="h-[112px] rounded-xl" />
-        ) : (
-          <Link href="/inventory?low=1">
-            <Card className="transition-colors hover:border-red-200">
-              <CardHeader className="flex-row items-center justify-between space-y-0 pb-2">
+        {showPurchases &&
+          (!stats ? (
+            <Skeleton className="h-[112px] rounded-xl" />
+          ) : (
+            <Card>
+              <CardHeader className="flex-row items-center justify-between space-y-0">
                 <CardTitle className="flex items-center gap-1.5 text-sm">
-                  <PackageX className="size-4 text-red-600" />
-                  Low Stock
+                  <Wallet className="size-4 text-navy-600" />
+                  Supplier Payables
                 </CardTitle>
               </CardHeader>
-              <CardContent className="pb-7">
-                <p className="font-display text-3xl font-bold tabular-nums text-red-600">
-                  {stats.lowStockCount}
-                </p>
-                <p className="mt-1.5 text-[11px] text-muted-foreground">
-                  Products below min stock level
-                </p>
+              <CardContent>
+                <p className="font-display text-lg font-bold tabular-nums">{formatINR(stats.payables)}</p>
+                <p className="text-[11px] text-muted-foreground">Due on open purchase invoices</p>
               </CardContent>
             </Card>
-          </Link>
-        )}
+          ))}
+
+        {showInventory &&
+          (!stats ? (
+            <Skeleton className="h-[112px] rounded-xl" />
+          ) : (
+            <Link href="/inventory?low=1">
+              <Card className="transition-colors hover:border-red-200">
+                <CardHeader className="flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="flex items-center gap-1.5 text-sm">
+                    <PackageX className="size-4 text-red-600" />
+                    Low Stock
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="pb-7">
+                  <p className="font-display text-3xl font-bold tabular-nums text-red-600">
+                    {stats.lowStockCount}
+                  </p>
+                  <p className="mt-1.5 text-[11px] text-muted-foreground">
+                    Products below min stock level
+                  </p>
+                </CardContent>
+              </Card>
+            </Link>
+          ))}
 
         <QuickControls />
       </div>
@@ -240,9 +290,11 @@ export default function DashboardPage() {
             <ReceiptText className="size-4 text-navy-700" />
             Recent Transactions
           </CardTitle>
-          <Link href="/invoices" className="text-[11px] font-semibold text-navy-700 hover:underline">
-            View all
-          </Link>
+          {showInvoices && (
+            <Link href="/invoices" className="text-[11px] font-semibold text-navy-700 hover:underline">
+              View all
+            </Link>
+          )}
         </CardHeader>
         <CardContent>
           {!stats ? (
@@ -328,10 +380,12 @@ export default function DashboardPage() {
         </CardContent>
       </Card>
 
-      <p className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-        <Truck className="size-3" />
-        Purchases &amp; payables come from open purchase invoices.
-      </p>
+      {showPurchases && (
+        <p className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+          <Truck className="size-3" />
+          Purchases &amp; payables come from open purchase invoices.
+        </p>
+      )}
     </div>
   );
 }

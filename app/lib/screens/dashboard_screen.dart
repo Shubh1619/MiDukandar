@@ -16,6 +16,7 @@ class DashboardScreen extends StatelessWidget {
     required this.onNavigate,
     this.onLowStockTap,
     this.onInvoiceDetailTap,
+    this.canAccess,
   });
 
   final DashboardStats stats;
@@ -24,9 +25,48 @@ class DashboardScreen extends StatelessWidget {
   final VoidCallback? onLowStockTap;
   final VoidCallback? onInvoiceDetailTap;
 
+  /// Plan gate for sections linked from the dashboard. When omitted every link
+  /// is shown.
+  final bool Function(AppSection section)? canAccess;
+
+  bool _allowed(AppSection section) => canAccess?.call(section) ?? true;
+
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
+    final showPayables = _allowed(AppSection.purchases);
+    final showLowStock = _allowed(AppSection.inventory);
+    final showViewAll = _allowed(AppSection.invoices) && onInvoiceDetailTap != null;
+    final statCards = <Widget>[
+      if (_allowed(AppSection.invoices))
+        MdStatCard(
+          label: l.dashSalesToday,
+          value: formatINR(stats.todaySales),
+          sub: l.dashSalesTodaySub,
+          icon: Icons.currency_rupee,
+        ),
+      if (showPayables)
+        MdStatCard(
+          label: l.dashPurchasesToday,
+          value: formatINR(stats.todayPurchases),
+          sub: l.dashPurchasesTodaySub,
+          icon: Icons.local_shipping_outlined,
+        ),
+      MdStatCard(
+        label: l.dashProfitToday,
+        value: formatINR(stats.todayProfit),
+        sub: l.dashProfitTodaySub,
+        icon: Icons.trending_up,
+        tone: MdColors.green600,
+      ),
+      if (_allowed(AppSection.udhaari))
+        MdStatCard(
+          label: l.dashCustomerUdhaari,
+          value: formatINR(stats.receivables),
+          sub: l.dashCustomerUdhaariSub,
+          icon: Icons.account_balance_wallet_outlined,
+        ),
+    ];
     return SingleChildScrollView(
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.all(16),
@@ -39,78 +79,56 @@ class DashboardScreen extends StatelessWidget {
             trailing: const _DigitalClock(),
           ),
           const SizedBox(height: 20),
-          GridView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              mainAxisSpacing: 12,
-              crossAxisSpacing: 12,
-              childAspectRatio: 1.45,
+          if (statCards.isNotEmpty) ...[
+            GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                mainAxisSpacing: 12,
+                crossAxisSpacing: 12,
+                childAspectRatio: 1.45,
+              ),
+              itemCount: statCards.length,
+              itemBuilder: (context, index) => statCards[index],
             ),
-            itemCount: 4,
-            itemBuilder: (context, index) {
-              return switch (index) {
-                0 => MdStatCard(
-                    label: l.dashSalesToday,
-                    value: formatINR(stats.todaySales),
-                    sub: l.dashSalesTodaySub,
-                    icon: Icons.currency_rupee,
-                  ),
-                1 => MdStatCard(
-                    label: l.dashPurchasesToday,
-                    value: formatINR(stats.todayPurchases),
-                    sub: l.dashPurchasesTodaySub,
-                    icon: Icons.local_shipping_outlined,
-                  ),
-                2 => MdStatCard(
-                    label: l.dashProfitToday,
-                    value: formatINR(stats.todayProfit),
-                    sub: l.dashProfitTodaySub,
-                    icon: Icons.trending_up,
-                    tone: MdColors.green600,
-                  ),
-                _ => MdStatCard(
-                    label: l.dashCustomerUdhaari,
-                    value: formatINR(stats.receivables),
-                    sub: l.dashCustomerUdhaariSub,
-                    icon: Icons.account_balance_wallet_outlined,
-                  ),
-              };
-            },
-          ),
-          const SizedBox(height: 16),
+            const SizedBox(height: 16),
+          ],
           const MdAdBanner(placement: AdPlacement.dashboard),
-          Row(
-            children: [
-              Expanded(
-                child: _InfoCard(
-                  title: l.dashSupplierPayables,
-                  icon: Icons.payments_outlined,
-                  value: formatINR(stats.payables),
-                  sub: l.dashSupplierPayablesSub,
-                  iconBg: MdColors.navy50,
-                  iconFg: MdColors.navy600,
-                  onTap: () => onNavigate(AppSection.purchases),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _InfoCard(
-                  title: l.dashLowStock,
-                  icon: Icons.warning_amber_outlined,
-                  value: '${stats.lowStockCount}',
-                  sub: l.dashLowStockSub,
-                  iconBg: MdColors.red50,
-                  iconFg: MdColors.red700,
-                  valueColor: MdColors.red700,
-                  onTap: onLowStockTap,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          _QuickControls(onNavigate: onNavigate),
+          if (showPayables || showLowStock) ...[
+            Row(
+              children: [
+                if (showPayables)
+                  Expanded(
+                    child: _InfoCard(
+                      title: l.dashSupplierPayables,
+                      icon: Icons.payments_outlined,
+                      value: formatINR(stats.payables),
+                      sub: l.dashSupplierPayablesSub,
+                      iconBg: MdColors.navy50,
+                      iconFg: MdColors.navy600,
+                      onTap: () => onNavigate(AppSection.purchases),
+                    ),
+                  ),
+                if (showPayables && showLowStock) const SizedBox(width: 12),
+                if (showLowStock)
+                  Expanded(
+                    child: _InfoCard(
+                      title: l.dashLowStock,
+                      icon: Icons.warning_amber_outlined,
+                      value: '${stats.lowStockCount}',
+                      sub: l.dashLowStockSub,
+                      iconBg: MdColors.red50,
+                      iconFg: MdColors.red700,
+                      valueColor: MdColors.red700,
+                      onTap: onLowStockTap,
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 16),
+          ],
+          _QuickControls(onNavigate: onNavigate, canAccess: canAccess),
           const SizedBox(height: 20),
           Row(
             children: [
@@ -120,13 +138,14 @@ class DashboardScreen extends StatelessWidget {
                   style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16, color: MdColors.navy900),
                 ),
               ),
-              GestureDetector(
-                onTap: onInvoiceDetailTap,
-                child: Text(
-                  l.dashViewAll,
-                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: MdColors.navy700),
+              if (showViewAll)
+                GestureDetector(
+                  onTap: onInvoiceDetailTap,
+                  child: Text(
+                    l.dashViewAll,
+                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: MdColors.navy700),
+                  ),
                 ),
-              ),
             ],
           ),
           const SizedBox(height: 12),
@@ -145,19 +164,27 @@ class DashboardScreen extends StatelessWidget {
 }
 
 class _QuickControls extends StatelessWidget {
-  const _QuickControls({required this.onNavigate});
+  const _QuickControls({required this.onNavigate, this.canAccess});
 
   final ValueChanged<AppSection> onNavigate;
+  final bool Function(AppSection section)? canAccess;
+
+  bool _allowed(AppSection section) => canAccess?.call(section) ?? true;
 
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
     final actions = <(IconData, String, AppSection)>[
-      (Icons.inventory_2_outlined, l.sectionInventory, AppSection.inventory),
-      (Icons.receipt_long_outlined, l.dashQuickInvoices, AppSection.reports),
-      (Icons.handshake_outlined, l.sectionUdhaari, AppSection.udhaari),
-      (Icons.bar_chart_outlined, l.dashQuickReports, AppSection.reports),
+      if (_allowed(AppSection.inventory))
+        (Icons.inventory_2_outlined, l.sectionInventory, AppSection.inventory),
+      if (_allowed(AppSection.invoices))
+        (Icons.receipt_long_outlined, l.dashQuickInvoices, AppSection.invoices),
+      if (_allowed(AppSection.udhaari))
+        (Icons.handshake_outlined, l.sectionUdhaari, AppSection.udhaari),
+      if (_allowed(AppSection.reports))
+        (Icons.bar_chart_outlined, l.dashQuickReports, AppSection.reports),
     ];
+    if (actions.isEmpty) return const SizedBox.shrink();
     return MdCard(
       padding: const EdgeInsets.all(16),
       color: MdColors.navy950,

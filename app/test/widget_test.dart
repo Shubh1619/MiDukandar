@@ -31,6 +31,42 @@ const _store = Store(
   invoicePrefix: 'INV',
 );
 
+/// Mirrors the Free plan: sales, products and udhaari included; suppliers,
+/// purchases, expenses, GST reports and user management excluded.
+const _freeStore = Store(
+  id: 'store-1',
+  name: 'Demo Store',
+  type: 'Retail',
+  currency: 'INR',
+  language: 'en',
+  invoicePrefix: 'INV',
+  plan: 'FREE',
+  planStatus: 'TRIAL',
+  planDetails: StorePlanDetails(
+    adsEnabled: true,
+    adsTier: 'STANDARD',
+    status: 'ACTIVE',
+    modules: {
+      'DASHBOARD': true,
+      'BILLING': true,
+      'PRODUCTS': true,
+      'INVENTORY': true,
+      'SALES_INVOICES': true,
+      'CUSTOMERS_UDHAARI': true,
+      'SUPPLIERS': false,
+      'PURCHASES': false,
+      'EXPENSES': false,
+      'GST_REPORTS': false,
+      'USERS_ROLES': false,
+      'MULTI_STORE': false,
+      'ADVANCED_ANALYTICS': false,
+      'BARCODE_HARDWARE': false,
+      'WHATSAPP_SHARING': false,
+      'API_ACCESS': false,
+    },
+  ),
+);
+
 const _stats = DashboardStats(
   todaySales: 12000,
   todayPurchases: 5000,
@@ -245,5 +281,137 @@ void main() {
     expect(tester.takeException(), isNull);
 
     await tester.pumpWidget(const SizedBox.shrink());
+  });
+
+  test('StorePlanDetails parses plan modules and gates unknown keys', () {
+    final plan = StorePlanDetails.fromJson({
+      'adsEnabled': true,
+      'adsTier': 'STANDARD',
+      'status': 'ACTIVE',
+      'modules': [
+        {'moduleKey': 'DASHBOARD', 'enabled': true},
+        {'module_key': 'INVENTORY', 'enabled': true},
+        {'moduleKey': 'SUPPLIERS', 'enabled': false},
+      ],
+    });
+
+    expect(plan.allowsModule('dashboard'), isTrue);
+    expect(plan.allowsModule('inventory'), isTrue);
+    expect(plan.allowsModule('SUPPLIERS'), isFalse);
+    // A missing key means the plan does not include the module.
+    expect(plan.allowsModule('GST_REPORTS'), isFalse);
+
+    // Legacy payloads without a module list keep every screen visible.
+    const legacy = StorePlanDetails(
+      adsEnabled: false,
+      adsTier: 'STANDARD',
+      status: 'ACTIVE',
+    );
+    expect(legacy.allowsModule('SUPPLIERS'), isTrue);
+  });
+
+  test('AuthUser parses superadmin page grants and restrictions', () {
+    final user = AuthUser.fromJson({
+      'id': 'u1',
+      'name': 'Demo Owner',
+      'email': 'owner@midukandar.com',
+      'role': 'OWNER',
+      'store_id': 'store-1',
+      'access': {
+        'grantedPages': ['suppliers'],
+        'disabled_pages': ['reports'],
+      },
+    });
+
+    expect(user.storeId, 'store-1');
+    expect(user.grantedPages, contains('suppliers'));
+    expect(user.disabledPages, contains('reports'));
+  });
+
+  testWidgets('AppShell keeps a superadmin-granted module visible', (
+    tester,
+  ) async {
+    const grantedUser = AuthUser(
+      id: 'u1',
+      name: 'Demo Owner',
+      email: 'owner@midukandar.com',
+      phone: '9876543210',
+      role: 'OWNER',
+      storeId: 'store-1',
+      grantedPages: {'suppliers'},
+    );
+
+    await tester.pumpWidget(
+      _testApp(
+        AppShell(
+          apiService: ApiService(baseUrl: AppConfig.localBaseUrl),
+          user: grantedUser,
+          store: _freeStore,
+          stats: _stats,
+          onSignOut: ({bool showError = false}) async {},
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.menu));
+    await tester.pumpAndSettle();
+
+    final drawer = find.byType(Drawer);
+    expect(
+      find.descendant(of: drawer, matching: find.text(_l.sectionSuppliers)),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: drawer, matching: find.text(_l.sectionExpenses)),
+      findsNothing,
+    );
+  });
+
+  testWidgets('AppShell hides drawer modules the store plan excludes', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _testApp(
+        AppShell(
+          apiService: ApiService(baseUrl: AppConfig.localBaseUrl),
+          user: _user,
+          store: _freeStore,
+          stats: _stats,
+          onSignOut: ({bool showError = false}) async {},
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.menu));
+    await tester.pumpAndSettle();
+
+    final drawer = find.byType(Drawer);
+    for (final label in [
+      _l.navDashboard,
+      _l.navProductsStock,
+      _l.navSalesInvoices,
+      _l.navCustomers,
+    ]) {
+      expect(
+        find.descendant(of: drawer, matching: find.text(label)),
+        findsOneWidget,
+        reason: 'drawer should keep "$label"',
+      );
+    }
+    for (final label in [
+      _l.sectionSuppliers,
+      _l.sectionSupplierInvoices,
+      _l.sectionExpenses,
+      _l.sectionReports,
+      _l.sectionUsers,
+    ]) {
+      expect(
+        find.descendant(of: drawer, matching: find.text(label)),
+        findsNothing,
+        reason: 'drawer should hide "$label"',
+      );
+    }
   });
 }

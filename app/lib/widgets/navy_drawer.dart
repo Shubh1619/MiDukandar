@@ -13,6 +13,7 @@ class NavyDrawer extends StatelessWidget {
     required this.onSelect,
     this.role,
     this.width,
+    this.isAllowed,
   });
 
   /// Currently active nav key (e.g. 'dashboard', 'products'). An empty/null
@@ -22,6 +23,9 @@ class NavyDrawer extends StatelessWidget {
   final String? role;
   final double? width;
 
+  /// Plan gate for a nav key. When omitted every item is shown.
+  final bool Function(String key)? isAllowed;
+
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
@@ -29,6 +33,11 @@ class NavyDrawer extends StatelessWidget {
     final roleLabel = _roleLabel(l, roleKey);
     final accessNote = _accessNote(l, roleKey);
     final badgeLetter = _badgeLetter(roleKey);
+
+    bool allowed(String key) => isAllowed?.call(key) ?? true;
+    final mainItems = _mainNavItems(context).where((item) => allowed(item.key)).toList();
+    final systemItems = _systemNavItems(context).where((item) => allowed(item.key)).toList();
+    final moreItems = _moreNavItems(context).where((item) => allowed(item.key)).toList();
 
     return SizedBox(
       width: width,
@@ -50,7 +59,7 @@ class NavyDrawer extends StatelessWidget {
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
                 children: [
-                  ..._mainNavItems(context).map(
+                  ...mainItems.map(
                     (item) => _NavRow(
                       key: ValueKey('main-${item.key}'),
                       icon: item.icon,
@@ -59,26 +68,30 @@ class NavyDrawer extends StatelessWidget {
                       onTap: () => onSelect(item.key),
                     ),
                   ),
-                  const _GroupLabel(labelKey: 'system'),
-                  ..._systemNavItems(context).map(
-                    (item) => _NavRow(
-                      key: ValueKey('system-${item.key}'),
-                      icon: item.icon,
-                      label: item.label,
-                      active: current == item.key,
-                      onTap: () => onSelect(item.key),
+                  if (systemItems.isNotEmpty) ...[
+                    const _GroupLabel(labelKey: 'system'),
+                    ...systemItems.map(
+                      (item) => _NavRow(
+                        key: ValueKey('system-${item.key}'),
+                        icon: item.icon,
+                        label: item.label,
+                        active: current == item.key,
+                        onTap: () => onSelect(item.key),
+                      ),
                     ),
-                  ),
-                  const _GroupLabel(labelKey: 'more'),
-                  ..._moreNavItems(context).map(
-                    (item) => _NavRow(
-                      key: ValueKey('more-${item.key}'),
-                      icon: item.icon,
-                      label: item.label,
-                      active: current == item.key,
-                      onTap: () => onSelect(item.key),
+                  ],
+                  if (moreItems.isNotEmpty) ...[
+                    const _GroupLabel(labelKey: 'more'),
+                    ...moreItems.map(
+                      (item) => _NavRow(
+                        key: ValueKey('more-${item.key}'),
+                        icon: item.icon,
+                        label: item.label,
+                        active: current == item.key,
+                        onTap: () => onSelect(item.key),
+                      ),
                     ),
-                  ),
+                  ],
                 ],
               ),
             ),

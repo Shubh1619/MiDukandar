@@ -31,6 +31,12 @@ class AdPolicy extends ChangeNotifier {
     _adsEnabled = enabled;
     _status = status;
     _adsTier = tier;
+    if (kDebugMode) {
+      debugPrint(
+        'AdPolicy: plan=${plan?.name ?? 'none'} adsEnabled=$enabled '
+        'tier=$tier status=$status',
+      );
+    }
     notifyListeners();
   }
 
