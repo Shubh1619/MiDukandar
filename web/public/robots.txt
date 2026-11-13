@@ -17,4 +17,4 @@ Disallow: /purchases
 Disallow: /superadmin
 Disallow: /impersonate
 
-Sitemap: /sitemap.xml
+Sitemap: https://midukandar.onrender.com/sitemap.xml
