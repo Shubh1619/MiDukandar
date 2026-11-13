@@ -307,8 +307,8 @@ export const config: Config = {
   databaseUrl,
   dbHost,
   allowUnverifiedMailSender,
-  jwtAccessSecret: env.JWT_ACCESS_SECRET ?? DEV_ACCESS_SECRET,
-  jwtRefreshSecret: env.JWT_REFRESH_SECRET ?? DEV_REFRESH_SECRET,
+  jwtAccessSecret: env.JWT_ACCESS_SECRET ?? "",
+  jwtRefreshSecret: env.JWT_REFRESH_SECRET ?? "",
   jwtAccessExpiresIn: env.JWT_ACCESS_EXPIRES_IN ?? "15m",
   jwtAccessExpiresInSeconds: durationToSeconds(env.JWT_ACCESS_EXPIRES_IN ?? "15m"),
   refreshTokenDays: env.REFRESH_TOKEN_DAYS,
@@ -322,7 +322,7 @@ export const config: Config = {
     env.REFRESH_COOKIE_SECURE !== undefined
       ? env.REFRESH_COOKIE_SECURE.trim().toLowerCase() === "true"
       : isProd && appUrl.startsWith("https://"),
-  superAdminJwtSecret: env.SUPERADMIN_JWT_SECRET ?? DEV_SUPERADMIN_SECRET,
+  superAdminJwtSecret: env.SUPERADMIN_JWT_SECRET ?? "",
   superAdminAccessExpiresIn: env.SUPERADMIN_ACCESS_EXPIRES_IN ?? "15m",
   superAdminCookieName: env.SUPERADMIN_COOKIE_NAME ?? "mz_sa",
   superAdminRefreshTokenDays: env.SUPERADMIN_REFRESH_TOKEN_DAYS,
@@ -544,6 +544,22 @@ assertDevDatabase();
 assertMailConfig();
 assertSmsConfig();
 assertProductionSecrets();
+
+const missingSecrets: string[] = [];
+if (!config.jwtAccessSecret || config.jwtAccessSecret.length < MIN_SECRET_LENGTH) {
+  missingSecrets.push("JWT_ACCESS_SECRET");
+}
+if (!config.jwtRefreshSecret || config.jwtRefreshSecret.length < MIN_SECRET_LENGTH) {
+  missingSecrets.push("JWT_REFRESH_SECRET");
+}
+if (!config.superAdminJwtSecret || config.superAdminJwtSecret.length < MIN_SECRET_LENGTH) {
+  missingSecrets.push("SUPERADMIN_JWT_SECRET");
+}
+if (missingSecrets.length > 0) {
+  throw new Error(
+    `Missing or weak secrets: ${missingSecrets.join(", ")} (must be set and >= ${MIN_SECRET_LENGTH} characters)`,
+  );
+}
 
 /**
  * One-line summary of the active configuration, safe to print at startup

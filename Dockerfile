@@ -35,7 +35,7 @@ COPY --from=backend-build /app/backend/dist ./dist
 COPY backend/migrations ./migrations
 RUN mkdir -p uploads
 EXPOSE 4000
-CMD ["sh", "-c", "node dist/scripts/migrate.js 2>/dev/null || true; node dist/scripts/create-superadmin.js 2>/dev/null || true; node dist/server.js"]
+CMD ["sh", "-c", "node dist/scripts/migrate.js || exit 1; node dist/scripts/create-superadmin.js || echo \"[warn] superadmin bootstrap skipped/failed (continuing)\"; exec node dist/server.js"]
 
 # =============================================================
 # Web - Next.js standalone

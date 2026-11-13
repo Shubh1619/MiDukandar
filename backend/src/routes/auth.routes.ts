@@ -17,8 +17,7 @@ import { APP_PAGES, getDisabledAccessKeys, getGrantedAccessKeys } from "../lib/p
 import { rateLimited } from "../lib/route-rate-limit.js";
 import { getPlatformSettings } from "../lib/platform-settings.js";
 
-// Never expire sessions - set refresh tokens to expire far in the future
-const REFRESH_DAYS_MS = 100 * 365 * 24 * 60 * 60 * 1000; // 100 years
+const REFRESH_DAYS_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 // Window during which a just-rotated (revoked) refresh token is still
 // accepted, so concurrent refreshes from multiple tabs or a mobile retry
 // after a timed-out first attempt rotate again instead of being rejected.
@@ -266,8 +265,7 @@ export async function authRoutes(app: FastifyInstance) {
       const graceMs = stored.grace_until ? new Date(stored.grace_until as Date).getTime() : 0;
       if (graceMs <= Date.now()) return rejected("token_revoked");
     }
-    // Never expire refresh tokens - skip expiration check
-    // if (new Date(stored.expires_at as Date) < new Date()) return rejected("token_expired");
+    if (new Date(stored.expires_at as Date) < new Date()) return rejected("token_expired");
     const user = await qOne<Row>(`SELECT * FROM users WHERE id = $1`, [stored.user_id as string]);
     if (!user || !user.is_active) return rejected("user_inactive_or_missing");
 

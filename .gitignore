@@ -1,5 +1,6 @@
 # Dotenv and secrets — root level
-.env*
+.env
+.env.*
 !.env.example
 
 # Backend local env (never tracked)

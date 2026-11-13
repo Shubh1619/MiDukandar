@@ -224,12 +224,22 @@ export function buildApp(opts: { logger?: boolean } = {}): FastifyInstance {
     routeOptions.preHandler = existing;
   });
 
-  // Baseline security headers for every API response. Today this is
-  // content-type sniffing protection; browsers must not guess a response body's
-  // type from its bytes.
+  // Baseline security headers for every API response.
   app.addHook("onSend", async (_request, reply, payload) => {
     if (!reply.hasHeader("x-content-type-options")) {
       reply.header("X-Content-Type-Options", "nosniff");
+    }
+    if (!reply.hasHeader("x-frame-options")) {
+      reply.header("X-Frame-Options", "DENY");
+    }
+    if (!reply.hasHeader("referrer-policy")) {
+      reply.header("Referrer-Policy", "strict-origin-when-cross-origin");
+    }
+    if (!reply.hasHeader("strict-transport-security") && config.isProd) {
+      reply.header("Strict-Transport-Security", "max-age=31536000; includeSubDomains; preload");
+    }
+    if (!reply.hasHeader("content-security-policy")) {
+      reply.header("Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'; base-uri 'none'");
     }
     return payload;
   });
