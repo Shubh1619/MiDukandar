@@ -17,12 +17,59 @@ const isDev = process.env.NODE_ENV !== "production";
 const publicUrl = process.env.APP_URL ?? process.env.NEXT_PUBLIC_APP_URL ?? "";
 const tlsExpected = publicUrl.startsWith("https://");
 
+// AdSense is on by default with the MiDukandar publisher. Set
+// NEXT_PUBLIC_ADSENSE_CLIENT to an empty string to turn it off (CSP stays
+// strict and only the in-house promos render).
+const adsenseEnabled = Boolean(
+  (process.env.NEXT_PUBLIC_ADSENSE_CLIENT ?? "ca-app-pub-5690703416607762").trim(),
+);
+const adsenseScriptOrigins = adsenseEnabled
+  ? [
+      "https://pagead2.googlesyndication.com",
+      "https://partner.googleadservices.com",
+      "https://tpc.googlesyndication.com",
+      "https://googleads.g.doubleclick.net",
+      "https://www.googletagservices.com",
+      "https://adservice.google.com",
+      "https://fundingchoicesmessages.google.com",
+    ]
+  : [];
+const adsenseConnectOrigins = adsenseEnabled
+  ? [
+      "https://pagead2.googlesyndication.com",
+      "https://googleads.g.doubleclick.net",
+      "https://adservice.google.com",
+      "https://fundingchoicesmessages.google.com",
+      "https://ep1.adtrafficquality.google",
+      "https://www.google.com",
+    ]
+  : [];
+const adsenseFrameOrigins = adsenseEnabled
+  ? [
+      "https://googleads.g.doubleclick.net",
+      "https://tpc.googlesyndication.com",
+      "https://www.google.com",
+      "https://fundingchoicesmessages.google.com",
+    ]
+  : [];
+
 // Next.js emits an inline bootstrap script for hydration, so a CSP without a
 // nonce must allow 'unsafe-inline' for scripts. Moving to a per-request nonce
 // (which would remove it) requires threading a nonce through src/proxy.ts —
 // deliberately out of scope here. 'unsafe-eval' is only needed by the dev
 // server's HMR runtime and is omitted from production builds.
-const scriptSrc = ["'self'", "'unsafe-inline'", ...(isDev ? ["'unsafe-eval'"] : [])].join(" ");
+const scriptSrc = [
+  "'self'",
+  "'unsafe-inline'",
+  ...(isDev ? ["'unsafe-eval'"] : []),
+  ...adsenseScriptOrigins,
+].join(" ");
+
+const connectSrc = [
+  "'self'",
+  ...(isDev ? ["ws:", "wss:"] : []),
+  ...adsenseConnectOrigins,
+].join(" ");
 
 const contentSecurityPolicy = [
   "default-src 'self'",
@@ -33,8 +80,9 @@ const contentSecurityPolicy = [
   // next/font self-hosts the woff2 files, so fonts never leave 'self'.
   "font-src 'self' data:",
   // The API is same-origin (proxied via /api/*), but ws: is required for the
-  // dev server's HMR socket.
-  `connect-src 'self'${isDev ? " ws: wss:" : ""}`,
+  // dev server's HMR socket. AdSense adds its reporting endpoints when enabled.
+  `connect-src ${connectSrc}`,
+  ...(adsenseFrameOrigins.length > 0 ? [`frame-src ${adsenseFrameOrigins.join(" ")}`] : []),
   "object-src 'none'",
   "base-uri 'self'",
   "form-action 'self'",

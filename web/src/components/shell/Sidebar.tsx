@@ -21,6 +21,7 @@ import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth-store";
 import type { PermissionFlag } from "@/lib/types";
 import { planHasModule, type PlanModuleKey } from "@/lib/plan-catalog";
+import AdSlot from "@/components/ads/AdSlot";
 
 const ROLE_LABEL: Record<string, string> = {
   OWNER: "Owner",
@@ -236,6 +237,12 @@ export default function Sidebar({ collapsed, onToggle, items, roleKey, mobileOpe
                 </>
               )}
         </nav>
+
+        {!navCollapsed && (
+          <div className="border-t border-navy-800/70 px-3 py-2">
+            <AdSlot placement="sidebar" />
+          </div>
+        )}
 
         <div
           className={cn(

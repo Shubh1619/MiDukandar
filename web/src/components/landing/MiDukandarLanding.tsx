@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
+import AdSlot from "@/components/ads/AdSlot";
 import LandingHeader from "./LandingHeader";
 import LandingFooter from "./LandingFooter";
 import { PLAN_COMPARISON_ROWS, formatPlanPrice, getPlanModule, planFeatureList, type PlanDefinition } from "@/lib/plan-catalog";
@@ -320,6 +321,8 @@ export default function MiDukandarLanding({ initialPlans = [] }: { initialPlans?
             </div>
           </div>
         </section>
+
+        <AdSlot placement="landing" className="mx-auto my-6 max-w-7xl" />
 
         <section id="overview" className="border-t border-navy-100 bg-[#f7f9fc]">
           <div className="mx-auto max-w-7xl px-5 py-16 sm:px-8 lg:px-10 lg:py-20">

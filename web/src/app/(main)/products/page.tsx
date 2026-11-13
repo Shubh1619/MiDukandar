@@ -78,6 +78,7 @@ import SummaryCards from "./summary-cards";
 import ProductTableSkeleton from "./product-table-skeleton";
 import ProductFormDialog, { type ProductSavedPayload } from "./product-form-dialog";
 import StockAdjustDialog from "./stock-adjust-dialog";
+import AdSlot from "@/components/ads/AdSlot";
 import ProductDetailsSheet from "./product-details-sheet";
 import ImportDialog, { type ImportResult } from "./import-dialog";
 import StockCandlestick from "./stock-candlestick";
@@ -626,6 +627,8 @@ const showPurchase = canManage;
           </Button>
         </div>
       </div>
+
+      <AdSlot placement="products" />
 
       <Tabs defaultValue="products" onValueChange={setActiveTab}>
         <TabsList className="w-full sm:w-auto">

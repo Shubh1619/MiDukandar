@@ -10,6 +10,7 @@ import { useAuth } from "@/lib/auth-store";
 import Sidebar from "@/components/shell/Sidebar";
 import Header from "@/components/shell/Header";
 import AdBanner from "@/components/AdBanner";
+import AdSlot from "@/components/ads/AdSlot";
 
 const MOBILE_NAV = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, moduleKey: "DASHBOARD" as PlanModuleKey },
@@ -61,6 +62,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         <Header onMenuClick={() => setMobileOpen((open) => !open)} />
         <AdBanner />
         <main className="flex-1 p-3 pb-20 sm:p-4 lg:p-6 lg:pb-6">{children}</main>
+        <AdSlot placement="footer" />
         <footer className="border-t border-navy-100 bg-white px-3 pb-20 pt-3 sm:px-4 sm:pb-3 lg:px-6">
           <div className="flex flex-col items-center justify-between gap-2 text-[11px] text-navy-400 sm:flex-row">
             <p>© {new Date().getFullYear()} MiDukandar</p>
@@ -96,6 +98,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           })}
         </div>
       </nav>
+
+      <AdSlot placement="mobile-anchor" />
     </div>
   );
 }

@@ -4,6 +4,7 @@ import { ThemeProvider } from "next-themes";
 import "./globals.css";
 import { I18nProvider } from "@/components/i18n-provider";
 import { Toaster } from "@/components/ui/sonner";
+import AdSenseScript from "@/components/ads/AdSenseScript";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -48,6 +49,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         >
           <I18nProvider>{children}</I18nProvider>
           <Toaster position="top-right" richColors />
+          <AdSenseScript />
         </ThemeProvider>
       </body>
     </html>

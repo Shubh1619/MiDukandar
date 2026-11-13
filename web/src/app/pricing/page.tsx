@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import PublicFooter from "@/components/public/PublicFooter";
 import PublicHeader from "@/components/public/PublicHeader";
 import PricingInteractive from "@/components/public/PricingInteractive";
+import AdSlot from "@/components/ads/AdSlot";
 import type { PlanDefinition } from "@/lib/plan-catalog";
 
 export const metadata: Metadata = {
@@ -28,6 +29,7 @@ export default async function PricingPage() {
   return (
     <div className="min-h-screen bg-[#f7f9fc] text-navy-900">
       <PublicHeader />
+      <AdSlot placement="pricing" className="mx-auto my-6 max-w-7xl" />
       <PricingInteractive initialPlans={plans} />
       <PublicFooter />
     </div>

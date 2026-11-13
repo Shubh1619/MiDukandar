@@ -41,6 +41,7 @@ import { ExpenseSummaryBar } from "@/components/expenses/expense-summary-bar";
 import { ExpenseCategoryChart } from "@/components/expenses/expense-category-chart";
 import { ExpenseFormDialog } from "@/components/expenses/expense-form-dialog";
 import { ExpenseDetailDialog } from "@/components/expenses/expense-detail-dialog";
+import AdSlot from "@/components/ads/AdSlot";
 import { RecurringExpenseDialog } from "@/components/expenses/recurring-expense-dialog";
 
 export default function ExpensesPage() {
@@ -229,6 +230,8 @@ export default function ExpensesPage() {
 
       {/* Summary Cards */}
       <ExpenseSummaryBar summary={summary} />
+
+      <AdSlot placement="expenses" />
 
       {/* Navigation Tabs */}
       <div className="flex items-center border-b text-sm font-medium">

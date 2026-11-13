@@ -24,6 +24,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { StatCard } from "@/components/shared/stat-card";
 import { ExpiryAlertDialog } from "@/components/shared/expiry-alert";
 import { LowStockAlertDialog } from "@/components/shared/low-stock-alert";
+import AdSlot from "@/components/ads/AdSlot";
 import type { RecentTransaction, DashboardStats } from "@/lib/types";
 
 interface DashboardResponse {
@@ -186,6 +187,8 @@ export default function DashboardPage() {
           </>
         )}
       </div>
+
+      <AdSlot placement="dashboard" />
 
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
         {!stats ? (

@@ -34,6 +34,7 @@ import { TableSkeleton } from "@/components/shared/table-skeleton";
 import { EmptyState } from "@/components/shared/empty-state";
 import { Pager } from "@/components/shared/pager";
 import { PendingButton } from "@/components/shared/pending-button";
+import AdSlot from "@/components/ads/AdSlot";
 
 interface CustomerDetail {
   customer: Customer;
@@ -243,6 +244,8 @@ export default function CustomersPage() {
       </div>
 
       <TableSearch value={search} onChange={(v) => { setSearch(v); setPage(1); }} />
+
+      <AdSlot placement="customers" />
 
       <div className="rounded-lg border bg-card">
         {loading ? (

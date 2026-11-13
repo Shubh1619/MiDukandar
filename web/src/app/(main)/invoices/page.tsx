@@ -81,6 +81,7 @@ import { InvoiceSummaryBar } from "@/components/invoices/invoice-summary";
 import { InvoiceFormDialog, type HeldPayload } from "@/components/invoices/invoice-form-dialog";
 import { HeldBillsDialog } from "@/components/invoices/held-bills-dialog";
 import { InvoicePreview } from "@/components/invoices/invoice-preview";
+import AdSlot from "@/components/ads/AdSlot";
 
 type PaymentFilter = "all" | "paid" | "udhaar";
 
@@ -504,6 +505,8 @@ export default function InvoicesPage() {
         summary={summary}
         loading={loading}
       />
+
+      <AdSlot placement="invoices" />
 
       {/* FILTER BAR */}
       <div className="flex flex-col gap-2 md:flex-row md:flex-wrap md:items-center">

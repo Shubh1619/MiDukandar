@@ -36,6 +36,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import AdSlot from "@/components/ads/AdSlot";
 import {
   Table,
   TableBody,
@@ -306,6 +307,8 @@ export default function ReportsPage() {
           </Button>
         </div>
       </div>
+
+      <AdSlot placement="reports" />
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
