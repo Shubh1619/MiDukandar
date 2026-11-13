@@ -3,6 +3,8 @@ import 'package:intl/intl.dart';
 
 import '../l10n/generated/app_localizations.dart';
 import '../l10n/status_labels.dart';
+import '../ads/ad_config.dart';
+import '../ads/md_ad_banner.dart';
 import '../models/app_models.dart';
 import '../services/api_service.dart';
 import '../theme/md_design.dart';
@@ -740,6 +742,7 @@ class _ProductScreenState extends State<ProductScreen> {
               ),
             ),
           ],
+          const MdAdBanner(placement: AdPlacement.products, margin: EdgeInsets.only(top: 12)),
           const SizedBox(height: 16),
           Expanded(
             child: _error != null

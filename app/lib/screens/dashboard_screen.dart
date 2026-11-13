@@ -5,6 +5,8 @@ import '../l10n/generated/app_localizations.dart';
 import '../main.dart';
 import '../models/app_models.dart';
 import '../theme/md_design.dart';
+import '../ads/ad_config.dart';
+import '../ads/md_ad_banner.dart';
 
 class DashboardScreen extends StatelessWidget {
   const DashboardScreen({
@@ -78,6 +80,7 @@ class DashboardScreen extends StatelessWidget {
             },
           ),
           const SizedBox(height: 16),
+          const MdAdBanner(placement: AdPlacement.dashboard),
           Row(
             children: [
               Expanded(

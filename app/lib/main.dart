@@ -9,6 +9,10 @@ import 'package:permission_handler/permission_handler.dart';
 
 import 'l10n/generated/app_localizations.dart';
 import 'l10n/locale_controller.dart';
+import 'ads/ad_config.dart';
+import 'ads/ad_policy.dart';
+import 'ads/ad_service.dart';
+import 'ads/md_ad_banner.dart';
 import 'models/app_models.dart';
 import 'screens/auth_screen.dart';
 import 'screens/business_profile_screen.dart';
@@ -39,6 +43,8 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   // Apply the persisted locale before the first frame renders.
   await LocaleController.instance.load();
+  // AdMob initialization is fire-and-forget; the no-op stub handles web.
+  unawaited(initializeAds());
   runApp(const MiDukandarApp());
 }
 
@@ -670,6 +676,11 @@ class _AppShellState extends State<AppShell> {
   /// a create/update/delete or when the user re-taps the current tab.
   int _sectionEpoch = 0;
 
+  /// Interstitials are rate-limited so a burst of saves does not feel like an
+  /// ad wall. `null` means no full-screen ad has been shown this session.
+  DateTime? _lastInterstitialAt;
+  static const Duration _interstitialCooldown = Duration(minutes: 3);
+
   bool get _isOwner => widget.user?.role == 'OWNER';
 
   String get _sectionKey => switch (_section) {
@@ -697,8 +708,17 @@ class _AppShellState extends State<AppShell> {
   };
 
   @override
+  void initState() {
+    super.initState();
+    AdPolicy.instance.updateFromStore(widget.store);
+  }
+
+  @override
   void didUpdateWidget(covariant AppShell oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (oldWidget.store != widget.store) {
+      AdPolicy.instance.updateFromStore(widget.store);
+    }
     if (oldWidget.stats != widget.stats) {
       _stats = widget.stats;
     }
@@ -711,6 +731,23 @@ class _AppShellState extends State<AppShell> {
     } catch (_) {
       // Keep the last good snapshot; the next refresh will retry.
     }
+  }
+
+  /// Shows a full-screen ad after a successful mutation, never before the
+  /// action has completed. Only `STANDARD` (ad-supported) plans get these.
+  void _maybeShowInterstitial() {
+    if (!AdPolicy.instance.allowsFullScreen) return;
+    final lastShown = _lastInterstitialAt;
+    if (lastShown != null &&
+        DateTime.now().difference(lastShown) < _interstitialCooldown) {
+      return;
+    }
+    _lastInterstitialAt = DateTime.now();
+    unawaited(() async {
+      await Future<void>.delayed(const Duration(milliseconds: 800));
+      if (!mounted) return;
+      await showInterstitialAd();
+    }());
   }
 
   void _onBottomNavTap(int index) {
@@ -873,6 +910,7 @@ class _AppShellState extends State<AppShell> {
     try {
       await widget.apiService.createSale(payload);
       unawaited(_refreshCurrentSection());
+      _maybeShowInterstitial();
     } catch (error) {
       if (!mounted) return;
       AppDialogs.showError(
@@ -889,6 +927,7 @@ class _AppShellState extends State<AppShell> {
         amount: invoice.dueAmount,
       );
       unawaited(_refreshCurrentSection());
+      _maybeShowInterstitial();
     } catch (error) {
       if (!mounted) return;
       AppDialogs.showError(
@@ -902,6 +941,7 @@ class _AppShellState extends State<AppShell> {
     try {
       await widget.apiService.createPurchase(payload);
       unawaited(_refreshCurrentSection());
+      _maybeShowInterstitial();
     } catch (error) {
       if (!mounted) return;
       AppDialogs.showError(
@@ -968,6 +1008,7 @@ class _AppShellState extends State<AppShell> {
       );
       unawaited(_refreshCurrentSection());
       unawaited(_reloadStats());
+      _maybeShowInterstitial();
       return result;
     } catch (error) {
       if (!mounted) return null;
@@ -1289,12 +1330,22 @@ class _AppShellState extends State<AppShell> {
         // One pull-to-refresh for every section: the indicator listens to the
         // vertical scrollable each screen already owns, and the rebuild gives
         // that screen a fresh epoch so it re-fetches from the server.
-        body: RefreshIndicator(
-          onRefresh: _handlePullRefresh,
-          child: KeyedSubtree(
-            key: ValueKey('${_sectionKey}_$_sectionEpoch'),
-            child: _buildSection(_section),
-          ),
+        body: Column(
+          children: [
+            const MdAdBanner(
+              placement: AdPlacement.top,
+              margin: EdgeInsets.zero,
+            ),
+            Expanded(
+              child: RefreshIndicator(
+                onRefresh: _handlePullRefresh,
+                child: KeyedSubtree(
+                  key: ValueKey('${_sectionKey}_$_sectionEpoch'),
+                  child: _buildSection(_section),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );

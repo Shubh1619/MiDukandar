@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import '../ads/ad_config.dart';
+import '../ads/md_ad_banner.dart';
 import '../l10n/generated/app_localizations.dart';
 import '../models/app_models.dart';
 import '../services/api_service.dart';
@@ -201,6 +203,8 @@ class _ReportScreenState extends State<ReportScreen> {
                 ],
               ),
             ),
+            const SizedBox(height: 20),
+            const MdAdBanner(placement: AdPlacement.reports),
             const SizedBox(height: 20),
             Text(hasPnl ? l.reptRealPnl : l.reptProfitLossPeriod, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
             const SizedBox(height: 8),

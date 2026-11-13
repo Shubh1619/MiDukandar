@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import '../ads/ad_config.dart';
+import '../ads/md_ad_banner.dart';
 import '../l10n/generated/app_localizations.dart';
 import '../main.dart';
 import '../models/app_models.dart';
@@ -799,6 +801,8 @@ class _InvoiceScreenState extends State<InvoiceScreen> {
               Expanded(child: _SummaryCard(title: l.statusPending, value: formatINR(pendingAmount), color: Colors.orange.shade700)),
             ],
           ),
+          const SizedBox(height: 12),
+          const MdAdBanner(placement: AdPlacement.invoices),
           const SizedBox(height: 16),
           Expanded(
             child: filtered.isEmpty

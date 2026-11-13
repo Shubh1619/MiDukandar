@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../ads/ad_config.dart';
+import '../ads/md_ad_banner.dart';
 import '../l10n/generated/app_localizations.dart';
 import '../main.dart';
 import '../models/app_models.dart';
@@ -254,6 +256,7 @@ class _CustomerScreenState extends State<CustomerScreen> {
             ],
           ),
           const SizedBox(height: 16),
+          const MdAdBanner(placement: AdPlacement.customers, margin: EdgeInsets.only(bottom: 12)),
           Expanded(
             child: _loading
                 ? const Center(child: CircularProgressIndicator())

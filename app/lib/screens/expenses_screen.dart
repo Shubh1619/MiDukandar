@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import '../ads/ad_config.dart';
+import '../ads/md_ad_banner.dart';
 import '../l10n/generated/app_localizations.dart';
 import '../models/app_models.dart';
 import '../services/api_service.dart';
@@ -321,6 +323,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
               ),
             ],
           ),
+          const MdAdBanner(placement: AdPlacement.expenses, margin: EdgeInsets.only(top: 12)),
           if (_summary.byCategory.isNotEmpty) ...[
             const SizedBox(height: 16),
             Text(l.expnByCategory, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),

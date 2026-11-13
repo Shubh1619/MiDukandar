@@ -82,6 +82,29 @@ class AuthUser {
   }
 }
 
+class StorePlanDetails {
+  const StorePlanDetails({
+    required this.adsEnabled,
+    required this.adsTier,
+    required this.status,
+    this.name,
+  });
+
+  final bool adsEnabled;
+  final String adsTier;
+  final String status;
+  final String? name;
+
+  factory StorePlanDetails.fromJson(Map<String, dynamic> json) {
+    return StorePlanDetails(
+      adsEnabled: _firstBool(json, const ['adsEnabled', 'ads_enabled']),
+      adsTier: _firstValue(json, const ['adsTier', 'ads_tier']) ?? 'STANDARD',
+      status: _firstValue(json, const ['status']) ?? 'ACTIVE',
+      name: _firstValue(json, const ['name']),
+    );
+  }
+}
+
 class Store {
   const Store({
     required this.id,
@@ -102,6 +125,7 @@ class Store {
     this.planStatus = 'TRIAL',
     this.trialEndsAt,
     this.createdAt,
+    this.planDetails,
   });
 
   final String id;
@@ -122,8 +146,10 @@ class Store {
   final String planStatus;
   final String? trialEndsAt;
   final String? createdAt;
+  final StorePlanDetails? planDetails;
 
   factory Store.fromJson(Map<String, dynamic> json) {
+    final rawPlan = json['planDetails'];
     return Store(
       id: _firstValue(json, const ['id']) ?? '',
       name: _firstValue(json, const ['name']) ?? 'My Store',
@@ -143,6 +169,9 @@ class Store {
       planStatus: _firstValue(json, const ['planStatus', 'plan_status']) ?? 'TRIAL',
       trialEndsAt: _firstValue(json, const ['trialEndsAt', 'trial_ends_at']),
       createdAt: _firstValue(json, const ['createdAt', 'created_at']),
+      planDetails: rawPlan is Map
+          ? StorePlanDetails.fromJson(Map<String, dynamic>.from(rawPlan))
+          : null,
     );
   }
 }

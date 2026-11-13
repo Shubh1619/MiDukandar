@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../ads/md_rewarded_card.dart';
 import '../l10n/generated/app_localizations.dart';
 import '../l10n/locale_controller.dart';
 import '../models/app_models.dart';
@@ -266,6 +267,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
             ),
             const SizedBox(height: 24),
+            const MdRewardedCard(),
+            const SizedBox(height: 12),
             SizedBox(
               width: double.infinity,
               child: FilledButton.icon(
