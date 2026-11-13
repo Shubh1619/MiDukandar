@@ -1312,7 +1312,7 @@ class _AppShellState extends State<AppShell> {
         return _selectSection(AppSection.purchases);
       case 'payments':
         return _selectSection(AppSection.payments);
-    case 'supplierInvoices':
+      case 'supplierInvoices':
         return _selectSection(AppSection.supplierInvoices);
     }
   }

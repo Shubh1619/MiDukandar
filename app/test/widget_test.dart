@@ -4,6 +4,7 @@ import 'package:app/main.dart';
 import 'package:app/models/app_models.dart';
 import 'package:app/screens/auth_screen.dart';
 import 'package:app/screens/customer_screen.dart';
+import 'package:app/screens/dashboard_screen.dart';
 import 'package:app/screens/product_screen.dart';
 import 'package:app/services/api_service.dart';
 import 'package:flutter/material.dart';
@@ -413,5 +414,36 @@ void main() {
         reason: 'drawer should hide "$label"',
       );
     }
+  });
+
+  testWidgets('Dashboard hides cards and shortcuts outside the plan', (
+    tester,
+  ) async {
+    bool canAccess(AppSection section) =>
+        section != AppSection.purchases &&
+        section != AppSection.suppliers &&
+        section != AppSection.reports;
+
+    await tester.pumpWidget(
+      _testApp(
+        DashboardScreen(
+          stats: _stats,
+          storeName: 'Demo Store',
+          onNavigate: (_) {},
+          canAccess: canAccess,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Included modules keep their cards.
+    expect(find.text(_l.dashSalesToday.toUpperCase()), findsOneWidget);
+    expect(find.text(_l.dashLowStock), findsOneWidget);
+    expect(find.text(_l.dashQuickInvoices), findsOneWidget);
+
+    // Excluded modules disappear from the dashboard too.
+    expect(find.text(_l.dashPurchasesToday.toUpperCase()), findsNothing);
+    expect(find.text(_l.dashSupplierPayables), findsNothing);
+    expect(find.text(_l.dashQuickReports), findsNothing);
   });
 }
