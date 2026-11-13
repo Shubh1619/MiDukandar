@@ -21,7 +21,7 @@ const tlsExpected = publicUrl.startsWith("https://");
 // NEXT_PUBLIC_ADSENSE_CLIENT to an empty string to turn it off (CSP stays
 // strict and only the in-house promos render).
 const adsenseEnabled = Boolean(
-  (process.env.NEXT_PUBLIC_ADSENSE_CLIENT ?? "ca-app-pub-5690703416607762").trim(),
+  (process.env.NEXT_PUBLIC_ADSENSE_CLIENT ?? "ca-pub-5690703416607762").trim(),
 );
 const adsenseScriptOrigins = adsenseEnabled
   ? [

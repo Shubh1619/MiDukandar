@@ -49,7 +49,7 @@ export type AdPlacementConfig = {
  * to turn AdSense off and fall back to the house promos.
  */
 export const ADSENSE_CLIENT = (
-  process.env.NEXT_PUBLIC_ADSENSE_CLIENT ?? "ca-app-pub-5690703416607762"
+  process.env.NEXT_PUBLIC_ADSENSE_CLIENT ?? "ca-pub-5690703416607762"
 ).trim();
 
 /** Ad units created in the MiDukandar AdSense account. */
