@@ -1026,5 +1026,11 @@
   "regSendCode": "कोड पाठवा",
   "regOtpLabel": "ईमेल कोड",
   "regOtpRequired": "या ईमेलवर पाठवलेला कोड टाका.",
-  "regOtpSent": "कोड पाठवला. नोंदणी पूर्ण करण्यासाठी खाली टाका."
+  "regOtpSent": "कोड पाठवला. नोंदणी पूर्ण करण्यासाठी खाली टाका.",
+  "idleAdLabel": "जाहिरात",
+  "idleAdLoading": "जाहिरात लोड होत आहे...",
+  "idleAdThanks": "MiDukandar वापरल्याबद्दल धन्यवाद",
+  "idleAdAutoClose": "ही जाहिरात {seconds} सेकंदात आपोआप बंद होईल.",
+  "idleAdCancel": "जाहिरात रद्द करा",
+  "idleAdSkip": "जाहिरात वगळा"
 }

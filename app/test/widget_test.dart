@@ -446,4 +446,71 @@ void main() {
     expect(find.text(_l.dashSupplierPayables), findsNothing);
     expect(find.text(_l.dashQuickReports), findsNothing);
   });
+
+  testWidgets('idle ad appears after 30s on every page and activity resets it', (
+    tester,
+  ) async {
+    var shown = 0;
+    await tester.pumpWidget(
+      _testApp(
+        AppShell(
+          apiService: ApiService(baseUrl: AppConfig.localBaseUrl),
+          user: _user,
+          store: _freeStore,
+          stats: _stats,
+          onSignOut: ({bool showError = false}) async {},
+          idleAdPresenter: (_) async => shown++,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Nothing happens before the window elapses.
+    await tester.pump(const Duration(seconds: 25));
+    expect(shown, 0);
+    await tester.pump(const Duration(seconds: 6));
+    expect(shown, 1, reason: 'Dashboard should idle out after 30 seconds');
+
+    // Opening another page arms a fresh window for that page.
+    await tester.tap(find.text(_l.tabUdhari));
+    await tester.pumpAndSettle();
+
+    await tester.pump(const Duration(seconds: 25));
+    expect(shown, 1, reason: 'Udhaari gets its own 30-second window');
+
+    // Activity inside the window postpones the ad.
+    await tester.tapAt(const Offset(200, 30));
+    await tester.pump(const Duration(seconds: 20));
+    expect(shown, 1, reason: 'a tap must restart the idle window');
+
+    await tester.pump(const Duration(seconds: 11));
+    expect(shown, 2, reason: 'Udhaari should show its own idle ad');
+
+    // Dispose so the idle timer is cancelled before teardown.
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
+  testWidgets('idle ad stays hidden when the plan disables ads', (
+    tester,
+  ) async {
+    var shown = 0;
+    await tester.pumpWidget(
+      _testApp(
+        AppShell(
+          apiService: ApiService(baseUrl: AppConfig.localBaseUrl),
+          user: _user,
+          store: _store,
+          stats: _stats,
+          onSignOut: ({bool showError = false}) async {},
+          idleAdPresenter: (_) async => shown++,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.pump(const Duration(seconds: 35));
+    expect(shown, 0);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
 }

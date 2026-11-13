@@ -11,6 +11,9 @@ enum AdPlacement {
   customers,
   reports,
   expenses,
+
+  /// Full-screen ad shown after the user has been inactive for a while.
+  idle,
 }
 
 /// AdMob configuration.

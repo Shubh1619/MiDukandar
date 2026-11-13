@@ -1858,4 +1858,24 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get regOtpSent => 'Code sent. Enter it below to finish registration.';
+
+  @override
+  String get idleAdLabel => 'ADVERTISEMENT';
+
+  @override
+  String get idleAdLoading => 'Loading ad...';
+
+  @override
+  String get idleAdThanks => 'Thanks for using MiDukandar';
+
+  @override
+  String idleAdAutoClose(int seconds) {
+    return 'Your ad closes automatically in $seconds seconds.';
+  }
+
+  @override
+  String get idleAdCancel => 'Cancel ad';
+
+  @override
+  String get idleAdSkip => 'Skip ad';
 }

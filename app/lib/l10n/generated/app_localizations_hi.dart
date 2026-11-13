@@ -1861,4 +1861,24 @@ class AppLocalizationsHi extends AppLocalizations {
   @override
   String get regOtpSent =>
       'कोड भेज दिया गया। रजिस्ट्रेशन पूरा करने के लिए नीचे दर्ज करें।';
+
+  @override
+  String get idleAdLabel => 'विज्ञापन';
+
+  @override
+  String get idleAdLoading => 'विज्ञापन लोड हो रहा है...';
+
+  @override
+  String get idleAdThanks => 'MiDukandar का उपयोग करने के लिए धन्यवाद';
+
+  @override
+  String idleAdAutoClose(int seconds) {
+    return 'यह विज्ञापन $seconds सेकंड में अपने आप बंद हो जाएगा।';
+  }
+
+  @override
+  String get idleAdCancel => 'विज्ञापन रद्द करें';
+
+  @override
+  String get idleAdSkip => 'विज्ञापन छोड़ें';
 }

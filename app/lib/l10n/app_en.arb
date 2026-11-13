@@ -1053,5 +1053,18 @@
   "regSendCode": "Send code",
   "regOtpLabel": "Email code",
   "regOtpRequired": "Enter the code sent to this email.",
-  "regOtpSent": "Code sent. Enter it below to finish registration."
+  "regOtpSent": "Code sent. Enter it below to finish registration.",
+  "idleAdLabel": "ADVERTISEMENT",
+  "idleAdLoading": "Loading ad...",
+  "idleAdThanks": "Thanks for using MiDukandar",
+  "idleAdAutoClose": "Your ad closes automatically in {seconds} seconds.",
+  "idleAdCancel": "Cancel ad",
+  "idleAdSkip": "Skip ad",
+  "@idleAdAutoClose": {
+    "placeholders": {
+      "seconds": {
+        "type": "int"
+      }
+    }
+  }
 }

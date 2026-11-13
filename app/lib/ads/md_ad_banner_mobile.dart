@@ -18,10 +18,20 @@ class MdAdBanner extends StatefulWidget {
     super.key,
     required this.placement,
     this.margin = const EdgeInsets.symmetric(vertical: 12),
+    this.onLoaded,
+    this.onFailed,
   });
 
   final AdPlacement placement;
   final EdgeInsetsGeometry margin;
+
+  /// Called once a real ad has loaded. Full-screen surfaces use this to start
+  /// their countdown only when there is something to show.
+  final VoidCallback? onLoaded;
+
+  /// Called when the ad cannot be shown, so a full-screen host can close
+  /// instead of leaving an empty page open.
+  final VoidCallback? onFailed;
 
   @override
   State<MdAdBanner> createState() => _MdAdBannerState();
@@ -89,6 +99,7 @@ class _MdAdBannerState extends State<MdAdBanner> {
     final unitId = _unitId;
     if (unitId.isEmpty) {
       setState(() => _failed = true);
+      widget.onFailed?.call();
       return;
     }
 
@@ -112,6 +123,7 @@ class _MdAdBannerState extends State<MdAdBanner> {
             _loading = false;
             _loaded = true;
           });
+          widget.onLoaded?.call();
         },
         onAdFailedToLoad: (ad, error) {
           ad.dispose();
@@ -127,6 +139,7 @@ class _MdAdBannerState extends State<MdAdBanner> {
             _loading = false;
             _failed = true;
           });
+          widget.onFailed?.call();
         },
       ),
     );

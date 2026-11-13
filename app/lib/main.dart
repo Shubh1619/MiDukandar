@@ -12,6 +12,7 @@ import 'l10n/locale_controller.dart';
 import 'ads/ad_config.dart';
 import 'ads/ad_policy.dart';
 import 'ads/ad_service.dart';
+import 'ads/idle_ad.dart';
 import 'ads/md_ad_banner.dart';
 import 'models/app_models.dart';
 import 'screens/auth_screen.dart';
@@ -652,6 +653,7 @@ class AppShell extends StatefulWidget {
     required this.store,
     required this.stats,
     required this.onSignOut,
+    this.idleAdPresenter,
   });
 
   final ApiService apiService;
@@ -659,6 +661,11 @@ class AppShell extends StatefulWidget {
   final Store? store;
   final DashboardStats stats;
   final Future<void> Function({bool showError}) onSignOut;
+
+  /// Overrides the idle full-screen ad presenter. Production uses
+  /// [showIdleAd]; tests inject a fake so the 30-second window can be verified
+  /// without the AdMob plugin.
+  final Future<void> Function(BuildContext context)? idleAdPresenter;
 
   @override
   State<AppShell> createState() => _AppShellState();
@@ -683,7 +690,7 @@ enum AppSection {
   payments,
 }
 
-class _AppShellState extends State<AppShell> {
+class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
   AppSection _section = AppSection.dashboard;
   bool _inventoryLowOnly = false;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
@@ -703,6 +710,11 @@ class _AppShellState extends State<AppShell> {
   /// ad wall. `null` means no full-screen ad has been shown this session.
   DateTime? _lastInterstitialAt;
   static const Duration _interstitialCooldown = Duration(minutes: 3);
+
+  /// Per-screen inactivity timer. Every tap/scroll and every section change
+  /// restarts it, so each page gets its own 30-second idle window.
+  Timer? _idleTimer;
+  bool _idleAdVisible = false;
 
   bool get _isOwner => widget.user?.role == 'OWNER';
 
@@ -812,7 +824,58 @@ class _AppShellState extends State<AppShell> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     AdPolicy.instance.updateFromStore(widget.store);
+    _restartIdleTimer();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _idleTimer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    if (state == AppLifecycleState.resumed) {
+      // The idle window counts foreground inactivity only.
+      _restartIdleTimer();
+    } else {
+      _idleTimer?.cancel();
+    }
+  }
+
+  /// Starts a fresh 30-second inactivity window for the current screen.
+  void _restartIdleTimer() {
+    _idleTimer?.cancel();
+    _idleTimer = Timer(idleAdDelay, _handleIdle);
+  }
+
+  Future<void> _handleIdle() async {
+    if (!mounted || _idleAdVisible) return;
+
+    // Never interrupt a sheet/dialog, an open drawer, or the keyboard. Those
+    // are activity, and covering them with an ad is hostile.
+    final routeIsCurrent = ModalRoute.of(context)?.isCurrent ?? false;
+    final drawerOpen = _scaffoldKey.currentState?.isDrawerOpen ?? false;
+    final keyboardOpen = MediaQuery.viewInsetsOf(context).bottom > 0;
+    if (!routeIsCurrent ||
+        drawerOpen ||
+        keyboardOpen ||
+        !AdPolicy.instance.allowsFullScreen) {
+      _restartIdleTimer();
+      return;
+    }
+
+    _idleAdVisible = true;
+    try {
+      await (widget.idleAdPresenter ?? showIdleAd)(context);
+    } finally {
+      _idleAdVisible = false;
+      if (mounted) _restartIdleTimer();
+    }
   }
 
   @override
@@ -828,6 +891,7 @@ class _AppShellState extends State<AppShell> {
         _section = AppSection.dashboard;
         _inventoryLowOnly = false;
         _sectionEpoch++;
+        _restartIdleTimer();
       }
     }
     if (oldWidget.stats != widget.stats) {
@@ -885,6 +949,8 @@ class _AppShellState extends State<AppShell> {
       setState(() {
         _section = AppSection.dashboard;
       });
+      // A new page means a fresh 30-second inactivity window.
+      _restartIdleTimer();
       return false;
     }
 
@@ -1281,6 +1347,9 @@ class _AppShellState extends State<AppShell> {
       _inventoryLowOnly = lowOnly;
     });
     if (target == AppSection.dashboard) unawaited(_reloadStats());
+    // Each section is its own page: navigating re-arms the 30-second idle
+    // window even if the previous page already showed its ad.
+    _restartIdleTimer();
   }
 
   void _onDrawerSelect(String key) {
@@ -1350,93 +1419,100 @@ class _AppShellState extends State<AppShell> {
     final l = AppLocalizations.of(context)!;
     final user = widget.user;
 
-    return PopScope(
-      canPop: false,
-      onPopInvokedWithResult: (didPop, result) async {
-        if (didPop) return;
-        final shouldPop = await _onWillPop();
-        if (shouldPop && context.mounted) {
-          Navigator.of(context).pop();
-        }
-      },
-      child: Scaffold(
-        key: _scaffoldKey,
-        appBar: AppBar(
-          leading: Builder(
-            builder: (context) => IconButton(
-              icon: const Icon(Icons.menu),
-              tooltip: l.moreTitle,
-              onPressed: () => Scaffold.of(context).openDrawer(),
-            ),
-          ),
-          title: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                widget.store?.name ?? l.myStore,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: MdColors.navy900,
-                ),
+    return Listener(
+      // Any touch or pointer signal counts as activity and restarts this
+      // page's idle window.
+      behavior: HitTestBehavior.translucent,
+      onPointerDown: (_) => _restartIdleTimer(),
+      onPointerSignal: (_) => _restartIdleTimer(),
+      child: PopScope(
+        canPop: false,
+        onPopInvokedWithResult: (didPop, result) async {
+          if (didPop) return;
+          final shouldPop = await _onWillPop();
+          if (shouldPop && context.mounted) {
+            Navigator.of(context).pop();
+          }
+        },
+        child: Scaffold(
+          key: _scaffoldKey,
+          appBar: AppBar(
+            leading: Builder(
+              builder: (context) => IconButton(
+                icon: const Icon(Icons.menu),
+                tooltip: l.moreTitle,
+                onPressed: () => Scaffold.of(context).openDrawer(),
               ),
-              if (user?.name != null)
+            ),
+            title: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
                 Text(
-                  user!.name,
+                  widget.store?.name ?? l.myStore,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    fontSize: 12,
-                    color: MdColors.mutedForeground,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: MdColors.navy900,
                   ),
                 ),
+                if (user?.name != null)
+                  Text(
+                    user!.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: MdColors.mutedForeground,
+                    ),
+                  ),
+              ],
+            ),
+            actions: [
+              ProfileMenu(
+                user: user,
+                onBusinessProfile: _openBusinessProfile,
+                onSettings: () => _selectSection(AppSection.settings),
+                onSignOut: _confirmSignOut,
+              ),
             ],
           ),
-          actions: [
-            ProfileMenu(
-              user: user,
-              onBusinessProfile: _openBusinessProfile,
-              onSettings: () => _selectSection(AppSection.settings),
-              onSignOut: _confirmSignOut,
-            ),
-          ],
-        ),
-        bottomNavigationBar: _MdBottomBar(
-          selectedIndex: _bottomNavIndex,
-          onTap: _onBottomNavTap,
-          items: [for (final entry in _bottomNavEntries) entry.item],
-        ),
-        drawer: Drawer(
-          backgroundColor: MdColors.navy950,
-          child: NavyDrawer(
-            current: _sectionKey,
-            role: user?.role,
-            onSelect: _onDrawerSelect,
-            isAllowed: _canUseNavKey,
-            width: MediaQuery.sizeOf(context).width * 0.8,
+          bottomNavigationBar: _MdBottomBar(
+            selectedIndex: _bottomNavIndex,
+            onTap: _onBottomNavTap,
+            items: [for (final entry in _bottomNavEntries) entry.item],
           ),
-        ),
-        // One pull-to-refresh for every section: the indicator listens to the
-        // vertical scrollable each screen already owns, and the rebuild gives
-        // that screen a fresh epoch so it re-fetches from the server.
-        body: Column(
-          children: [
-            const MdAdBanner(
-              placement: AdPlacement.top,
-              margin: EdgeInsets.zero,
+          drawer: Drawer(
+            backgroundColor: MdColors.navy950,
+            child: NavyDrawer(
+              current: _sectionKey,
+              role: user?.role,
+              onSelect: _onDrawerSelect,
+              isAllowed: _canUseNavKey,
+              width: MediaQuery.sizeOf(context).width * 0.8,
             ),
-            Expanded(
-              child: RefreshIndicator(
-                onRefresh: _handlePullRefresh,
-                child: KeyedSubtree(
-                  key: ValueKey('${_sectionKey}_$_sectionEpoch'),
-                  child: _buildSection(_section),
+          ),
+          // One pull-to-refresh for every section: the indicator listens to the
+          // vertical scrollable each screen already owns, and the rebuild gives
+          // that screen a fresh epoch so it re-fetches from the server.
+          body: Column(
+            children: [
+              const MdAdBanner(
+                placement: AdPlacement.top,
+                margin: EdgeInsets.zero,
+              ),
+              Expanded(
+                child: RefreshIndicator(
+                  onRefresh: _handlePullRefresh,
+                  child: KeyedSubtree(
+                    key: ValueKey('${_sectionKey}_$_sectionEpoch'),
+                    child: _buildSection(_section),
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

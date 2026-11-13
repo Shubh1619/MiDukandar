@@ -3453,6 +3453,42 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Code sent. Enter it below to finish registration.'**
   String get regOtpSent;
+
+  /// No description provided for @idleAdLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'ADVERTISEMENT'**
+  String get idleAdLabel;
+
+  /// No description provided for @idleAdLoading.
+  ///
+  /// In en, this message translates to:
+  /// **'Loading ad...'**
+  String get idleAdLoading;
+
+  /// No description provided for @idleAdThanks.
+  ///
+  /// In en, this message translates to:
+  /// **'Thanks for using MiDukandar'**
+  String get idleAdThanks;
+
+  /// No description provided for @idleAdAutoClose.
+  ///
+  /// In en, this message translates to:
+  /// **'Your ad closes automatically in {seconds} seconds.'**
+  String idleAdAutoClose(int seconds);
+
+  /// No description provided for @idleAdCancel.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel ad'**
+  String get idleAdCancel;
+
+  /// No description provided for @idleAdSkip.
+  ///
+  /// In en, this message translates to:
+  /// **'Skip ad'**
+  String get idleAdSkip;
 }
 
 class _AppLocalizationsDelegate

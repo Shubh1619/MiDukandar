@@ -1860,4 +1860,24 @@ class AppLocalizationsMr extends AppLocalizations {
 
   @override
   String get regOtpSent => 'कोड पाठवला. नोंदणी पूर्ण करण्यासाठी खाली टाका.';
+
+  @override
+  String get idleAdLabel => 'जाहिरात';
+
+  @override
+  String get idleAdLoading => 'जाहिरात लोड होत आहे...';
+
+  @override
+  String get idleAdThanks => 'MiDukandar वापरल्याबद्दल धन्यवाद';
+
+  @override
+  String idleAdAutoClose(int seconds) {
+    return 'ही जाहिरात $seconds सेकंदात आपोआप बंद होईल.';
+  }
+
+  @override
+  String get idleAdCancel => 'जाहिरात रद्द करा';
+
+  @override
+  String get idleAdSkip => 'जाहिरात वगळा';
 }
