@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type RefObject } from "react";
 import Link from "next/link";
 import { ArrowUpRight, Megaphone, X } from "lucide-react";
 import { useAuth } from "@/lib/auth-store";
@@ -33,15 +33,18 @@ function AdUnit({
   slot,
   kind,
   className,
+  insRef,
 }: {
   placement: AdPlacement;
   slot: string;
   kind: AdUnitKind;
   className?: string;
+  insRef?: RefObject<HTMLModElement | null>;
 }) {
   const isFluid = kind !== "display";
   return (
     <ins
+      ref={insRef}
       className={cn("adsbygoogle block w-full", className)}
       style={
         kind === "article"
@@ -62,7 +65,11 @@ function AdUnit({
 export default function AdSlot({ placement, className }: AdSlotProps) {
   const plan = useAuth((state) => state.store?.planDetails);
   const [dismissed, setDismissed] = useState(false);
+  const [adStatus, setAdStatus] = useState<"pending" | "filled" | "unfilled">(
+    "pending",
+  );
   const pushed = useRef(false);
+  const insRef = useRef<HTMLModElement | null>(null);
 
   const config = AD_PLACEMENTS[placement];
   const enabled = canShowAds(plan, placement);
@@ -81,14 +88,40 @@ export default function AdSlot({ placement, className }: AdSlotProps) {
     }
   }, [enabled, hasAdUnit]);
 
+  // AdSense marks each <ins> with data-ad-status. When Google has no ad to
+  // serve (site not approved yet, no inventory, etc.) the unit stays empty, so
+  // fall back to the in-house promo instead of leaving a blank box.
+  useEffect(() => {
+    if (!enabled || !hasAdUnit) return;
+    const el = insRef.current;
+    if (!el) return;
+
+    const read = () => {
+      const status = el.getAttribute("data-ad-status");
+      if (status === "filled") setAdStatus("filled");
+      else if (status === "unfilled") setAdStatus("unfilled");
+    };
+
+    read();
+    const observer = new MutationObserver(read);
+    observer.observe(el, {
+      attributes: true,
+      attributeFilter: ["data-ad-status"],
+    });
+    return () => observer.disconnect();
+  }, [enabled, hasAdUnit, placement]);
+
   if (!enabled) return null;
   if (config.format === "anchor" && dismissed) return null;
   if (!hasAdUnit && !showHouse) return null;
+  // Public placements have no house fallback, so a collapsed slot is better
+  // than an empty ad frame.
+  if (hasAdUnit && adStatus === "unfilled" && !config.houseFallback) return null;
 
   const tier =
     plan?.adsTier ?? (config.publicPlacement ? "PUBLIC" : undefined);
 
-  if (hasAdUnit && unit) {
+  if (hasAdUnit && unit && adStatus !== "unfilled") {
     if (config.format === "bar") {
       return (
         <aside
@@ -104,7 +137,13 @@ export default function AdSlot({ placement, className }: AdSlotProps) {
             <p className="mb-1 text-[9px] font-bold uppercase tracking-[0.16em] text-amber-700/70">
               {AD_LABEL}
             </p>
-            <AdUnit placement={placement} slot={slot} kind={unit} className="min-h-[60px]" />
+            <AdUnit
+              placement={placement}
+              slot={slot}
+              kind={unit}
+              insRef={insRef}
+              className="min-h-[60px]"
+            />
           </div>
         </aside>
       );
@@ -132,7 +171,13 @@ export default function AdSlot({ placement, className }: AdSlotProps) {
           <p className="mb-1 pl-1 text-[9px] font-bold uppercase tracking-[0.16em] text-amber-700/70">
             {AD_LABEL}
           </p>
-          <AdUnit placement={placement} slot={slot} kind={unit} className="min-h-[50px]" />
+          <AdUnit
+            placement={placement}
+            slot={slot}
+            kind={unit}
+            insRef={insRef}
+            className="min-h-[50px]"
+          />
         </aside>
       );
     }
@@ -151,7 +196,13 @@ export default function AdSlot({ placement, className }: AdSlotProps) {
           <p className="mb-1 px-1 text-[9px] font-bold uppercase tracking-[0.16em] text-navy-400">
             {AD_LABEL}
           </p>
-          <AdUnit placement={placement} slot={slot} kind={unit} className="min-h-[200px]" />
+          <AdUnit
+            placement={placement}
+            slot={slot}
+            kind={unit}
+            insRef={insRef}
+            className="min-h-[200px]"
+          />
         </div>
       );
     }
@@ -169,7 +220,13 @@ export default function AdSlot({ placement, className }: AdSlotProps) {
         <p className="mb-1 px-1 text-[9px] font-bold uppercase tracking-[0.16em] text-navy-400">
           {AD_LABEL}
         </p>
-        <AdUnit placement={placement} slot={slot} kind={unit} className="min-h-[90px]" />
+        <AdUnit
+          placement={placement}
+          slot={slot}
+          kind={unit}
+          insRef={insRef}
+          className="min-h-[90px]"
+        />
       </div>
     );
   }
