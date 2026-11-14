@@ -712,9 +712,14 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
   static const Duration _interstitialCooldown = Duration(minutes: 3);
 
   /// Per-screen inactivity timer. Every tap/scroll and every section change
-  /// restarts it, so each page gets its own 30-second idle window.
+  /// restarts it, so each page gets its own 3-second idle window.
   Timer? _idleTimer;
   bool _idleAdVisible = false;
+
+  /// True once the idle ad has been shown on the current page. Closing the ad
+  /// must not immediately queue another one; navigating to another page clears
+  /// this so that page gets its own ad.
+  bool _idleAdShownForSection = false;
 
   bool get _isOwner => widget.user?.role == 'OWNER';
 
@@ -847,10 +852,17 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
     }
   }
 
-  /// Starts a fresh 30-second inactivity window for the current screen.
+  /// Starts a fresh inactivity window for the current screen.
   void _restartIdleTimer() {
     _idleTimer?.cancel();
+    if (_idleAdShownForSection) return;
     _idleTimer = Timer(idleAdDelay, _handleIdle);
+  }
+
+  /// Starts the window again for a page the user has just opened.
+  void _armIdleTimerForNewPage() {
+    _idleAdShownForSection = false;
+    _restartIdleTimer();
   }
 
   Future<void> _handleIdle() async {
@@ -870,6 +882,7 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
     }
 
     _idleAdVisible = true;
+    _idleAdShownForSection = true;
     try {
       await (widget.idleAdPresenter ?? showIdleAd)(context);
     } finally {
@@ -891,7 +904,7 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
         _section = AppSection.dashboard;
         _inventoryLowOnly = false;
         _sectionEpoch++;
-        _restartIdleTimer();
+        _armIdleTimerForNewPage();
       }
     }
     if (oldWidget.stats != widget.stats) {
@@ -949,8 +962,8 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
       setState(() {
         _section = AppSection.dashboard;
       });
-      // A new page means a fresh 30-second inactivity window.
-      _restartIdleTimer();
+      // A new page means a fresh idle window and its own ad.
+      _armIdleTimerForNewPage();
       return false;
     }
 
@@ -1339,17 +1352,22 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
     // Never open a screen the plan does not include (defensive: dashboard.tsx
     // cards and taps from elsewhere also come through here).
     final target = _canUseSection(section) ? section : AppSection.dashboard;
+    final changedPage = _section != target;
     setState(() {
       // Selecting the tab you are already on is the mobile convention for
       // "refresh this screen": give it a new epoch so it re-fetches.
-      if (_section == target) _sectionEpoch++;
+      if (!changedPage) _sectionEpoch++;
       _section = target;
       _inventoryLowOnly = lowOnly;
     });
     if (target == AppSection.dashboard) unawaited(_reloadStats());
-    // Each section is its own page: navigating re-arms the 30-second idle
-    // window even if the previous page already showed its ad.
-    _restartIdleTimer();
+    // Each section is its own page: opening one re-arms the idle window and
+    // lets that page show its own ad even if the previous one already did.
+    if (changedPage) {
+      _armIdleTimerForNewPage();
+    } else {
+      _restartIdleTimer();
+    }
   }
 
   void _onDrawerSelect(String key) {
