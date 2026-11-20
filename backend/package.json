@@ -9,6 +9,7 @@
     "build": "tsc",
     "start": "node dist/server.js",
     "migrate": "tsx scripts/migrate.ts",
+    "migrate:data": "tsx scripts/copy-db1-to-db2.ts",
     "migrate:reset": "tsx scripts/reset-db.ts",
     "seed": "tsx scripts/seed.ts",
     "seed:dev": "tsx scripts/seed.ts",
