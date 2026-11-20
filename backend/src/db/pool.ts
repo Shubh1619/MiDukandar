@@ -9,16 +9,102 @@ pg.types.setTypeParser(20, (v) => (v === null ? null : Number(v)));
 // at LOCAL midnight, which a UTC/IST offset then shifts a day when serialized.
 pg.types.setTypeParser(1082, (v) => (v === null ? null : v));
 
-export const pool = new pg.Pool({
-  connectionString: config.databaseUrl,
+const poolOptions = {
   max: 10,
   idleTimeoutMillis: 30_000,
   connectionTimeoutMillis: 10_000,
+};
+
+/** Hostname only — connection strings contain credentials and must never be logged. */
+function safeHost(connectionString: string): string {
+  try {
+    return new URL(connectionString).host;
+  } catch {
+    return "<invalid-url>";
+  }
+}
+
+const urls = [config.databaseUrl];
+if (
+  config.databaseUrlFallback &&
+  config.databaseUrlFallback !== config.databaseUrl &&
+  !urls.includes(config.databaseUrlFallback)
+) {
+  urls.push(config.databaseUrlFallback);
+}
+
+const pools = urls.map((connectionString) => new pg.Pool({ connectionString, ...poolOptions }));
+pools.forEach((p, index) => {
+  p.on("error", (err) => {
+    logger.error("pg: pool error", { host: safeHost(urls[index]), error: err.message });
+  });
 });
 
-pool.on("error", (err) => {
-  logger.error("pg: pool error", { error: err.message });
-});
+let activeIndex = 0;
+
+/**
+ * Only connection-level failures trigger failover. The query did not run in
+ * those cases, so retrying it on the secondary database is safe. SQL errors
+ * (constraint violations, missing relations, bad syntax) are never retried —
+ * a write may already have committed.
+ */
+function isFailoverError(err: unknown): boolean {
+  const e = err as { code?: string; message?: string };
+  const code = e?.code ?? "";
+  const message = (e?.message ?? "").toLowerCase();
+  return (
+    ["ECONNREFUSED", "ENOTFOUND", "ETIMEDOUT", "ECONNRESET", "EAI_AGAIN", "57P01", "57P03"].includes(
+      code,
+    ) ||
+    message.includes("exceeded the quota") ||
+    message.includes("connection terminated unexpectedly") ||
+    message.includes("timeout exceeded when trying to connect")
+  );
+}
+
+/** Runs `fn` on the active pool, moving to the next database on connection failure. */
+async function withPool<T>(fn: (pool: pg.Pool) => Promise<T>): Promise<T> {
+  let lastError: unknown;
+  for (let attempt = 0; attempt < pools.length; attempt++) {
+    const index = (activeIndex + attempt) % pools.length;
+    try {
+      const result = await fn(pools[index]);
+      if (index !== activeIndex) {
+        logger.warn("db: failed over to secondary database", { host: safeHost(urls[index]) });
+        activeIndex = index;
+      }
+      return result;
+    } catch (err) {
+      lastError = err;
+      if (!isFailoverError(err) || attempt === pools.length - 1) throw err;
+      logger.warn("db: database unavailable, trying next", {
+        host: safeHost(urls[index]),
+        error: (err as Error).message,
+      });
+    }
+  }
+  throw lastError;
+}
+
+/**
+ * Pool facade with the same call surface as pg.Pool so every caller — including
+ * the direct `pool.query` uses — gets failover without changes at the call site.
+ */
+export const pool = {
+  query: <R extends pg.QueryResultRow = pg.QueryResultRow, I extends unknown[] = unknown[]>(
+    text: string,
+    params?: I,
+  ) => withPool((p) => p.query<R, I>(text, params as pg.QueryConfigValues<I> | undefined)),
+  connect: () => withPool((p) => p.connect()),
+  end: async () => {
+    await Promise.all(pools.map((p) => p.end()));
+  },
+};
+
+/** Hostname of the database currently serving queries — safe for logs/health output. */
+export function activeDbHost(): string {
+  return safeHost(urls[activeIndex]);
+}
 
 export type Row = Record<string, unknown>;
 
@@ -43,7 +129,7 @@ export function mapFirst<T = Row>(rows: pg.QueryResultRow[]): T | null {
 
 /** Runs a query, returns mapped (camelCase, numbers) rows. */
 export async function q<T = Row>(text: string, params: unknown[] = []): Promise<T[]> {
-  const res = await pool.query(text, params as pg.QueryConfigValues<never[]>);
+  const res = await pool.query(text, params);
   return mapRows<T>(res.rows as pg.QueryResultRow[]);
 }
 
@@ -55,7 +141,7 @@ export async function qOne<T = Row>(text: string, params: unknown[] = []): Promi
 
 /** Runs a write query, returns rowCount. */
 export async function qExec(text: string, params: unknown[] = []): Promise<number> {
-  const res = await pool.query(text, params as pg.QueryConfigValues<never[]>);
+  const res = await pool.query(text, params);
   return res.rowCount ?? 0;
 }
 
@@ -68,8 +154,7 @@ export type DbClient = {
 /** Pool-bound DbClient adapter sharing the global pool. */
 export function qClient(): DbClient {
   return {
-    query: (text: string, params: unknown[] = []) =>
-      pool.query(text, params as pg.QueryConfigValues<never[]>),
+    query: (text: string, params: unknown[] = []) => pool.query(text, params),
     q: <T = Row>(text: string, params: unknown[] = []) => q<T>(text, params),
     qOne: <T = Row>(text: string, params: unknown[] = []) => qOne<T>(text, params),
   };

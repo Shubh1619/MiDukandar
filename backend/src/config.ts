@@ -25,6 +25,11 @@ export interface Config {
   isProd: boolean;
   port: number;
   databaseUrl: string;
+  /**
+   * Optional secondary database, used only when the primary is unreachable
+   * (e.g. the provider quota is exhausted). Set DATABASE_URL_2 to enable.
+   */
+  databaseUrlFallback: string;
   /** Hostname of DATABASE_URL (never includes credentials) — safe to log. */
   dbHost: string;
   allowUnverifiedMailSender: boolean;
@@ -94,6 +99,7 @@ const EnvSchema = z.object({
   DATABASE_URL: z
     .string({ required_error: "DATABASE_URL is required" })
     .min(1, "DATABASE_URL is required"),
+  DATABASE_URL_2: z.string().optional(),
   ALLOW_REMOTE_DB_IN_DEV: bool(false),
   ALLOW_UNVERIFIED_MAIL_SENDER: z.string().optional(),
   ALLOW_LOG_MAIL_IN_PRODUCTION: z.string().optional(),
@@ -249,6 +255,7 @@ const nodeEnv = env.NODE_ENV?.trim() || "development";
 const isProd = nodeEnv === "production";
 const appUrl = env.APP_URL?.trim() ?? "";
 const databaseUrl = env.DATABASE_URL.trim();
+const databaseUrlFallback = (env.DATABASE_URL_2 ?? "").trim();
 const dbHost = hostOf(databaseUrl);
 
 const allowUnverifiedMailSender =
@@ -305,6 +312,7 @@ export const config: Config = {
   isProd,
   port: firstPort(env.API_PORT, env.PORT),
   databaseUrl,
+  databaseUrlFallback,
   dbHost,
   allowUnverifiedMailSender,
   jwtAccessSecret: env.JWT_ACCESS_SECRET ?? "",

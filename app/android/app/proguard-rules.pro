@@ -20,6 +20,14 @@
 -keep class com.it_nomads.fluttersecurestorage.** { *; }
 -dontwarn com.it_nomads.fluttersecurestorage.**
 
+# --- WorkManager (initialised reflectively by google_mobile_ads) ------------
+# AdMob registers a WorkManager initializer through androidx.startup. Room
+# instantiates WorkDatabase_Impl by name, so R8 must not strip or rename the
+# WorkManager implementation/ generated classes in a minified release build.
+-keep class androidx.work.** { *; }
+-keep class * extends androidx.work.ListenableWorker { *; }
+-dontwarn androidx.work.**
+
 # --- Annotations & generic signatures --------------------------------------
 # Preserve annotations and generic type info for reflective framework lookups.
 -keepattributes *Annotation*, Signature, InnerClasses, EnclosingMethod
