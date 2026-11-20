@@ -8,7 +8,7 @@ echo "[entrypoint] running database migrations"
 if node /app/backend/dist/scripts/migrate.js; then
   echo "[entrypoint] migrations OK"
 else
-  echo "[entrypoint] migrations FAILED - aborting startup: check DATABASE_URL/DIRECT_URL and previous migration logs" >&2
+  echo "[entrypoint] migrations FAILED - aborting startup: check DATABASE_URL/DIRECT_URL and DATABASE_URL_2/DIRECT_URL_2, plus previous migration logs" >&2
   exit 1
 fi
 
