@@ -6,11 +6,13 @@ import '../l10n/status_labels.dart';
 import '../models/app_models.dart';
 import '../services/api_service.dart';
 import '../theme/md_design.dart';
+import '../widgets/skeleton_loader.dart';
 
 class PaymentsScreen extends StatefulWidget {
-  const PaymentsScreen({super.key, required this.apiService});
+  const PaymentsScreen({super.key, required this.apiService, this.refreshToken = 0});
 
   final ApiService apiService;
+  final int refreshToken;
 
   @override
   State<PaymentsScreen> createState() => _PaymentsScreenState();
@@ -27,22 +29,31 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
     _load();
   }
 
-  Future<void> _load() async {
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
+  @override
+  void didUpdateWidget(covariant PaymentsScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.refreshToken != widget.refreshToken) _load(silent: true);
+  }
+
+  Future<void> _load({bool silent = false}) async {
+    if (!silent) {
+      setState(() {
+        _loading = true;
+        _error = null;
+      });
+    }
     try {
       final payments = await widget.apiService.getPayments();
       if (!mounted) return;
       setState(() {
         _payments = payments;
+        _error = null;
         _loading = false;
       });
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = e.toString();
+        if (!silent || _payments.isEmpty) _error = e.toString();
         _loading = false;
       });
     }
@@ -55,7 +66,7 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
     final formatDate = DateFormat('d MMM yy • HH:mm');
 
     if (_loading) {
-      return const Center(child: CircularProgressIndicator());
+      return const SkeletonLoader(kind: SkeletonKind.list, itemCount: 6);
     }
 
     if (_error != null) {

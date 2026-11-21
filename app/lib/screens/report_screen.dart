@@ -7,16 +7,19 @@ import '../l10n/generated/app_localizations.dart';
 import '../models/app_models.dart';
 import '../services/api_service.dart';
 import '../theme/md_design.dart';
+import '../widgets/skeleton_loader.dart';
 
 class ReportScreen extends StatefulWidget {
   const ReportScreen({
     super.key,
     required this.apiService,
     required this.stats,
+    this.refreshToken = 0,
   });
 
   final DashboardStats stats;
   final ApiService apiService;
+  final int refreshToken;
 
   @override
   State<ReportScreen> createState() => _ReportScreenState();
@@ -38,11 +41,19 @@ class _ReportScreenState extends State<ReportScreen> {
     _load();
   }
 
-  Future<void> _load() async {
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
+  @override
+  void didUpdateWidget(covariant ReportScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.refreshToken != widget.refreshToken) _load(silent: true);
+  }
+
+  Future<void> _load({bool silent = false}) async {
+    if (!silent) {
+      setState(() {
+        _loading = true;
+        _error = null;
+      });
+    }
     try {
       final results = await Future.wait([
         widget.apiService.getSalesReport(),
@@ -62,10 +73,12 @@ class _ReportScreenState extends State<ReportScreen> {
         }
         _pnl = results[4] as Map<String, dynamic>;
         _gst = results[5] as Map<String, dynamic>;
-        _loading = false;
+        _error = null;
+        if (!silent) _loading = false;
       });
     } catch (e) {
       if (!mounted) return;
+      if (silent) return;
       setState(() {
         _error = e.toString();
         _loading = false;
@@ -79,7 +92,7 @@ class _ReportScreenState extends State<ReportScreen> {
     final formatCurrency = NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
 
     if (_loading) {
-      return const Center(child: CircularProgressIndicator());
+      return const SkeletonLoader(kind: SkeletonKind.grid, itemCount: 4);
     }
 
     if (_error != null) {

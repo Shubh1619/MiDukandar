@@ -8,6 +8,7 @@ import '../services/api_service.dart';
 import '../theme/md_design.dart';
 import '../widgets/app_dialogs.dart';
 import '../widgets/md_inputs.dart';
+import '../widgets/skeleton_loader.dart';
 
 class InventoryScreen extends StatefulWidget {
   const InventoryScreen({
@@ -15,11 +16,13 @@ class InventoryScreen extends StatefulWidget {
     required this.apiService,
     this.onChanged,
     this.lowOnly,
+    this.refreshToken = 0,
   });
 
   final ApiService apiService;
   final Future<void> Function()? onChanged;
   final bool? lowOnly;
+  final int refreshToken;
 
   @override
   State<InventoryScreen> createState() => _InventoryScreenState();
@@ -44,16 +47,24 @@ class _InventoryScreenState extends State<InventoryScreen> {
   }
 
   @override
+  void didUpdateWidget(covariant InventoryScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.refreshToken != widget.refreshToken) _load(silent: true);
+  }
+
+  @override
   void dispose() {
     _searchController.dispose();
     super.dispose();
   }
 
-  Future<void> _load() async {
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
+  Future<void> _load({bool silent = false}) async {
+    if (!silent) {
+      setState(() {
+        _loading = true;
+        _error = null;
+      });
+    }
     try {
       final results = await Future.wait<Object>([
         widget.apiService.getInventoryStock(
@@ -68,10 +79,12 @@ class _InventoryScreenState extends State<InventoryScreen> {
         _stock = results[0] as List<InventoryStock>;
         _summary = results[1] as ProductSummary;
         _movements = results[2] as List<StockMovementLedger>;
-        _loading = false;
+        _error = null;
+        if (!silent) _loading = false;
       });
     } catch (e) {
       if (!mounted) return;
+      if (silent) return;
       setState(() {
         _error = e.toString();
         _loading = false;
@@ -356,7 +369,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
   Widget _buildBody() {
     final l = AppLocalizations.of(context)!;
     if (_loading) {
-      return const Center(child: CircularProgressIndicator());
+      return const SkeletonLoader(kind: SkeletonKind.table, itemCount: 6);
     }
     if (_error != null) {
       return MdEmptyState(

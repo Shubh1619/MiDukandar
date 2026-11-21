@@ -7,14 +7,16 @@ import '../models/app_models.dart';
 import '../services/api_service.dart';
 import '../widgets/app_dialogs.dart';
 import '../widgets/md_inputs.dart';
+import '../widgets/skeleton_loader.dart';
 
 class SupplierInvoiceScreen extends StatefulWidget {
-  const SupplierInvoiceScreen({super.key, required this.apiService, this.onCreate, this.onPay});
+  const SupplierInvoiceScreen({super.key, required this.apiService, this.onCreate, this.onPay, this.refreshToken = 0});
 
   final ApiService apiService;
   final Future<void> Function(String supplierId, Map<String, dynamic>)?
   onCreate;
   final Future<void> Function(Purchase, num amount, String mode)? onPay;
+  final int refreshToken;
 
   @override
   State<SupplierInvoiceScreen> createState() => _SupplierInvoiceScreenState();
@@ -32,11 +34,19 @@ class _SupplierInvoiceScreenState extends State<SupplierInvoiceScreen> {
     _load();
   }
 
-  Future<void> _load() async {
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
+  @override
+  void didUpdateWidget(covariant SupplierInvoiceScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.refreshToken != widget.refreshToken) _load(silent: true);
+  }
+
+  Future<void> _load({bool silent = false}) async {
+    if (!silent) {
+      setState(() {
+        _loading = true;
+        _error = null;
+      });
+    }
     try {
       final purchases = await widget.apiService.getPurchases();
       final suppliers = await widget.apiService.getSuppliers();
@@ -44,12 +54,13 @@ class _SupplierInvoiceScreenState extends State<SupplierInvoiceScreen> {
       setState(() {
         _purchases = purchases;
         _suppliers = suppliers;
+        _error = null;
         _loading = false;
       });
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = e.toString();
+        if (!silent || _purchases.isEmpty) _error = e.toString();
         _loading = false;
       });
     }
@@ -259,7 +270,7 @@ class _SupplierInvoiceScreenState extends State<SupplierInvoiceScreen> {
           const SizedBox(height: 16),
           Expanded(
             child: _loading
-                ? const Center(child: CircularProgressIndicator())
+                ? const SkeletonLoader(kind: SkeletonKind.list, itemCount: 6)
                 : _error != null
                     ? Center(
                         child: Column(

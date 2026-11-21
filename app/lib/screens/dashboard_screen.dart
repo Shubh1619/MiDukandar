@@ -7,6 +7,7 @@ import '../models/app_models.dart';
 import '../theme/md_design.dart';
 import '../ads/ad_config.dart';
 import '../ads/md_ad_banner.dart';
+import '../widgets/skeleton_loader.dart';
 
 class DashboardScreen extends StatelessWidget {
   const DashboardScreen({
@@ -17,9 +18,11 @@ class DashboardScreen extends StatelessWidget {
     this.onLowStockTap,
     this.onInvoiceDetailTap,
     this.canAccess,
+    this.isLoading = false,
   });
 
   final DashboardStats stats;
+  final bool isLoading;
   final String storeName;
   final ValueChanged<AppSection> onNavigate;
   final VoidCallback? onLowStockTap;
@@ -33,6 +36,9 @@ class DashboardScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (isLoading) {
+      return const SkeletonLoader(kind: SkeletonKind.grid, itemCount: 4);
+    }
     final l = AppLocalizations.of(context)!;
     final showPayables = _allowed(AppSection.purchases);
     final showLowStock = _allowed(AppSection.inventory);

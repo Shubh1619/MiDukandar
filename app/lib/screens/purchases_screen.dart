@@ -7,13 +7,15 @@ import '../models/app_models.dart';
 import '../services/api_service.dart';
 import '../widgets/app_dialogs.dart';
 import '../widgets/md_inputs.dart';
+import '../widgets/skeleton_loader.dart';
 
 class PurchaseScreen extends StatefulWidget {
-  const PurchaseScreen({super.key, required this.apiService, this.onCreate, this.onPay});
+  const PurchaseScreen({super.key, required this.apiService, this.onCreate, this.onPay, this.refreshToken = 0});
 
   final ApiService apiService;
   final Future<void> Function(Map<String, dynamic>)? onCreate;
   final Future<void> Function(Purchase, num amount, String mode)? onPay;
+  final int refreshToken;
 
   @override
   State<PurchaseScreen> createState() => _PurchaseScreenState();
@@ -30,22 +32,31 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
     _load();
   }
 
-  Future<void> _load() async {
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
+  @override
+  void didUpdateWidget(covariant PurchaseScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.refreshToken != widget.refreshToken) _load(silent: true);
+  }
+
+  Future<void> _load({bool silent = false}) async {
+    if (!silent) {
+      setState(() {
+        _loading = true;
+        _error = null;
+      });
+    }
     try {
       final purchases = await widget.apiService.getPurchases();
       if (!mounted) return;
       setState(() {
         _purchases = purchases;
+        _error = null;
         _loading = false;
       });
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = e.toString();
+        if (!silent || _purchases.isEmpty) _error = e.toString();
         _loading = false;
       });
     }
@@ -240,7 +251,7 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
           const SizedBox(height: 16),
           Expanded(
             child: _loading
-                ? const Center(child: CircularProgressIndicator())
+                ? const SkeletonLoader(kind: SkeletonKind.list, itemCount: 6)
                 : _error != null
                     ? Center(
                         child: Column(

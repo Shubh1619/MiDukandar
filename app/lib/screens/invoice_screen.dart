@@ -9,6 +9,7 @@ import '../models/app_models.dart';
 import '../services/api_service.dart';
 import '../widgets/app_dialogs.dart';
 import '../widgets/md_inputs.dart';
+import '../widgets/skeleton_loader.dart';
 
 class InvoiceScreen extends StatefulWidget {
   const InvoiceScreen({
@@ -18,6 +19,7 @@ class InvoiceScreen extends StatefulWidget {
     this.onMarkPaid,
     this.onReverse,
     this.onUpdate,
+    this.refreshToken = 0,
   });
 
   final ApiService apiService;
@@ -25,6 +27,7 @@ class InvoiceScreen extends StatefulWidget {
   final Future<void> Function(InvoiceRecord)? onMarkPaid;
   final Future<void> Function(InvoiceRecord, String)? onReverse;
   final Future<void> Function(InvoiceRecord, Map<String, dynamic>)? onUpdate;
+  final int refreshToken;
 
   @override
   State<InvoiceScreen> createState() => _InvoiceScreenState();
@@ -47,16 +50,24 @@ class _InvoiceScreenState extends State<InvoiceScreen> {
   }
 
   @override
+  void didUpdateWidget(covariant InvoiceScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.refreshToken != widget.refreshToken) _load(silent: true);
+  }
+
+  @override
   void dispose() {
     _searchController.dispose();
     super.dispose();
   }
 
-  Future<void> _load() async {
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
+  Future<void> _load({bool silent = false}) async {
+    if (!silent) {
+      setState(() {
+        _loading = true;
+        _error = null;
+      });
+    }
     try {
       final page = await widget.apiService.getInvoices();
       if (!mounted) return;
@@ -64,12 +75,13 @@ class _InvoiceScreenState extends State<InvoiceScreen> {
         _invoices = page.invoices;
         _summaryRevenue = page.totalRevenue;
         _summaryPending = page.pendingAmount;
+        _error = null;
         _loading = false;
       });
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = e.toString();
+        if (!silent || _invoices.isEmpty) _error = e.toString();
         _loading = false;
       });
     }
@@ -714,7 +726,7 @@ class _InvoiceScreenState extends State<InvoiceScreen> {
     final l = AppLocalizations.of(context)!;
 
     if (_loading) {
-      return const Center(child: CircularProgressIndicator());
+      return const SkeletonLoader(kind: SkeletonKind.list, itemCount: 6);
     }
 
     if (_error != null) {

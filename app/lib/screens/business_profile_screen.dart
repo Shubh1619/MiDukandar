@@ -5,6 +5,7 @@ import '../l10n/generated/app_localizations.dart';
 import '../models/app_models.dart';
 import '../services/api_service.dart';
 import '../theme/md_design.dart';
+import '../widgets/skeleton_loader.dart';
 import 'settings_screen.dart';
 
 /// Read-only business profile: details, registered date and plan status, with
@@ -15,11 +16,13 @@ class BusinessProfileScreen extends StatefulWidget {
     required this.apiService,
     required this.user,
     required this.initialStore,
+    this.refreshToken = 0,
   });
 
   final ApiService apiService;
   final AuthUser? user;
   final Store? initialStore;
+  final int refreshToken;
 
   @override
   State<BusinessProfileScreen> createState() => _BusinessProfileScreenState();
@@ -36,7 +39,16 @@ class _BusinessProfileScreenState extends State<BusinessProfileScreen> {
     _load();
   }
 
-  Future<void> _load() async {
+  @override
+  void didUpdateWidget(covariant BusinessProfileScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.refreshToken != widget.refreshToken) {
+      _load(silent: true);
+    }
+  }
+
+  Future<void> _load({bool silent = false}) async {
+    if (!silent && mounted) setState(() => _loading = true);
     try {
       final store = await widget.apiService.getStore();
       if (mounted) setState(() => _store = store);
@@ -130,7 +142,7 @@ class _BusinessProfileScreenState extends State<BusinessProfileScreen> {
     return Scaffold(
       appBar: AppBar(title: Text(l.bizProfileTitle)),
       body: _loading
-          ? const Center(child: CircularProgressIndicator())
+          ? const SkeletonLoader(kind: SkeletonKind.detail, itemCount: 7)
           : _content(l),
     );
   }

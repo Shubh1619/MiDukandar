@@ -7,6 +7,7 @@ import '../services/api_service.dart';
 import '../theme/md_design.dart';
 import '../widgets/app_dialogs.dart';
 import '../widgets/md_inputs.dart';
+import '../widgets/skeleton_loader.dart';
 
 class SuppliersScreen extends StatefulWidget {
   const SuppliersScreen({
@@ -16,6 +17,7 @@ class SuppliersScreen extends StatefulWidget {
     this.onUpdate,
     this.onDelete,
     this.onRefresh,
+    this.refreshToken = 0,
   });
 
   final ApiService apiService;
@@ -23,6 +25,7 @@ class SuppliersScreen extends StatefulWidget {
   final Future<void> Function(String id, Map<String, dynamic>)? onUpdate;
   final Future<void> Function(String id)? onDelete;
   final Future<void> Function()? onRefresh;
+  final int refreshToken;
 
   @override
   State<SuppliersScreen> createState() => _SuppliersScreenState();
@@ -40,11 +43,13 @@ class _SuppliersScreenState extends State<SuppliersScreen> {
     _load();
   }
 
-  Future<void> _load() async {
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
+  Future<void> _load({bool silent = false}) async {
+    if (!silent) {
+      setState(() {
+        _loading = true;
+        _error = null;
+      });
+    }
     try {
       final results = await Future.wait([
         widget.apiService.getSuppliers(),
@@ -54,10 +59,12 @@ class _SuppliersScreenState extends State<SuppliersScreen> {
       setState(() {
         _suppliers = results[0] as List<Supplier>;
         _summary = results[1] as SupplierSummary;
-        _loading = false;
+        _error = null;
+        if (!silent) _loading = false;
       });
     } catch (e) {
       if (!mounted) return;
+      if (silent) return;
       setState(() {
         _error = e.toString();
         _loading = false;
@@ -68,7 +75,7 @@ class _SuppliersScreenState extends State<SuppliersScreen> {
   @override
   void didUpdateWidget(covariant SuppliersScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
-    _load();
+    if (oldWidget.refreshToken != widget.refreshToken) _load(silent: true);
   }
 
   Future<void> _showCreateDialog(BuildContext context) async {
@@ -505,7 +512,7 @@ class _SuppliersScreenState extends State<SuppliersScreen> {
           const SizedBox(height: 12),
           Expanded(
             child: _loading
-                ? const Center(child: CircularProgressIndicator())
+                ? const SkeletonLoader(kind: SkeletonKind.table, itemCount: 6)
                 : _error != null
                     ? Center(
                         child: Column(

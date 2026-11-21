@@ -157,6 +157,7 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
   bool _isAuthenticated = false;
   bool _isBootstrapping = true;
   bool _isLoading = false;
+  bool _statsLoading = true;
   bool _showRegister = false;
   bool _expiryAlertShown = false;
   bool _lowStockAlertShown = false;
@@ -288,15 +289,18 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
   }
 
   Future<void> _loadDashboardStats() async {
+    if (mounted) setState(() => _statsLoading = true);
     try {
       final stats = await _apiService.getDashboardSummary();
       if (mounted) {
         setState(() {
           _stats = stats;
+          _statsLoading = false;
         });
       }
     } catch (_) {
-      // Keep default empty stats
+      // Keep default empty stats.
+      if (mounted) setState(() => _statsLoading = false);
     }
   }
 
@@ -485,6 +489,7 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
         user: _user,
         store: _store,
         stats: _stats,
+        statsLoading: _statsLoading,
         onSignOut: _signOut,
       ),
     );
@@ -654,6 +659,7 @@ class AppShell extends StatefulWidget {
     required this.store,
     required this.stats,
     required this.onSignOut,
+    this.statsLoading = false,
     this.idleAdPresenter,
   });
 
@@ -661,6 +667,7 @@ class AppShell extends StatefulWidget {
   final AuthUser? user;
   final Store? store;
   final DashboardStats stats;
+  final bool statsLoading;
   final Future<void> Function({bool showError}) onSignOut;
 
   /// Overrides the idle full-screen ad presenter. Production uses
@@ -706,6 +713,12 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
   /// `initState` → `_load()` and therefore shows server data immediately after
   /// a create/update/delete or when the user re-taps the current tab.
   int _sectionEpoch = 0;
+
+  /// Background refresh tick. Every data screen listens to this value and
+  /// re-fetches silently, so polling never flashes a skeleton over real data.
+  int _refreshTick = 0;
+  static const Duration _autoRefreshInterval = Duration(seconds: 15);
+  Timer? _autoRefreshTimer;
 
   /// Interstitials are rate-limited so a burst of saves does not feel like an
   /// ad wall. `null` means no full-screen ad has been shown this session.
@@ -834,12 +847,14 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
     WidgetsBinding.instance.addObserver(this);
     AdPolicy.instance.updateFromStore(widget.store);
     _restartIdleTimer();
+    _startAutoRefresh();
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _idleTimer?.cancel();
+    _autoRefreshTimer?.cancel();
     super.dispose();
   }
 
@@ -849,8 +864,11 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
     if (state == AppLifecycleState.resumed) {
       // The idle window counts foreground inactivity only.
       _restartIdleTimer();
+      _startAutoRefresh();
+      unawaited(_autoRefresh());
     } else {
       _idleTimer?.cancel();
+      _autoRefreshTimer?.cancel();
     }
   }
 
@@ -1434,6 +1452,7 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
           apiService: widget.apiService,
           user: widget.user,
           initialStore: widget.store,
+          refreshToken: _refreshTick,
         ),
       ),
     );
@@ -1568,6 +1587,7 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
           storeName: widget.store?.name ?? l.myStore,
           onNavigate: _selectSection,
           canAccess: _canUseSection,
+          isLoading: widget.statsLoading,
           onLowStockTap: () =>
               _selectSection(AppSection.inventory, lowOnly: true),
           onInvoiceDetailTap: () => _selectSection(AppSection.invoices),
@@ -1575,6 +1595,7 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
       case AppSection.invoices:
         return InvoiceScreen(
           apiService: widget.apiService,
+          refreshToken: _refreshTick,
           onCreate: _handleCreateInvoice,
           onMarkPaid: _handleMarkInvoicePaid,
           onReverse: _handleReverseInvoice,
@@ -1583,6 +1604,7 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
       case AppSection.customers:
         return CustomerScreen(
           apiService: widget.apiService,
+          refreshToken: _refreshTick,
           onCreate: _handleCreateCustomer,
           onUpdate: _handleUpdateCustomer,
           onDelete: _handleDeleteCustomer,
@@ -1590,37 +1612,43 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
       case AppSection.udhaari:
         return UdhaariScreen(
           apiService: widget.apiService,
+          refreshToken: _refreshTick,
           onPayment: _handleReceivePayment,
           onCreate: _handleCreateUdhaari,
         );
       case AppSection.inventory:
         return InventoryScreen(
           apiService: widget.apiService,
+          refreshToken: _refreshTick,
           onChanged: _refreshCurrentSection,
           lowOnly: _inventoryLowOnly,
         );
       case AppSection.products:
         return ProductScreen(
           apiService: widget.apiService,
+          refreshToken: _refreshTick,
           onCreate: _handleCreateProduct,
           onUpdate: _handleUpdateProduct,
           onArchive: _handleArchiveProduct,
           onAdjust: _handleAdjustStock,
           onFetchDetail: _handleFetchProductDetail,
         );
-case AppSection.purchases:
+      case AppSection.purchases:
         return PurchaseScreen(
           apiService: widget.apiService,
+          refreshToken: _refreshTick,
           onCreate: _handleCreatePurchase,
         );
       case AppSection.supplierInvoices:
         return SupplierInvoiceScreen(
           apiService: widget.apiService,
+          refreshToken: _refreshTick,
           onCreate: _handleCreateSupplierInvoice,
         );
       case AppSection.suppliers:
         return SuppliersScreen(
           apiService: widget.apiService,
+          refreshToken: _refreshTick,
           onCreate: _handleCreateSupplier,
           onUpdate: _handleUpdateSupplier,
           onDelete: _handleDeleteSupplier,
@@ -1629,16 +1657,21 @@ case AppSection.purchases:
       case AppSection.expenses:
         return ExpensesScreen(
           apiService: widget.apiService,
+          refreshToken: _refreshTick,
           onCreate: _handleCreateExpense,
           onUpdate: _handleUpdateExpense,
           onDelete: _handleDeleteExpense,
         );
       case AppSection.payments:
-        return PaymentsScreen(apiService: widget.apiService);
+        return PaymentsScreen(
+          apiService: widget.apiService,
+          refreshToken: _refreshTick,
+        );
       case AppSection.reports:
         return ReportScreen(
           apiService: widget.apiService,
           stats: _stats,
+          refreshToken: _refreshTick,
         );
       case AppSection.settings:
         return SettingsScreen(
@@ -1651,11 +1684,38 @@ case AppSection.purchases:
         return UsersScreen(
           apiService: widget.apiService,
           user: widget.user,
+          refreshToken: _refreshTick,
           onInvite: _isOwner ? _handleInviteUser : null,
           onStatusChange: _isOwner ? _handleUpdateUserStatus : null,
           onRoleChange: _isOwner ? _handleUpdateUserRole : null,
         );
     }
+  }
+
+  /// Polling must not interrupt a dialog, drawer, keyboard session, or ad.
+  bool _canAutoRefresh() {
+    if (!mounted || _idleAdVisible || _interstitialShowing) return false;
+    final routeIsCurrent = ModalRoute.of(context)?.isCurrent ?? false;
+    final drawerOpen = _scaffoldKey.currentState?.isDrawerOpen ?? false;
+    final keyboardOpen = MediaQuery.viewInsetsOf(context).bottom > 0;
+    return routeIsCurrent && !drawerOpen && !keyboardOpen;
+  }
+
+  void _startAutoRefresh() {
+    _autoRefreshTimer?.cancel();
+    _autoRefreshTimer = Timer.periodic(_autoRefreshInterval, (_) {
+      if (!_canAutoRefresh()) return;
+      unawaited(_autoRefresh());
+    });
+  }
+
+  /// Keeps server data current without recycling the active screen: screens
+  /// reload silently when their [refreshToken] changes, so no skeleton flashes.
+  Future<void> _autoRefresh() async {
+    if (!_canAutoRefresh()) return;
+    await _reloadStats();
+    if (!mounted) return;
+    setState(() => _refreshTick++);
   }
 
   Future<void> _refreshCurrentSection() async {

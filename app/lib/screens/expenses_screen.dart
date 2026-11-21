@@ -9,14 +9,16 @@ import '../services/api_service.dart';
 import '../theme/md_design.dart';
 import '../widgets/app_dialogs.dart';
 import '../widgets/md_inputs.dart';
+import '../widgets/skeleton_loader.dart';
 
 class ExpensesScreen extends StatefulWidget {
-  const ExpensesScreen({super.key, required this.apiService, this.onCreate, this.onUpdate, this.onDelete});
+  const ExpensesScreen({super.key, required this.apiService, this.onCreate, this.onUpdate, this.onDelete, this.refreshToken = 0});
 
   final ApiService apiService;
   final Future<void> Function(Map<String, dynamic>)? onCreate;
   final Future<void> Function(String id, Map<String, dynamic>)? onUpdate;
   final Future<void> Function(String id)? onDelete;
+  final int refreshToken;
 
   @override
   State<ExpensesScreen> createState() => _ExpensesScreenState();
@@ -25,6 +27,7 @@ class ExpensesScreen extends StatefulWidget {
 class _ExpensesScreenState extends State<ExpensesScreen> {
   List<Expense> _expenses = const [];
   ExpenseSummary _summary = const ExpenseSummary(thisMonth: 0, lastMonth: 0, byCategory: []);
+  bool _loading = true;
   String? _error;
 
   @override
@@ -33,7 +36,19 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
     _load();
   }
 
-  Future<void> _load() async {
+  @override
+  void didUpdateWidget(covariant ExpensesScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.refreshToken != widget.refreshToken) _load(silent: true);
+  }
+
+  Future<void> _load({bool silent = false}) async {
+    if (!silent) {
+      setState(() {
+        _loading = true;
+        _error = null;
+      });
+    }
     try {
       final results = await Future.wait([
         widget.apiService.getExpenses(),
@@ -45,11 +60,16 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
         _expenses = results[0] as List<Expense>;
         _summary = results[1] as ExpenseSummary;
         _error = null;
+        if (!silent) _loading = false;
       });
     } catch (e) {
       debugPrint('Failed to load expenses: $e');
       if (!mounted) return;
-      setState(() => _error = e.toString());
+      if (silent) return;
+      setState(() {
+        _error = e.toString();
+        _loading = false;
+      });
     }
   }
 
@@ -349,7 +369,9 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
           ],
           const SizedBox(height: 16),
           Expanded(
-            child: _error != null
+            child: _loading
+                ? const SkeletonLoader(kind: SkeletonKind.table, itemCount: 6)
+                : _error != null
                 ? MdErrorState(
                     message: _error!,
                     retryLabel: l.retry,

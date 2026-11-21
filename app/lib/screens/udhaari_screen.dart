@@ -12,6 +12,7 @@ import '../theme/md_design.dart';
 import '../widgets/app_dialogs.dart';
 import '../widgets/md_inputs.dart';
 import '../widgets/sim_picker.dart';
+import '../widgets/skeleton_loader.dart';
 
 class UdhaariScreen extends StatefulWidget {
   const UdhaariScreen({
@@ -19,6 +20,7 @@ class UdhaariScreen extends StatefulWidget {
     required this.apiService,
     this.onPayment,
     this.onCreate,
+    this.refreshToken = 0,
   });
 
   final ApiService apiService;
@@ -29,6 +31,7 @@ class UdhaariScreen extends StatefulWidget {
     String? note,
   })? onPayment;
   final Future<Map<String, dynamic>?> Function(Map<String, dynamic> payload)? onCreate;
+  final int refreshToken;
 
   @override
   State<UdhaariScreen> createState() => _UdhaariScreenState();
@@ -48,11 +51,19 @@ class _UdhaariScreenState extends State<UdhaariScreen> {
     _load();
   }
 
-  Future<void> _load() async {
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
+  @override
+  void didUpdateWidget(covariant UdhaariScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.refreshToken != widget.refreshToken) _load(silent: true);
+  }
+
+  Future<void> _load({bool silent = false}) async {
+    if (!silent) {
+      setState(() {
+        _loading = true;
+        _error = null;
+      });
+    }
     try {
       final results = await Future.wait([
         widget.apiService.getUdhaariCustomers(),
@@ -77,12 +88,13 @@ class _UdhaariScreenState extends State<UdhaariScreen> {
         _customers = results[1] as List<Customer>;
         _counts = (results[2] as ({List<UdhaariReminder> reminders, UdhaariReminderCounts counts})).counts;
         _contacts = contacts;
+        _error = null;
         _loading = false;
       });
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = e.toString();
+        if (!silent || _udhaari.isEmpty) _error = e.toString();
         _loading = false;
       });
     }
@@ -110,7 +122,7 @@ class _UdhaariScreenState extends State<UdhaariScreen> {
     final formatDate = DateFormat('d MMM yy');
 
     if (_loading) {
-      return const Center(child: CircularProgressIndicator());
+      return const SkeletonLoader(kind: SkeletonKind.list, itemCount: 6);
     }
 
     if (_error != null) {

@@ -8,14 +8,16 @@ import '../models/app_models.dart';
 import '../services/api_service.dart';
 import '../widgets/app_dialogs.dart';
 import '../widgets/md_inputs.dart';
+import '../widgets/skeleton_loader.dart';
 
 class CustomerScreen extends StatefulWidget {
-  const CustomerScreen({super.key, required this.apiService, this.onCreate, this.onDelete, this.onUpdate});
+  const CustomerScreen({super.key, required this.apiService, this.onCreate, this.onDelete, this.onUpdate, this.refreshToken = 0});
 
   final ApiService apiService;
   final Future<void> Function(Map<String, dynamic>)? onCreate;
   final Future<void> Function(String id)? onDelete;
   final Future<void> Function(String id, Map<String, dynamic>)? onUpdate;
+  final int refreshToken;
 
   @override
   State<CustomerScreen> createState() => _CustomerScreenState();
@@ -32,22 +34,31 @@ class _CustomerScreenState extends State<CustomerScreen> {
     _load();
   }
 
-  Future<void> _load() async {
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
+  @override
+  void didUpdateWidget(covariant CustomerScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.refreshToken != widget.refreshToken) _load(silent: true);
+  }
+
+  Future<void> _load({bool silent = false}) async {
+    if (!silent) {
+      setState(() {
+        _loading = true;
+        _error = null;
+      });
+    }
     try {
       final customers = await widget.apiService.getCustomers();
       if (!mounted) return;
       setState(() {
         _customers = customers;
+        _error = null;
         _loading = false;
       });
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = e.toString();
+        if (!silent || _customers.isEmpty) _error = e.toString();
         _loading = false;
       });
     }
@@ -259,7 +270,7 @@ class _CustomerScreenState extends State<CustomerScreen> {
           const MdAdBanner(placement: AdPlacement.customers, margin: EdgeInsets.only(bottom: 12)),
           Expanded(
             child: _loading
-                ? const Center(child: CircularProgressIndicator())
+                ? const SkeletonLoader(kind: SkeletonKind.list, itemCount: 6)
                 : _error != null
                     ? Center(
                         child: Column(

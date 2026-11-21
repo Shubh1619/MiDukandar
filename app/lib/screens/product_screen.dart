@@ -10,6 +10,7 @@ import '../services/api_service.dart';
 import '../theme/md_design.dart';
 import '../widgets/app_dialogs.dart';
 import '../widgets/md_inputs.dart';
+import '../widgets/skeleton_loader.dart';
 
 class ProductScreen extends StatefulWidget {
   const ProductScreen({
@@ -20,6 +21,7 @@ class ProductScreen extends StatefulWidget {
     this.onArchive,
     this.onAdjust,
     this.onFetchDetail,
+    this.refreshToken = 0,
   });
 
   final ApiService apiService;
@@ -28,6 +30,7 @@ class ProductScreen extends StatefulWidget {
   final Future<void> Function(String id)? onArchive;
   final Future<void> Function(String id, num qty, String reason)? onAdjust;
   final Future<Map<String, dynamic>?> Function(String id)? onFetchDetail;
+  final int refreshToken;
 
   @override
   State<ProductScreen> createState() => _ProductScreenState();
@@ -40,6 +43,7 @@ class _ProductScreenState extends State<ProductScreen> {
   ProductSummary? _summary;
   List<String> _categories = [];
   List<Product> _products = const [];
+  bool _loading = true;
   String? _error;
 
   @override
@@ -48,7 +52,19 @@ class _ProductScreenState extends State<ProductScreen> {
     _load();
   }
 
-  Future<void> _load() async {
+  @override
+  void didUpdateWidget(covariant ProductScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.refreshToken != widget.refreshToken) _load(silent: true);
+  }
+
+  Future<void> _load({bool silent = false}) async {
+    if (!silent) {
+      setState(() {
+        _loading = true;
+        _error = null;
+      });
+    }
     try {
       final results = await Future.wait([
         widget.apiService.getProducts(),
@@ -61,11 +77,16 @@ class _ProductScreenState extends State<ProductScreen> {
         _summary = results[1] as ProductSummary;
         _categories = results[2] as List<String>;
         _error = null;
+        if (!silent) _loading = false;
       });
     } catch (e) {
       debugPrint('Failed to load products: $e');
       if (!mounted) return;
-      setState(() => _error = e.toString());
+      if (silent) return;
+      setState(() {
+        _error = e.toString();
+        _loading = false;
+      });
     }
   }
 
@@ -745,7 +766,9 @@ class _ProductScreenState extends State<ProductScreen> {
           const MdAdBanner(placement: AdPlacement.products, margin: EdgeInsets.only(top: 12)),
           const SizedBox(height: 16),
           Expanded(
-            child: _error != null
+            child: _loading
+                ? const SkeletonLoader(kind: SkeletonKind.table, itemCount: 6)
+                : _error != null
                 ? MdErrorState(
                     message: _error!,
                     retryLabel: l.retry,
