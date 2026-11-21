@@ -7,6 +7,8 @@ import { authenticate, requireStore, requirePermission, getAuth, type Authentica
 import { getCustomerOutstanding, createLedgerEntry } from "../services/ledger.service.js";
 import { insertPayment } from "../services/payment.service.js";
 import { notifyUdhaariPayment, type PendingSms } from "../services/sms.service.js";
+import { applyUdhaariPayment } from "./udhaari.routes.js";
+import { dec, dmin, moneyNum } from "../lib/money.js";
 import { config } from "../config.js";
 import { logger } from "../lib/logger.js";
 import { invalidateDashboardCache } from "../lib/dashboard-cache.js";
@@ -34,27 +36,74 @@ export async function paymentRoutes(app: FastifyInstance) {
       if (!customer) throw ApiError.notFound("Customer not found");
 
       const out = await withTx(async (tx) => {
-        const payment = await insertPayment(tx, {
-          storeId,
-          customerId: body.customerId,
-          amount: body.amount,
-          type: "RECEIVED",
-          mode: body.mode,
-          referenceType: "CUSTOMER_PAYMENT",
-          referenceId: body.customerId,
-          note: body.note || null,
-          createdById: getAuth(request).id,
-        });
-        const balanceAfter = await createLedgerEntry(tx, {
-          customerId: body.customerId,
-          storeId,
-          type: "CREDIT",
-          amount: body.amount,
-          referenceType: "PAYMENT",
-          referenceId: payment.id as string,
-          note: body.note || "Customer payment received",
-        });
-        return { balanceAfter, paymentId: payment.id as string };
+        const auth = getAuth(request);
+        const note = body.note || "Customer payment received";
+
+        // Allocate the receipt to the customer's oldest open udhaari entries.
+        // The Udhaari screen reads `udhaari_payments`, so without these rows a
+        // payment recorded here would only change the ledger/dashboard and the
+        // Udhaari list would keep showing the old outstanding balance.
+        const openEntries = await tx.q<Row>(
+          `SELECT ue.id, ue.customer_id, ue.amount, ue.sale_id,
+                  COALESCE(SUM(up.amount), 0) AS paid_amount
+             FROM udhaari_entries ue
+             LEFT JOIN udhaari_payments up
+               ON up.udhaari_entry_id = ue.id AND up.store_id = ue.store_id
+            WHERE ue.store_id = $1 AND ue.customer_id = $2
+            GROUP BY ue.id, ue.customer_id, ue.amount, ue.sale_id
+           HAVING COALESCE(SUM(up.amount), 0) < ue.amount
+            ORDER BY ue.entry_date ASC, ue.created_at ASC`,
+          [storeId, body.customerId],
+        );
+
+        let remaining = moneyNum(body.amount);
+        let paymentId: string | null = null;
+
+        for (const entry of openEntries) {
+          if (remaining <= 0) break;
+          const outstanding = dec(entry.amount).minus(dec(entry.paid_amount));
+          const applied = moneyNum(dmin(remaining, outstanding));
+          if (applied <= 0) continue;
+          const allocated = await applyUdhaariPayment(tx, {
+            entry,
+            storeId,
+            amount: applied,
+            mode: body.mode,
+            note,
+            createdById: auth.id,
+          });
+          paymentId = allocated.id as string;
+          remaining = moneyNum(dec(remaining).minus(applied));
+        }
+
+        // Anything not backed by an udhaari entry stays a plain advance
+        // payment, exactly as before.
+        if (remaining > 0 || paymentId == null) {
+          const amount = paymentId == null ? moneyNum(body.amount) : remaining;
+          const payment = await insertPayment(tx, {
+            storeId,
+            customerId: body.customerId,
+            amount,
+            type: "RECEIVED",
+            mode: body.mode,
+            referenceType: "CUSTOMER_PAYMENT",
+            referenceId: body.customerId,
+            note: body.note || null,
+            createdById: auth.id,
+          });
+          paymentId = payment.id as string;
+          await createLedgerEntry(tx, {
+            customerId: body.customerId,
+            storeId,
+            type: "CREDIT",
+            amount,
+            referenceType: "PAYMENT",
+            referenceId: paymentId,
+            note,
+          });
+        }
+
+        return { paymentId: paymentId as string };
       });
 
       logger.info("payment: received", { storeId, customerId: body.customerId, amount: body.amount });
@@ -94,7 +143,7 @@ export async function paymentRoutes(app: FastifyInstance) {
 
       return reply.status(201).send({
         ok: true,
-        balanceAfter: out.balanceAfter,
+        balanceAfter: outstanding,
         outstanding,
         ...(pendingSms ? { pendingSms } : {}),
       });

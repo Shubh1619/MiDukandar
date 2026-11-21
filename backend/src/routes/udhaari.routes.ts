@@ -29,7 +29,7 @@ function toYmd(v: unknown): string | null {
   return `${d.getFullYear()}-${m}-${day}`;
 }
 
-interface PayInput {
+export interface PayInput {
   entry: Row;
   storeId: string;
   amount: number;
@@ -39,7 +39,7 @@ interface PayInput {
 }
 
 /** Records a udhaari payment: udhaari_payments row + payments row + ledger CREDIT. Runs inside a tx. */
-async function applyUdhaariPayment(tx: DbClient, input: PayInput): Promise<Row> {
+export async function applyUdhaariPayment(tx: DbClient, input: PayInput): Promise<Row> {
   const payment = await tx.qOne<Row>(
     `INSERT INTO udhaari_payments (store_id, udhaari_entry_id, amount, mode, note, created_by_id)
      VALUES ($1, $2, $3, $4, $5, $6)
