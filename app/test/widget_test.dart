@@ -447,7 +447,7 @@ void main() {
     expect(find.text(_l.dashQuickReports), findsNothing);
   });
 
-  testWidgets('idle ad appears after 3s on every page and activity resets it', (
+  testWidgets('idle ad appears after 20s on every page and activity resets it', (
     tester,
   ) async {
     var shown = 0;
@@ -459,32 +459,35 @@ void main() {
           store: _freeStore,
           stats: _stats,
           onSignOut: ({bool showError = false}) async {},
-          idleAdPresenter: (_) async => shown++,
+          idleAdPresenter: (_) async {
+            shown++;
+            return true;
+          },
         ),
       ),
     );
     await tester.pumpAndSettle();
 
     // Nothing happens before the window elapses.
-    await tester.pump(const Duration(seconds: 2));
+    await tester.pump(const Duration(seconds: 19));
     expect(shown, 0);
     await tester.pump(const Duration(seconds: 2));
-    expect(shown, 1, reason: 'Dashboard should idle out after 3 seconds');
+    expect(shown, 1, reason: 'Dashboard should idle out after 20 seconds');
 
     // The ad appears once per page, not in a loop while the user is idle.
-    await tester.pump(const Duration(seconds: 5));
+    await tester.pump(const Duration(seconds: 10));
     expect(shown, 1, reason: 'the same page must not repeat its idle ad');
 
     // Opening another page arms a fresh window for that page.
     await tester.tap(find.text(_l.tabUdhari));
     await tester.pumpAndSettle();
 
-    await tester.pump(const Duration(seconds: 2));
-    expect(shown, 1, reason: 'Udhaari gets its own 3-second window');
+    await tester.pump(const Duration(seconds: 19));
+    expect(shown, 1, reason: 'Udhaari gets its own 20-second window');
 
     // Activity inside the window postpones the ad.
     await tester.tapAt(const Offset(200, 30));
-    await tester.pump(const Duration(seconds: 2));
+    await tester.pump(const Duration(seconds: 19));
     expect(shown, 1, reason: 'a tap must restart the idle window');
 
     await tester.pump(const Duration(seconds: 2));
@@ -506,13 +509,16 @@ void main() {
           store: _store,
           stats: _stats,
           onSignOut: ({bool showError = false}) async {},
-          idleAdPresenter: (_) async => shown++,
+          idleAdPresenter: (_) async {
+            shown++;
+            return true;
+          },
         ),
       ),
     );
     await tester.pumpAndSettle();
 
-    await tester.pump(const Duration(seconds: 35));
+    await tester.pump(const Duration(seconds: 25));
     expect(shown, 0);
 
     await tester.pumpWidget(const SizedBox.shrink());

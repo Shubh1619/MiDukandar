@@ -45,7 +45,8 @@ Future<void> main() async {
   // Apply the persisted locale before the first frame renders.
   await LocaleController.instance.load();
   // AdMob initialization is fire-and-forget; the no-op stub handles web.
-  unawaited(initializeAds());
+  // Preload early so the first qualifying action has an ad ready to show.
+  unawaited(initializeAds().then((_) => preloadInterstitial()));
   runApp(const MiDukandarApp());
 }
 
@@ -663,9 +664,9 @@ class AppShell extends StatefulWidget {
   final Future<void> Function({bool showError}) onSignOut;
 
   /// Overrides the idle full-screen ad presenter. Production uses
-  /// [showIdleAd]; tests inject a fake so the 30-second window can be verified
-  /// without the AdMob plugin.
-  final Future<void> Function(BuildContext context)? idleAdPresenter;
+  /// [showIdleAd]; tests inject a fake so the 20-second window can be verified
+  /// without the AdMob plugin. The result reports whether a real ad was shown.
+  final Future<bool> Function(BuildContext context)? idleAdPresenter;
 
   @override
   State<AppShell> createState() => _AppShellState();
@@ -710,9 +711,10 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
   /// ad wall. `null` means no full-screen ad has been shown this session.
   DateTime? _lastInterstitialAt;
   static const Duration _interstitialCooldown = Duration(minutes: 3);
+  bool _interstitialShowing = false;
 
   /// Per-screen inactivity timer. Every tap/scroll and every section change
-  /// restarts it, so each page gets its own 3-second idle window.
+  /// restarts it, so each page gets its own 20-second idle window.
   Timer? _idleTimer;
   bool _idleAdVisible = false;
 
@@ -855,7 +857,7 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
   /// Starts a fresh inactivity window for the current screen.
   void _restartIdleTimer() {
     _idleTimer?.cancel();
-    if (_idleAdShownForSection) return;
+    if (_idleAdShownForSection || _interstitialShowing) return;
     _idleTimer = Timer(idleAdDelay, _handleIdle);
   }
 
@@ -866,7 +868,7 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
   }
 
   Future<void> _handleIdle() async {
-    if (!mounted || _idleAdVisible) return;
+    if (!mounted || _idleAdVisible || _interstitialShowing) return;
 
     // Never interrupt a sheet/dialog, an open drawer, or the keyboard. Those
     // are activity, and covering them with an ad is hostile.
@@ -884,7 +886,10 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
     _idleAdVisible = true;
     _idleAdShownForSection = true;
     try {
-      await (widget.idleAdPresenter ?? showIdleAd)(context);
+      final shown = await (widget.idleAdPresenter ?? showIdleAd)(context);
+      // The idle ad is a real interstitial too, so it starts the same cooldown
+      // and stops action-triggered ads from stacking on top of it.
+      if (shown && mounted) _lastInterstitialAt = DateTime.now();
     } finally {
       _idleAdVisible = false;
       if (mounted) _restartIdleTimer();
@@ -925,16 +930,33 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
   /// action has completed. Only `STANDARD` (ad-supported) plans get these.
   void _maybeShowInterstitial() {
     if (!AdPolicy.instance.allowsFullScreen) return;
+    // Never stack a real AdMob interstitial over the idle full-screen ad, and
+    // never open two interstitials from a burst of saves.
+    if (_idleAdVisible || _interstitialShowing) return;
     final lastShown = _lastInterstitialAt;
     if (lastShown != null &&
         DateTime.now().difference(lastShown) < _interstitialCooldown) {
       return;
     }
-    _lastInterstitialAt = DateTime.now();
+
+    _interstitialShowing = true;
+    _idleTimer?.cancel();
     unawaited(() async {
-      await Future<void>.delayed(const Duration(milliseconds: 800));
-      if (!mounted) return;
-      await showInterstitialAd();
+      try {
+        await Future<void>.delayed(const Duration(milliseconds: 800));
+        if (!mounted) return;
+        final shown = await showInterstitialAd();
+        // Only a real impression starts the cooldown. A failed load should be
+        // retried on the next qualifying action instead of being suppressed.
+        if (shown) _lastInterstitialAt = DateTime.now();
+      } finally {
+        _interstitialShowing = false;
+        if (mounted) {
+          // One full-screen ad per page is enough; navigating away re-arms it.
+          _idleAdShownForSection = true;
+          _restartIdleTimer();
+        }
+      }
     }());
   }
 
@@ -1053,6 +1075,7 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
       await widget.apiService.createCustomer(payload);
       unawaited(_refreshCurrentSection());
       unawaited(_reloadStats());
+      _maybeShowInterstitial();
     } catch (error) {
       if (!mounted) return;
       AppDialogs.showError(

@@ -2,6 +2,8 @@
 /// `google_mobile_ads` has no platform implementation.
 Future<void> initializeAds() async {}
 
+Future<void> preloadInterstitial() async {}
+
 Future<bool> showInterstitialAd() async => false;
 
 Future<bool> showRewardedAd() async => false;
