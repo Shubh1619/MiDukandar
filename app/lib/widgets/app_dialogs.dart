@@ -238,6 +238,7 @@ class AppDialogs {
   AppDialogs._();
 
   static bool _loadingVisible = false;
+  static NavigatorState? _loadingNavigator;
 
   /// Centered confirmation dialog with Cancel/Confirm. Returns `true` when the
   /// user confirms, `false` otherwise. Destructive actions get a red button.
@@ -459,6 +460,11 @@ class AppDialogs {
   /// [hideLoading] is called (or the loading dialog is dismissed).
   static void showLoading(BuildContext context, {String? message}) {
     if (_loadingVisible) return;
+    // Keep the root navigator, not the screen context. The screen can be
+    // disposed by a section refresh while its request is still in flight;
+    // hideLoading must still be able to pop the dialog afterwards.
+    final navigator = Navigator.of(context, rootNavigator: true);
+    _loadingNavigator = navigator;
     _loadingVisible = true;
     final l = AppLocalizations.of(context)!;
     showDialog<void>(
@@ -495,18 +501,31 @@ class AppDialogs {
           ),
         ),
       ),
-    ).then((_) => _loadingVisible = false);
+    ).then((_) {
+      // A newer overlay may have replaced this one while it was animating out.
+      if (identical(_loadingNavigator, navigator)) {
+        _loadingNavigator = null;
+        _loadingVisible = false;
+      }
+    });
   }
 
   /// Hides the blocking loading overlay started by [showLoading].
-  static void hideLoading(BuildContext context) {
+  ///
+  /// The [context] argument is kept for source compatibility but is no longer
+  /// required: the navigator captured in [showLoading] is used, so this works
+  /// even after the screen that opened the dialog has been disposed.
+  static void hideLoading([BuildContext? context]) {
     if (!_loadingVisible) return;
     _loadingVisible = false;
+    final navigator = _loadingNavigator;
+    _loadingNavigator = null;
     try {
-      final navigator = Navigator.of(context, rootNavigator: true);
-      if (navigator.canPop()) navigator.pop();
+      if (navigator != null && navigator.mounted && navigator.canPop()) {
+        navigator.pop();
+      }
     } catch (_) {
-      // Context is no longer mounted; nothing to dismiss.
+      // The navigator is gone; the overlay went away with it.
     }
   }
 }

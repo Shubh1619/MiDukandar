@@ -1208,7 +1208,8 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
   Future<Map<String, dynamic>?> _handleCreateUdhaari(Map<String, dynamic> payload) async {
     try {
       final result = await widget.apiService.createUdhaari(payload);
-      unawaited(_refreshCurrentSection());
+      // UdhaariScreen reloads its own list after this returns. Recycling the
+      // section here would dispose it while its loading dialog is still open.
       unawaited(_reloadStats());
       return result;
     } catch (error) {
@@ -1234,7 +1235,8 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
         mode: mode,
         note: note,
       );
-      unawaited(_refreshCurrentSection());
+      // The Udhaari screen refreshes itself; recycling it here can leave its
+      // loading dialog orphaned on the root navigator.
       unawaited(_reloadStats());
       _maybeShowInterstitial();
       return result;

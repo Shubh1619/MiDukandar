@@ -92,4 +92,48 @@ void main() {
     expect(disposed, isTrue);
     expect(find.text('Add udhaari'), findsNothing);
   });
+
+  testWidgets('loading overlay can be hidden after its screen is disposed',
+      (tester) async {
+    final showButton = ValueNotifier<bool>(true);
+    addTearDown(showButton.dispose);
+    addTearDown(() => AppDialogs.hideLoading());
+
+    await tester.pumpWidget(
+      MaterialApp(
+        locale: const Locale('en'),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: ValueListenableBuilder<bool>(
+          valueListenable: showButton,
+          builder: (context, visible, _) {
+            if (!visible) return const SizedBox.shrink();
+            return Builder(
+              builder: (screenContext) => Center(
+                child: ElevatedButton(
+                  onPressed: () => AppDialogs.showLoading(screenContext),
+                  child: const Text('Show loading'),
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Show loading'));
+    // The spinner animates forever, so pumpAndSettle would time out here.
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(find.text('Please wait...'), findsOneWidget);
+
+    // Dispose the widget whose context opened the dialog. The root navigator
+    // (and therefore the dialog) stays alive, just like a section refresh.
+    showButton.value = false;
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(find.text('Please wait...'), findsOneWidget);
+
+    AppDialogs.hideLoading();
+    await tester.pumpAndSettle();
+    expect(find.text('Please wait...'), findsNothing);
+  });
 }

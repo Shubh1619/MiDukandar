@@ -606,7 +606,8 @@ class _UdhaariScreenState extends State<UdhaariScreen> {
       if (context.mounted) AppDialogs.showError(context, l.errCreateUdhaari('$e'));
       return;
     } finally {
-      if (context.mounted) AppDialogs.hideLoading(context);
+      // Safe even when a section refresh disposed this screen mid-request.
+      AppDialogs.hideLoading();
     }
 
     // SMS_MODE=device: the API does not send; it returns the reserved message
@@ -644,9 +645,7 @@ class _UdhaariScreenState extends State<UdhaariScreen> {
       error = e.toString();
     } finally {
       isLoading = false;
-      if (context.mounted) {
-        AppDialogs.hideLoading(context);
-      }
+      AppDialogs.hideLoading();
     }
 
     if (!context.mounted) return;
@@ -894,9 +893,7 @@ class _UdhaariScreenState extends State<UdhaariScreen> {
         AppDialogs.showSuccess(context, l.udhrPaymentReceived);
       }
     } finally {
-      if (context.mounted) {
-        AppDialogs.hideLoading(context);
-      }
+      AppDialogs.hideLoading();
     }
 
     // SMS_MODE=device: the API reserved a thank-you message and returned it
