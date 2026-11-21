@@ -62,10 +62,9 @@ class MainActivity : FlutterActivity() {
             PackageManager.PERMISSION_GRANTED
 
     /**
-     * False in this build: the manifest does not request SEND_SMS or
-     * READ_PHONE_STATE, so there is nothing to ask the user for. Kept so the
-     * channel reports a clean "not granted" instead of firing a permission
-     * request that Android would deny immediately.
+     * True when both SMS permissions are declared in the manifest. Without this
+     * check the channel would fire a permission request Android rejects
+     * immediately, leaving the app stuck in the composer fallback.
      */
     private fun declaresSmsPermissions(): Boolean {
         val declared = packageManager
@@ -114,9 +113,9 @@ class MainActivity : FlutterActivity() {
     }
 
     private fun requestPermissions(result: MethodChannel.Result) {
-        // The manifest intentionally does not declare these restricted
-        // permissions (Play policy), so asking for them would do nothing except
-        // log a denial. Report "not granted" and let Dart open the SMS app.
+        // Both permissions are declared in the manifest, so this request can
+        // actually grant direct SIM sending. If they are missing, fall back to
+        // the SMS composer instead of firing a request Android will deny.
         if (!declaresSmsPermissions()) {
             result.success(false)
             return
