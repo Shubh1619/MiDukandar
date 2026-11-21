@@ -6,8 +6,8 @@ import { money } from "./money.js";
  * Every message sent to an Indian number must match a DLT-registered
  * template byte for byte, with the same number of `{#var#}` placeholders in
  * the same order. The constant body below is the text to register with the
- * provider / DLT portal; `renderUdhaariCreatedSms` fills it in for the audit
- * log and for gateways that accept a fully rendered message.
+ * provider / DLT portal; the `renderUdhaari*` helpers fill them in for the
+ * audit log and for gateways that accept a fully rendered message.
  */
 
 export const UDHAARI_TEMPLATE_KEY = "UDHAARI_CREATED";
@@ -20,7 +20,13 @@ export const UDHAARI_PAYMENT_TEMPLATE_KEY = "UDHAARI_PAYMENT";
 
 /** Register this exact text (4 variables) with the DLT portal. */
 export const UDHAARI_PAYMENT_TEMPLATE_BODY =
-  "Dear {#var#}, Rs.{#var#} received towards your udhaari at {#var#}. Outstanding: Rs.{#var#}. - MiDukandar";
+  "Dear {#var#}, Rs.{#var#} paid towards your udhaari at {#var#}. Outstanding: Rs.{#var#}. - MiDukandar";
+
+export const UDHAARI_REMINDER_TEMPLATE_KEY = "UDHAARI_REMINDER";
+
+/** Register this exact text (3 variables) with the DLT portal. */
+export const UDHAARI_REMINDER_TEMPLATE_BODY =
+  "Dear {#var#}, Rs.{#var#} udhaari is pending at {#var#}. Please pay soon. - MiDukandar";
 
 /** Single GSM-7 segment. Longer bodies cost more credits and can be split. */
 export const GSM_SEGMENT_LIMIT = 160;
@@ -74,27 +80,32 @@ export function smsSegments(body: string): number {
 }
 
 export function renderUdhaariCreatedSms(input: UdhaariSmsInput): UdhaariSmsContent {
-  return render(
-    UDHAARI_TEMPLATE_BODY,
-    input,
-  );
+  return render(UDHAARI_TEMPLATE_BODY, variablesFor(input));
 }
 
 export function renderUdhaariPaymentSms(input: UdhaariSmsInput): UdhaariSmsContent {
-  return render(
-    UDHAARI_PAYMENT_TEMPLATE_BODY,
-    input,
-  );
+  return render(UDHAARI_PAYMENT_TEMPLATE_BODY, variablesFor(input));
 }
 
-function render(templateBody: string, input: UdhaariSmsInput): UdhaariSmsContent {
-  const variables = [
+/** Manual reminder for one unpaid entry: name, remaining amount, shop name. */
+export function renderUdhaariReminderSms(input: UdhaariSmsInput): UdhaariSmsContent {
+  return render(UDHAARI_REMINDER_TEMPLATE_BODY, [
+    clamp(input.customerName || "Customer", 24),
+    clamp(formatSmsAmount(input.amount), 12),
+    clamp(input.shopName || "your shop", 28),
+  ]);
+}
+
+function variablesFor(input: UdhaariSmsInput): string[] {
+  return [
     clamp(input.customerName || "Customer", 24),
     clamp(formatSmsAmount(input.amount), 12),
     clamp(input.shopName || "your shop", 28),
     clamp(formatSmsAmount(input.outstanding), 12),
   ];
+}
 
+function render(templateBody: string, variables: string[]): UdhaariSmsContent {
   let body = templateBody;
   for (const value of variables) {
     body = body.replace("{#var#}", value);

@@ -1436,6 +1436,32 @@ class AppLocalizationsEn extends AppLocalizations {
   String get udhrRecordPayment => 'Receive payment';
 
   @override
+  String udhrReminderFailed(Object error) {
+    return 'Could not send reminder: $error';
+  }
+
+  @override
+  String get udhrReminderSent => 'Reminder sent via SMS.';
+
+  @override
+  String get udhrReminderUnavailable =>
+      'Reminder SMS could not be sent. Check SMS settings or the daily limit.';
+
+  @override
+  String get udhrSearchCustomers => 'Search customer name or mobile';
+
+  @override
+  String get udhrSendReminder => 'Send SMS reminder';
+
+  @override
+  String udhrSendReminderMessage(Object name) {
+    return 'Send a payment reminder SMS to $name?';
+  }
+
+  @override
+  String get udhrNoSearchResults => 'No matching customers';
+
+  @override
   String get udhrTitle => 'Customer Udhaar';
 
   @override

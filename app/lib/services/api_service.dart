@@ -1126,6 +1126,15 @@ class ApiService {
     );
   }
 
+  /// Asks the backend to reserve a manual SMS reminder for one unpaid entry.
+  /// In device mode the response carries `pendingSms` for the phone to send.
+  Future<Map<String, dynamic>> sendUdhaariReminder(String entryId) async {
+    return _request(
+      '/api/udhaari/${Uri.encodeComponent(entryId)}/remind',
+      method: 'POST',
+    );
+  }
+
   Future<Map<String, dynamic>> receiveCustomerPayment({
     required String customerId,
     required num amount,

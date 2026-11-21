@@ -924,6 +924,19 @@
   "udhrReceive": "Receive",
   "udhrReceivePaymentFrom": "Receive payment from {name}",
   "udhrRecordPayment": "Receive payment",
+  "udhrReminderFailed": "Could not send reminder: {error}",
+  "@udhrReminderFailed": {
+    "description": "Error shown when the reminder API request fails."
+  },
+  "udhrReminderSent": "Reminder sent via SMS.",
+  "udhrReminderUnavailable": "Reminder SMS could not be sent. Check SMS settings or the daily limit.",
+  "udhrSearchCustomers": "Search customer name or mobile",
+  "udhrSendReminder": "Send SMS reminder",
+  "udhrSendReminderMessage": "Send a payment reminder SMS to {name}?",
+  "@udhrSendReminderMessage": {
+    "description": "Confirmation shown before sending a manual udhaari reminder."
+  },
+  "udhrNoSearchResults": "No matching customers",
   "udhrTitle": "Customer Udhaar",
   "udhrTotalAmount": "Total: {amount}",
   "udhrTotalReceivables": "Total Receivables",

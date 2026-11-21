@@ -2674,6 +2674,48 @@ abstract class AppLocalizations {
   /// **'Receive payment'**
   String get udhrRecordPayment;
 
+  /// Error shown when the reminder API request fails.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not send reminder: {error}'**
+  String udhrReminderFailed(Object error);
+
+  /// No description provided for @udhrReminderSent.
+  ///
+  /// In en, this message translates to:
+  /// **'Reminder sent via SMS.'**
+  String get udhrReminderSent;
+
+  /// No description provided for @udhrReminderUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Reminder SMS could not be sent. Check SMS settings or the daily limit.'**
+  String get udhrReminderUnavailable;
+
+  /// No description provided for @udhrSearchCustomers.
+  ///
+  /// In en, this message translates to:
+  /// **'Search customer name or mobile'**
+  String get udhrSearchCustomers;
+
+  /// No description provided for @udhrSendReminder.
+  ///
+  /// In en, this message translates to:
+  /// **'Send SMS reminder'**
+  String get udhrSendReminder;
+
+  /// Confirmation shown before sending a manual udhaari reminder.
+  ///
+  /// In en, this message translates to:
+  /// **'Send a payment reminder SMS to {name}?'**
+  String udhrSendReminderMessage(Object name);
+
+  /// No description provided for @udhrNoSearchResults.
+  ///
+  /// In en, this message translates to:
+  /// **'No matching customers'**
+  String get udhrNoSearchResults;
+
   /// No description provided for @udhrTitle.
   ///
   /// In en, this message translates to:

@@ -44,6 +44,7 @@ class _UdhaariScreenState extends State<UdhaariScreen> {
   List<UdhaariCustomer> _udhaari = const [];
   List<Customer> _customers = const [];
   List<Contact> _contacts = const [];
+  final TextEditingController _searchController = TextEditingController();
 
   @override
   void initState() {
@@ -55,6 +56,26 @@ class _UdhaariScreenState extends State<UdhaariScreen> {
   void didUpdateWidget(covariant UdhaariScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.refreshToken != widget.refreshToken) _load(silent: true);
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  /// Customer names and mobiles are searched locally so typing is instant and
+  /// works even while the 15s silent refresh is in flight.
+  List<UdhaariCustomer> get _filteredUdhaari {
+    final query = _searchController.text.toLowerCase().trim();
+    if (query.isEmpty) return _udhaari;
+    return _udhaari
+        .where(
+          (u) =>
+              u.name.toLowerCase().contains(query) ||
+              (u.mobile ?? '').contains(query),
+        )
+        .toList();
   }
 
   Future<void> _load({bool silent = false}) async {
@@ -143,6 +164,8 @@ class _UdhaariScreenState extends State<UdhaariScreen> {
       );
     }
 
+    final visibleUdhaari = _filteredUdhaari;
+    // The headline stays the true store total even while the list is filtered.
     final totalReceivables = _udhaari.fold<num>(0, (sum, u) => sum + u.balance);
 
     return Padding(
@@ -236,25 +259,54 @@ class _UdhaariScreenState extends State<UdhaariScreen> {
               ],
             ),
           ],
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _searchController,
+            decoration: InputDecoration(
+              labelText: l.udhrSearchCustomers,
+              prefixIcon: const Icon(Icons.search),
+              suffixIcon: _searchController.text.isNotEmpty
+                  ? IconButton(
+                      icon: const Icon(Icons.clear),
+                      onPressed: () {
+                        _searchController.clear();
+                        setState(() {});
+                      },
+                    )
+                  : null,
+            ),
+            onChanged: (_) => setState(() {}),
+          ),
+          const SizedBox(height: 12),
           Expanded(
-            child: _udhaari.isEmpty
+            child: visibleUdhaari.isEmpty
                 ? Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Icon(Icons.account_balance_wallet_outlined, size: 64, color: Colors.grey),
+                        Icon(
+                          _searchController.text.trim().isEmpty
+                              ? Icons.account_balance_wallet_outlined
+                              : Icons.search_off,
+                          size: 64,
+                          color: Colors.grey,
+                        ),
                         const SizedBox(height: 12),
-                        Text(l.udhrNoRecords, style: const TextStyle(color: Colors.grey)),
+                        Text(
+                          _searchController.text.trim().isEmpty
+                              ? l.udhrNoRecords
+                              : l.udhrNoSearchResults,
+                          style: const TextStyle(color: Colors.grey),
+                        ),
                       ],
                     ),
                   )
                 : ListView.separated(
                     physics: const AlwaysScrollableScrollPhysics(),
-                    itemCount: _udhaari.length,
+                    itemCount: visibleUdhaari.length,
                     separatorBuilder: (_, _) => const SizedBox(height: 10),
                     itemBuilder: (context, index) {
-                      final u = _udhaari[index];
+                      final u = visibleUdhaari[index];
                       final isClear = u.balance.toDouble() <= 0;
                       return Card(
                         elevation: 2,
@@ -367,6 +419,7 @@ class _UdhaariScreenState extends State<UdhaariScreen> {
         }
       } catch (_) {}
     }
+    if (!context.mounted) return;
 
     final result = await AppDialogs.showFormSheet<Map<String, dynamic>>(
       context,
@@ -439,9 +492,10 @@ class _UdhaariScreenState extends State<UdhaariScreen> {
                       ),
                     ],
                     onChanged: (v) {
+                      if (v.isEmpty) return;
                       setSheetState(() {
                         selectedCustomer = v;
-                        if (v != null && v.startsWith('contact:')) {
+                        if (v.startsWith('contact:')) {
                           final parts = v.split(':');
                           if (parts.length >= 3) {
                             final phone = parts.sublist(2).join(':');
@@ -457,7 +511,7 @@ class _UdhaariScreenState extends State<UdhaariScreen> {
                               if (name2.isNotEmpty) newNameController.text = name2;
                             }
                           }
-                        } else if (v != null && v != '__new__') {
+                        } else if (v != '__new__') {
                           final matches = _customers.where((x) => x.id == v);
                           if (matches.isNotEmpty) {
                             final c = matches.first;
@@ -784,6 +838,25 @@ class _UdhaariScreenState extends State<UdhaariScreen> {
                                 ),
                               )),
                         ],
+                        if (!paid) ...[
+                          const SizedBox(height: 10),
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: FilledButton.tonalIcon(
+                              onPressed: () async {
+                                Navigator.pop(sheetContext);
+                                await _sendSmsReminder(context, u, e);
+                              },
+                              icon: const Icon(Icons.sms_outlined, size: 16),
+                              label: Text(l.udhrSendReminder),
+                              style: FilledButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                minimumSize: const Size(0, 32),
+                                textStyle: const TextStyle(fontSize: 12),
+                              ),
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                   );
@@ -793,6 +866,46 @@ class _UdhaariScreenState extends State<UdhaariScreen> {
         );
       },
     );
+  }
+
+  Future<void> _sendSmsReminder(
+    BuildContext context,
+    UdhaariCustomer u,
+    UdhaariEntry e,
+  ) async {
+    final l = AppLocalizations.of(context)!;
+    final confirmed = await AppDialogs.showConfirm(
+      context,
+      title: l.udhrSendReminder,
+      message: l.udhrSendReminderMessage(u.name),
+      confirmLabel: l.udhrSendReminder,
+    );
+    if (!confirmed || !context.mounted) return;
+
+    AppDialogs.showLoading(context);
+    Map<String, dynamic>? response;
+    try {
+      response = await widget.apiService.sendUdhaariReminder(e.id);
+    } catch (error) {
+      if (context.mounted) {
+        AppDialogs.showError(context, l.udhrReminderFailed('$error'));
+      }
+      return;
+    } finally {
+      AppDialogs.hideLoading();
+    }
+
+    if (!context.mounted) return;
+    final pending = response['pendingSms'];
+    if (pending is Map) {
+      await DeviceSmsDelivery(
+        apiService: widget.apiService,
+        chooseSim: (sims) => showSimPicker(context, sims),
+      ).handle(Map<String, dynamic>.from(pending));
+      if (context.mounted) AppDialogs.showSuccess(context, l.udhrReminderSent);
+    } else if (context.mounted) {
+      AppDialogs.showWarning(context, l.udhrReminderUnavailable);
+    }
   }
 
   Future<void> _showReceivePayment(BuildContext context, UdhaariCustomer u, NumberFormat formatCurrency) async {

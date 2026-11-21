@@ -1437,6 +1437,32 @@ class AppLocalizationsHi extends AppLocalizations {
   String get udhrRecordPayment => 'भुगतान प्राप्त करें';
 
   @override
+  String udhrReminderFailed(Object error) {
+    return 'रिमाइंडर नहीं भेजा जा सका: $error';
+  }
+
+  @override
+  String get udhrReminderSent => 'रिमाइंडर SMS से भेज दिया गया।';
+
+  @override
+  String get udhrReminderUnavailable =>
+      'रिमाइंडर SMS नहीं भेजा जा सका। SMS सेटिंग्स या दैनिक सीमा जांचें।';
+
+  @override
+  String get udhrSearchCustomers => 'ग्राहक का नाम या मोबाइल खोजें';
+
+  @override
+  String get udhrSendReminder => 'SMS रिमाइंडर भेजें';
+
+  @override
+  String udhrSendReminderMessage(Object name) {
+    return '$name को भुगतान रिमाइंडर SMS भेजें?';
+  }
+
+  @override
+  String get udhrNoSearchResults => 'कोई मेल खाने वाला ग्राहक नहीं';
+
+  @override
   String get udhrTitle => 'ग्राहक उधारी';
 
   @override

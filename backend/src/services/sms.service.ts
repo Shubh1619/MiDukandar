@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { config } from "../config.js";
 import { q, qOne } from "../db/pool.js";
 import { istDateKey } from "../lib/ist.js";
@@ -5,15 +6,25 @@ import { logger, maskPhone } from "../lib/logger.js";
 import { normalizeIndianMobile } from "../lib/phone.js";
 import { getPlatformSettings } from "../lib/platform-settings.js";
 import { sendSms } from "../lib/sms-provider.js";
-import { renderUdhaariCreatedSms, renderUdhaariPaymentSms, UDHAARI_PAYMENT_TEMPLATE_KEY, UDHAARI_TEMPLATE_KEY, type UdhaariSmsContent } from "../lib/sms-template.js";
+import {
+  renderUdhaariCreatedSms,
+  renderUdhaariPaymentSms,
+  renderUdhaariReminderSms,
+  UDHAARI_PAYMENT_TEMPLATE_KEY,
+  UDHAARI_REMINDER_TEMPLATE_KEY,
+  UDHAARI_TEMPLATE_KEY,
+  type UdhaariSmsContent,
+} from "../lib/sms-template.js";
 
 /**
  * Udhaari notification SMS.
  *
- * `notifyUdhaariCreated` (POST /api/udhaari) and `notifyUdhaariPayment`
- * (POST /api/payments/receive, POST /api/udhaari/:id/pay) are called after the
- * money transaction has committed and are not awaited by the caller, so a slow
- * or down gateway can never delay — let alone fail — the ledger entry itself.
+ * `notifyUdhaariCreated` (POST /api/udhaari), `notifyUdhaariPayment`
+ * (POST /api/payments/receive, POST /api/udhaari/:id/pay) and
+ * `notifyUdhaariReminder` (POST /api/udhaari/:id/remind) are called after the
+ * money transaction has committed (or, for a reminder, on demand) and are not
+ * awaited by the caller, so a slow or down gateway can never delay — let alone
+ * fail — the ledger entry itself.
  *
  * Flow:
  *   1. Load the store/customer settings and decide whether to send.
@@ -90,7 +101,7 @@ export interface UdhaariSmsInput {
   createdById: string | null;
 }
 
-type SmsReferenceType = "UDHAARI_ENTRY" | "UDHAARI_PAYMENT";
+type SmsReferenceType = "UDHAARI_ENTRY" | "UDHAARI_PAYMENT" | "UDHAARI_REMINDER";
 
 interface QueueSmsInput extends UdhaariSmsInput {
   referenceType: SmsReferenceType;
@@ -191,6 +202,26 @@ export async function notifyUdhaariPayment(
     referenceId: input.paymentId,
     templateKey: UDHAARI_PAYMENT_TEMPLATE_KEY,
     render: renderUdhaariPaymentSms,
+  });
+}
+
+/**
+ * Queues a manual payment reminder for one unpaid udhaari entry.
+ *
+ * Unlike a payment or an entry, a reminder is not a one-off event: the owner
+ * may send several. A fresh UUID keeps each send idempotent on its own while
+ * avoiding the unique `(store, reference_type, reference_id)` index that
+ * would otherwise block a second reminder for the same entry.
+ */
+export async function notifyUdhaariReminder(
+  input: UdhaariSmsInput,
+): Promise<PendingSms | null> {
+  return queueUdhaariSms({
+    ...input,
+    referenceType: "UDHAARI_REMINDER",
+    referenceId: randomUUID(),
+    templateKey: UDHAARI_REMINDER_TEMPLATE_KEY,
+    render: renderUdhaariReminderSms,
   });
 }
 

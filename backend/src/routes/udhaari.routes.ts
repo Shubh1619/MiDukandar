@@ -7,7 +7,7 @@ import { parse, paginationSchema } from "../lib/validate.js";
 import { authenticate, requireStore, requirePermission, getAuth, type AuthenticatedRequest } from "../middlewares/auth.js";
 import { createLedgerEntry } from "../services/ledger.service.js";
 import { insertPayment } from "../services/payment.service.js";
-import { notifyUdhaariCreated, notifyUdhaariPayment, type PendingSms } from "../services/sms.service.js";
+import { notifyUdhaariCreated, notifyUdhaariPayment, notifyUdhaariReminder, type PendingSms } from "../services/sms.service.js";
 import { dec, money } from "../lib/money.js";
 import { logger } from "../lib/logger.js";
 
@@ -614,6 +614,69 @@ export async function udhaariRoutes(app: FastifyInstance) {
       paid: result.newPaid.toNumber(),
       remaining: result.remaining.toNumber(),
       status: entryStatus(result.newPaid.toNumber(), result.total.toNumber()),
+      ...(pendingSms ? { pendingSms } : {}),
+    });
+  });
+
+  // Send a manual SMS reminder for one unpaid udhaari entry.
+  app.post("/:id/remind", { preHandler: [authenticate, requirePermission("can_manage_udhaari")] }, async (request: AuthenticatedRequest, reply) => {
+    const storeId = requireStore(request);
+    const { id } = request.params as { id: string };
+    const userId = getAuth(request).id;
+
+    const entry = await qOne<Row>(
+      `SELECT e.id, e.customer_id, e.amount, c.mobile AS customer_mobile,
+              COALESCE(SUM(up.amount), 0) AS paid
+         FROM udhaari_entries e
+         JOIN customers c ON c.id = e.customer_id AND c.store_id = e.store_id
+         LEFT JOIN udhaari_payments up
+           ON up.udhaari_entry_id = e.id AND up.store_id = e.store_id
+        WHERE e.id = $1 AND e.store_id = $2
+        GROUP BY e.id, e.customer_id, e.amount, c.mobile`,
+      [id, storeId],
+    );
+    if (!entry) throw ApiError.notFound("Udhaari entry not found");
+
+    const remaining = money(dec(entry.amount ?? 0).minus(dec(entry.paid ?? 0)));
+    if (remaining.lte(0)) {
+      throw ApiError.badRequest("This udhaari entry is already paid.");
+    }
+
+    logger.info("udhaari: reminder requested", { storeId, entryId: id, by: userId });
+
+    const smsInput = {
+      storeId,
+      customerId: entry.customer_id as string,
+      customerMobile: (entry.customer_mobile as string | null) ?? null,
+      amount: remaining.toNumber(),
+      createdById: userId,
+    };
+
+    // Device mode needs the rendered message in the response so the phone can
+    // send it from the chosen SIM; other modes stay fire-and-forget.
+    let pendingSms: PendingSms | null = null;
+    if (config.smsMode === "device") {
+      pendingSms = await notifyUdhaariReminder(smsInput).catch((err) => {
+        logger.error("sms: reminder notify call failed", {
+          storeId,
+          entryId: id,
+          error: String(err),
+        });
+        return null;
+      });
+    } else {
+      void notifyUdhaariReminder(smsInput).catch((err) => {
+        logger.error("sms: reminder notify call failed", {
+          storeId,
+          entryId: id,
+          error: String(err),
+        });
+      });
+    }
+
+    return reply.status(200).send({
+      ok: true,
+      remaining: remaining.toNumber(),
       ...(pendingSms ? { pendingSms } : {}),
     });
   });
