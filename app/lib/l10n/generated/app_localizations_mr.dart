@@ -1112,6 +1112,23 @@ class AppLocalizationsMr extends AppLocalizations {
       'ज्या सिममध्ये एसएमएस रिचार्ज आहे ती निवडा. हा फोन उधारी संदेशांसाठी ती लक्षात ठेवेल.';
 
   @override
+  String get smsSimSettingTitle => 'SMS सिम';
+
+  @override
+  String get smsSimSettingSubtitle =>
+      'या फोनवरून उधारी संदेश पाठवण्यासाठी सिम निवडा.';
+
+  @override
+  String get smsSimSaved => 'SMS सिम अपडेट केले';
+
+  @override
+  String get smsSimUnavailable => 'या फोनमध्ये कोणतीही सक्रिय सिम आढळली नाही';
+
+  @override
+  String get smsSimPermissionDenied =>
+      'सिम निवडण्यासाठी SMS आणि फोन परवानगी द्या';
+
+  @override
   String smsSimSlot(int slot) {
     return 'सिम $slot';
   }

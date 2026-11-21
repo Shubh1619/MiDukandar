@@ -821,6 +821,11 @@
   "smsDeviceNote": "Opens your phone's SMS app with the message ready. You tap Send, and it goes from your SIM. Entries made on another device or on the web are not texted.",
   "smsChooseSimTitle": "Which SIM should send the SMS?",
   "smsChooseSimBody": "Pick the SIM that has SMS recharge. This phone remembers it for udhaari messages.",
+  "smsSimSettingTitle": "SMS SIM",
+  "smsSimSettingSubtitle": "Choose which SIM sends Udhaari messages from this phone.",
+  "smsSimSaved": "SMS SIM updated",
+  "smsSimUnavailable": "No active SIM found on this phone",
+  "smsSimPermissionDenied": "Allow SMS and phone permissions to choose a SIM",
   "smsSimSlot": "SIM {slot}",
   "@smsSimSlot": {
     "placeholders": {

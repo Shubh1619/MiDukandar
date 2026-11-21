@@ -34,11 +34,9 @@ import 'screens/udhaari_screen.dart';
 import 'screens/users_screen.dart';
 import 'services/api_service.dart';
 import 'theme/md_design.dart';
-import 'services/device_sms.dart';
 import 'widgets/app_dialogs.dart';
 import 'widgets/navy_drawer.dart';
 import 'widgets/profile_menu.dart';
-import 'widgets/sim_picker.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -80,76 +78,6 @@ class AuthGate extends StatefulWidget {
 
   @override
   State<AuthGate> createState() => _AuthGateState();
-}
-
-class _SimGate extends StatefulWidget {
-  const _SimGate({required this.child});
-
-  final Widget child;
-
-  @override
-  State<_SimGate> createState() => _SimGateState();
-}
-
-class _SimGateState extends State<_SimGate> {
-  static const String _prefsKey = 'sim_checked_done';
-  bool _checked = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _check();
-  }
-
-  Future<void> _check() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final done = prefs.getBool(_prefsKey) ?? false;
-      if (done) {
-        if (!mounted) return;
-        setState(() {
-          _checked = true;
-        });
-        return;
-      }
-      final sims = await DeviceSms().activeSims();
-      if (!mounted) return;
-      if (sims.length >= 2) {
-        final chosen = await showSimPicker(context, sims);
-        try {
-          final prefs2 = await SharedPreferences.getInstance();
-          if (chosen != null) {
-            await prefs2.setInt('sms_subscription_id', chosen);
-          }
-          await prefs2.setBool(_prefsKey, true);
-        } catch (_) {}
-        if (!mounted) return;
-        setState(() {
-          _checked = true;
-        });
-      } else {
-        try {
-          final prefs2 = await SharedPreferences.getInstance();
-          await prefs2.setBool(_prefsKey, true);
-        } catch (_) {}
-        if (!mounted) return;
-        setState(() {
-          _checked = true;
-        });
-      }
-    } catch (_) {
-      if (!mounted) return;
-      setState(() {
-        _checked = true;
-      });
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (!_checked) return const _SplashScreen();
-    return widget.child;
-  }
 }
 
 class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
@@ -483,15 +411,13 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
         _requestRequiredPermissions();
       }
     });
-    return _SimGate(
-      child: AppShell(
-        apiService: _apiService,
-        user: _user,
-        store: _store,
-        stats: _stats,
-        statsLoading: _statsLoading,
-        onSignOut: _signOut,
-      ),
+    return AppShell(
+      apiService: _apiService,
+      user: _user,
+      store: _store,
+      stats: _stats,
+      statsLoading: _statsLoading,
+      onSignOut: _signOut,
     );
   }
 }

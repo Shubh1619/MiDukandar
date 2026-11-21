@@ -1110,6 +1110,23 @@ class AppLocalizationsEn extends AppLocalizations {
       'Pick the SIM that has SMS recharge. This phone remembers it for udhaari messages.';
 
   @override
+  String get smsSimSettingTitle => 'SMS SIM';
+
+  @override
+  String get smsSimSettingSubtitle =>
+      'Choose which SIM sends Udhaari messages from this phone.';
+
+  @override
+  String get smsSimSaved => 'SMS SIM updated';
+
+  @override
+  String get smsSimUnavailable => 'No active SIM found on this phone';
+
+  @override
+  String get smsSimPermissionDenied =>
+      'Allow SMS and phone permissions to choose a SIM';
+
+  @override
   String smsSimSlot(int slot) {
     return 'SIM $slot';
   }

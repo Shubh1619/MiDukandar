@@ -6,9 +6,12 @@ import '../l10n/generated/app_localizations.dart';
 import '../l10n/locale_controller.dart';
 import '../models/app_models.dart';
 import '../services/api_service.dart';
+import '../services/device_sms.dart';
+import '../services/device_sms_delivery.dart';
 import '../theme/md_design.dart';
 import '../widgets/app_dialogs.dart';
 import '../widgets/md_inputs.dart';
+import '../widgets/sim_picker.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({
@@ -173,6 +176,32 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
+  Future<void> _changeSmsSim() async {
+    final l = AppLocalizations.of(context)!;
+    final sms = DeviceSms();
+
+    var granted = await sms.hasPermission();
+    if (!granted) granted = await sms.requestPermission();
+    if (!mounted) return;
+    if (!granted) {
+      AppDialogs.showError(context, l.smsSimPermissionDenied);
+      return;
+    }
+
+    final sims = await sms.activeSims();
+    if (!mounted) return;
+    if (sims.isEmpty) {
+      AppDialogs.showWarning(context, l.smsSimUnavailable);
+      return;
+    }
+
+    final chosen = await showSimPicker(context, sims);
+    if (chosen == null || !mounted) return;
+    await SharedPreferencesSimPreference().save(chosen);
+    if (!mounted) return;
+    AppDialogs.showSuccess(context, l.smsSimSaved);
+  }
+
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
@@ -244,6 +273,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   // LocaleController) and persist for the next launch.
                   LocaleController.instance.setLocale(code);
                 },
+              ),
+            ),
+            const SizedBox(height: 20),
+            _SectionTitle(l.smsSimSettingTitle, Icons.sim_card_outlined),
+            const SizedBox(height: 12),
+            MdCard(
+              child: ListTile(
+                leading: const Icon(Icons.sim_card_outlined, color: MdColors.navy700),
+                title: Text(l.smsSimSettingTitle),
+                subtitle: Text(l.smsSimSettingSubtitle),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: _changeSmsSim,
               ),
             ),
             const SizedBox(height: 20),

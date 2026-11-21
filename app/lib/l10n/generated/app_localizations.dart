@@ -2098,6 +2098,36 @@ abstract class AppLocalizations {
   /// **'Pick the SIM that has SMS recharge. This phone remembers it for udhaari messages.'**
   String get smsChooseSimBody;
 
+  /// No description provided for @smsSimSettingTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'SMS SIM'**
+  String get smsSimSettingTitle;
+
+  /// No description provided for @smsSimSettingSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose which SIM sends Udhaari messages from this phone.'**
+  String get smsSimSettingSubtitle;
+
+  /// No description provided for @smsSimSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'SMS SIM updated'**
+  String get smsSimSaved;
+
+  /// No description provided for @smsSimUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'No active SIM found on this phone'**
+  String get smsSimUnavailable;
+
+  /// No description provided for @smsSimPermissionDenied.
+  ///
+  /// In en, this message translates to:
+  /// **'Allow SMS and phone permissions to choose a SIM'**
+  String get smsSimPermissionDenied;
+
   /// No description provided for @smsSimSlot.
   ///
   /// In en, this message translates to:

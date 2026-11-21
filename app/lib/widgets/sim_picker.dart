@@ -6,75 +6,52 @@ import '../theme/md_design.dart';
 
 /// Asks which SIM should send the udhaari SMS.
 ///
-/// Only shown when the phone reports two or more active SIMs; a single SIM is
-/// used without prompting. Returns the chosen subscription id, or null when the
-/// sheet is dismissed.
+/// Used both by the Udhaari send path and by Settings → SMS SIM. Returns the
+/// chosen subscription id, or null when the dialog is dismissed. A centered
+/// dialog is used so the choice rows never sit under the app's bottom nav.
 Future<int?> showSimPicker(BuildContext context, List<DeviceSim> sims) {
-  return showModalBottomSheet<int>(
+  return showDialog<int>(
     context: context,
-    showDragHandle: true,
-    builder: (sheetContext) {
-      final l = AppLocalizations.of(sheetContext)!;
-      return SafeArea(
-        child: Column(
+    builder: (dialogContext) {
+      final l = AppLocalizations.of(dialogContext)!;
+      return AlertDialog(
+        title: Text(l.smsChooseSimTitle),
+        content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 4, 20, 6),
-              child: Text(
-                l.smsChooseSimTitle,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700,
-                  color: MdColors.navy900,
+            Text(
+              l.smsChooseSimBody,
+              style: const TextStyle(
+                fontSize: 12,
+                color: MdColors.mutedForeground,
+              ),
+            ),
+            const SizedBox(height: 12),
+            for (final sim in sims)
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: Container(
+                  width: 34,
+                  height: 34,
+                  decoration: BoxDecoration(
+                    color: MdColors.navy50,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(
+                    Icons.sim_card_outlined,
+                    size: 18,
+                    color: MdColors.navy900,
+                  ),
                 ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
-              child: Text(
-                l.smsChooseSimBody,
-                style: const TextStyle(
-                  fontSize: 12,
-                  color: MdColors.mutedForeground,
+                title: Text(
+                  sim.label,
+                  style: const TextStyle(fontWeight: FontWeight.w600),
                 ),
+                subtitle: Text(l.smsSimSlot(sim.slotNumber)),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => Navigator.pop(dialogContext, sim.subscriptionId),
               ),
-            ),
-            Flexible(
-              child: ListView.separated(
-                shrinkWrap: true,
-                itemCount: sims.length,
-                separatorBuilder: (_, _) =>
-                    const Divider(height: 1, indent: 20, endIndent: 20),
-                itemBuilder: (_, i) {
-                  final sim = sims[i];
-                  return ListTile(
-                    leading: Container(
-                      width: 34,
-                      height: 34,
-                      decoration: BoxDecoration(
-                        color: MdColors.navy50,
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: const Icon(
-                        Icons.sim_card_outlined,
-                        size: 18,
-                        color: MdColors.navy900,
-                      ),
-                    ),
-                    title: Text(
-                      sim.label,
-                      style: const TextStyle(fontWeight: FontWeight.w600),
-                    ),
-                    subtitle: Text(l.smsSimSlot(sim.slotNumber)),
-                    trailing: const Icon(Icons.chevron_right),
-                    onTap: () => Navigator.pop(sheetContext, sim.subscriptionId),
-                  );
-                },
-              ),
-            ),
-            const SizedBox(height: 8),
           ],
         ),
       );
