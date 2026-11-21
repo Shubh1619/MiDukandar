@@ -59,24 +59,6 @@ npm run dev                     # http://localhost:4000
 `NODE_ENV=development` the API refuses to start against a non-local
 `DATABASE_URL` unless `ALLOW_REMOTE_DB_IN_DEV=true`.
 
-#### Copy primary data into the fallback database
-
-The API automatically fails over to `DATABASE_URL_2` when the primary database
-is unreachable (for example, when the Neon quota is exhausted). The fallback
-must contain the same application data, not just the schema:
-
-```bash
-cd backend
-npm run migrate                 # apply the schema to DATABASE_URL_2 first
-SOURCE_DATABASE_URL='postgres://…' npm run migrate:data
-```
-
-`SOURCE_DATABASE_URL` is the primary (DB1) connection string. When omitted, the
-script reads `../.env.prod` and uses its `DIRECT_URL` (or `DATABASE_URL`). It
-upserts every application table by primary key and skips `schema_migrations`,
-so it is safe to re-run. `TARGET_DATABASE_URL` overrides the target when set;
-otherwise `DATABASE_URL_2` is used.
-
 ### 3. Web (Next.js)
 
 ```bash

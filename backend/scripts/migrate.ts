@@ -11,55 +11,18 @@ const migrationsDir =
 const { Client } = pg;
 const DATA_RESET_MIGRATION = "015_reset_application_data_except_superadmins.sql";
 const DATA_RESET_CONFIRMATION = "DELETE_ALL_DATA_EXCEPT_SUPERADMINS";
-
-/** Hostname only — connection strings contain credentials and must never be logged. */
-function safeHost(connectionString: string): string {
-  try {
-    return new URL(connectionString).host;
-  } catch {
-    return "<invalid-url>";
-  }
-}
-
-/**
- * Only a connection-level failure may trigger failover. A SQL error after a
- * statement started must not be retried on another database. Provider quota
- * errors arrive as code 53000 (or in the message), before any migration runs.
- */
-function isFailoverError(err: unknown): boolean {
-  const e = err as { code?: string; message?: string };
-  const code = e?.code ?? "";
-  const message = (e?.message ?? "").toLowerCase();
-  return (
-    ["ECONNREFUSED", "ENOTFOUND", "ETIMEDOUT", "ECONNRESET", "EAI_AGAIN", "57P01", "57P03", "53000"].includes(
-      code,
-    ) ||
-    message.includes("exceeded the quota") ||
-    message.includes("connection terminated unexpectedly") ||
-    message.includes("timeout exceeded when trying to connect")
-  );
-}
-
 // Prefer the direct connection (Neon docs: run migrations/DDL over the
 // non-pooler endpoint; the app uses the pooled DATABASE_URL at runtime).
-// If the primary cannot be reached at all, apply the same migrations to the
-// fallback so the API can boot against it via the pool-level failover.
-const primary = (process.env.DIRECT_URL || process.env.DATABASE_URL)?.trim();
-const fallback = (
-  process.env.DIRECT_URL_2 ||
-  process.env.TARGET_DATABASE_URL ||
-  process.env.DATABASE_URL_2
-)?.trim();
-const candidates = [primary, fallback]
-  .filter((value): value is string => Boolean(value))
-  .filter((value, index, all) => all.indexOf(value) === index);
-
-if (candidates.length === 0) {
-  console.error("DATABASE_URL (or DATABASE_URL_2) is required to run migrations.");
+const connectionString = (process.env.DIRECT_URL || process.env.DATABASE_URL) as string;
+if (!connectionString) {
+  console.error("DATABASE_URL is required to run migrations.");
   process.exit(1);
 }
 
-async function runMigrations(client: pg.Client): Promise<void> {
+async function main() {
+  const client = new Client({ connectionString });
+  await client.connect();
+
   await client.query(`
     CREATE TABLE IF NOT EXISTS schema_migrations (
       id SERIAL PRIMARY KEY,
@@ -115,32 +78,12 @@ async function runMigrations(client: pg.Client): Promise<void> {
     } catch (err) {
       await client.query("ROLLBACK");
       console.error(`FAILED ${file}:`, err instanceof Error ? err.message : err);
-      throw err;
+      process.exit(1);
     }
   }
-}
 
-async function main(): Promise<void> {
-  for (let index = 0; index < candidates.length; index++) {
-    const connectionString = candidates[index];
-    const client = new Client({ connectionString, connectionTimeoutMillis: 10000 });
-    try {
-      await client.connect();
-      await runMigrations(client);
-      console.log(`All migrations applied (${safeHost(connectionString)}).`);
-      return;
-    } catch (err) {
-      if (isFailoverError(err) && index < candidates.length - 1) {
-        console.warn(
-          `migrate: ${safeHost(connectionString)} unavailable (${(err as Error).message}), trying fallback database`,
-        );
-        continue;
-      }
-      throw err;
-    } finally {
-      await client.end().catch(() => {});
-    }
-  }
+  await client.end();
+  console.log("All migrations applied.");
 }
 
 main().catch((err) => {
